@@ -5,30 +5,38 @@
 ## Phase 1: Foundation
 
 ### 1.1 Project Scaffolding
-- [ ] Initialize Next.js 15 project with TypeScript and App Router
+- [x] Initialize Next.js 15 project with TypeScript and App Router
   ```bash
   pnpm dlx create-next-app@latest personalledgr --typescript --tailwind --eslint --app --src-dir
   ```
-- [ ] Install core dependencies
+- [x] Install core dependencies
   ```bash
   pnpm add @prisma/client recharts lucide-react next-themes better-auth
   pnpm add -D prisma
   ```
-- [ ] Install and configure shadcn/ui
+- [x] Install and configure shadcn/ui
   ```bash
   pnpm dlx shadcn@latest init
   pnpm dlx shadcn@latest add button card input label select table dialog sheet tabs badge separator dropdown-menu popover calendar command sonner progress switch
   ```
-- [ ] Create `src/lib/constants.ts` with category list, transaction type enum values, and format helpers
-- [ ] Create `src/lib/utils.ts` with currency formatting, date helpers, uid generator
-- [ ] Set `output: 'standalone'` in `next.config.ts` (required for Docker)
+- [x] Create `src/lib/constants.ts` with category list, transaction type enum values, and format helpers
+- [x] Create `src/lib/utils.ts` with currency formatting, date helpers, uid generator
+- [x] Set `output: 'standalone'` in `next.config.ts` (required for Docker)
 
 ### 1.2 Theme Setup
-- [ ] Install `next-themes`: `pnpm add next-themes`
-- [ ] Create `src/components/theme-provider.tsx` wrapping `ThemeProvider` with `attribute="class"`, `defaultTheme="system"`, `enableSystem`, `storageKey="personalledgr-theme"`
-- [ ] Create `src/components/layout/theme-toggle.tsx` — toggle button with sun/moon icons
-- [ ] Configure Tailwind for dark mode: `darkMode: "class"` in `tailwind.config.ts`
-- [ ] Ensure shadcn/ui CSS variables include both light and dark palettes in `globals.css`
+- [x] Install `next-themes`: `pnpm add next-themes`
+- [x] Create `src/components/theme-provider.tsx` wrapping `ThemeProvider` with `attribute="class"`, `defaultTheme="system"`, `enableSystem`, `storageKey="personalledgr-theme"`
+- [x] Create `src/components/layout/theme-toggle.tsx` — toggle button with sun/moon icons
+- [x] Configure Tailwind for dark mode: `darkMode: "class"` via `@custom-variant dark` in globals.css (Tailwind CSS 4 approach)
+- [x] Update `globals.css` with emerald green color scheme:
+  - **Primary:** emerald-600 (light) / emerald-500 (dark) — buttons, active sidebar items, links, focus rings
+  - **Semantic finance colors** (custom CSS variables):
+    - `--color-positive` — green-500 for income, gains, under-budget
+    - `--color-negative` — red-500 for expenses, losses, over-budget
+    - `--color-transfer` — blue-500 for neutral money movement
+  - **Chart palette:** 5 distinguishable colors tuned per light/dark mode
+  - **Neutral gray** base for backgrounds, cards, borders, muted text
+- [x] Ensure shadcn/ui CSS variables include both light and dark palettes in `globals.css`
 
 ### 1.3 Authentication (Better Auth)
 - [ ] Add `BETTER_AUTH_SECRET` to `.env` (generate via `openssl rand -base64 32`)

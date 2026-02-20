@@ -38,10 +38,11 @@ pnpm dev                 # Next.js dev server
 - **Framework:** Next.js 15 with App Router, TypeScript, `output: 'standalone'`
 - **Auth:** Better Auth with email/password, Prisma adapter
 - **Database:** PostgreSQL 16 (Docker), Prisma ORM
-- **Styling:** Tailwind CSS 4, shadcn/ui components
+- **Styling:** Tailwind CSS 4, shadcn/ui components (neutral base)
 - **Charts:** Recharts
 - **Icons:** lucide-react
 - **Theme:** next-themes (dark/light with system detection, `darkMode: "class"`)
+- **Color scheme:** Emerald green primary, semantic finance colors (green=income, red=expense, blue=transfer)
 - **Cron container:** Separate Node.js Alpine image with `node-cron`, connects directly to DB
 
 ## Core Architecture Principle

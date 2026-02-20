@@ -52,6 +52,7 @@ A self-hosted personal finance application to track all household money flow: in
 | Bank Sync | Plaid (Phase 6) | Industry standard, via Next.js API routes |
 | Language | TypeScript | End-to-end type safety |
 | Theme | Dark + Light mode | Toggle with system preference detection |
+| Color Scheme | Emerald green primary | Finance-appropriate, semantic money colors |
 
 ## Transaction Type System
 
@@ -90,9 +91,10 @@ WHERE type IN ('expense', 'loan_interest', 'interest_charged')
 9. **Credit card grace period** — `credit_card_details` table tracks statement cycle, grace period days (default 25 if unknown), and last statement balance. No interest charged on purchases if prior statement was paid in full by due date
 10. **Account ownership** — `owner` field on accounts for household member tracking (e.g., "Chase Sapphire - John" vs "Chase Sapphire - Jane"). All data scoped to the authenticated user
 11. **Dark + light mode** — both supported with system preference detection and manual toggle, persisted to localStorage
-12. **Seed data wipe** — settings page includes one-click option to clear all demo/seed data
-13. **Variable recurring bills** — all recurring bill amounts are editable. `is_variable_amount` flag indicates estimated vs fixed amounts; estimated bills prompt user to confirm/edit actual amount when generated
-14. **Flexible CSV import** — column mapper supports negative numbers, separate debit/credit columns, and credit/debit indicator column patterns
+12. **Emerald green color scheme** — primary brand color is emerald (light: emerald-600, dark: emerald-500). Semantic finance colors: green for income/gains/under-budget, red for expenses/losses/over-budget, blue for transfers. Chart palette uses 5 distinguishable colors tuned per mode. Neutral gray for backgrounds, cards, borders, and muted text
+13. **Seed data wipe** — settings page includes one-click option to clear all demo/seed data
+14. **Variable recurring bills** — all recurring bill amounts are editable. `is_variable_amount` flag indicates estimated vs fixed amounts; estimated bills prompt user to confirm/edit actual amount when generated
+15. **Flexible CSV import** — column mapper supports negative numbers, separate debit/credit columns, and credit/debit indicator column patterns
 
 ## Pages
 
