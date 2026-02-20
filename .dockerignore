@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+cron/node_modules
+Docs
+*.md
+!README.md

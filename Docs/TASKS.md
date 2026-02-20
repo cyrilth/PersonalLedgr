@@ -66,19 +66,19 @@
 - [ ] Test: each user sees only their own data
 
 ### 1.4 Docker Setup (3 Containers)
-- [ ] Create root `Dockerfile` for Next.js with multi-stage build (deps → builder → runner)
-- [ ] Create `cron/` directory for the cron container:
-  - [ ] `cron/Dockerfile` — lightweight Node.js Alpine image
-  - [ ] `cron/package.json` — minimal deps: `@prisma/client`, `node-cron`
-  - [ ] `cron/tsconfig.json`
-  - [ ] `cron/src/index.ts` — entry point that registers all cron jobs
-  - [ ] `cron/src/db.ts` — database connection (reuses same schema types)
-- [ ] Create `docker-compose.yml` with three services:
+- [x] Create root `Dockerfile` for Next.js with multi-stage build (deps → builder → runner)
+- [x] Create `cron/` directory for the cron container:
+  - [x] `cron/Dockerfile` — Node.js Alpine, builds from root context with Prisma
+  - [x] `cron/package.json` — minimal config (deps in root package.json: `@prisma/client`, `node-cron`, `tsx`)
+  - [x] `cron/tsconfig.json`
+  - [x] `cron/src/index.ts` — entry point that registers all cron jobs
+  - [x] `cron/src/db.ts` — database connection (reuses generated Prisma client)
+- [x] Create `docker-compose.yml` with three services:
   - `app` — Next.js on port 3000, depends on db
   - `db` — PostgreSQL 16 Alpine, internal port 5432, healthcheck, persistent volume
   - `cron` — scheduled jobs container, depends on db, shares DATABASE_URL
-- [ ] Create `.env.example` with all environment variables
-- [ ] Create `.dockerignore` (node_modules, .next, .git, cron/node_modules)
+- [x] Create `.env.example` with all environment variables (DATABASE_URL, POSTGRES_PASSWORD, BETTER_AUTH_SECRET, BETTER_AUTH_URL, APP_PORT)
+- [x] Create `.dockerignore` (node_modules, .next, .git, cron/node_modules, Docs)
 - [ ] Test `docker compose up --build` starts all three containers
 - [ ] Verify app connects to PostgreSQL
 - [ ] Verify cron container connects to PostgreSQL and logs startup
