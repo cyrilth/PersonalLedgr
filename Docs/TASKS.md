@@ -147,15 +147,15 @@
 - [ ] Verify dark/light mode toggle works and persists *(requires browser testing)*
 
 ### 1.8 First-Launch Disclaimer Screen
-- [ ] Create `src/components/disclaimer-modal.tsx`:
-  - Full-screen modal/overlay shown on first launch
-  - Displays the complete disclaimer text from DISCLAIMER.md
+- [x] Create `src/components/disclaimer-modal.tsx`:
+  - Full-screen modal/overlay with semi-transparent backdrop (z-100)
+  - Displays the complete disclaimer text in a scrollable area
   - "I understand and accept" button to dismiss
   - Stores acknowledgment in localStorage (`personalledgr-disclaimer-accepted: true`)
-  - Cannot be dismissed without clicking accept
+  - Cannot be dismissed without clicking accept (no close button, no backdrop click)
   - Shown again if localStorage is cleared
-- [ ] Integrate into root layout: check localStorage on mount, show modal if not accepted
-- [ ] Test: fresh browser shows disclaimer, accepting persists, clearing storage re-shows it
+- [x] Integrate into root layout: DisclaimerModal rendered inside ThemeProvider, checks localStorage on mount
+- [ ] Test: fresh browser shows disclaimer, accepting persists, clearing storage re-shows it *(requires browser testing)*
 
 ---
 
