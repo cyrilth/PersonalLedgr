@@ -204,14 +204,14 @@
 ## Phase 2: Dashboard & Accounts
 
 ### 2.1 Dashboard Data Fetching
-- [ ] Create `src/actions/dashboard.ts` with server actions:
-  - [ ] `getNetWorth()` — sum of all active account balances (stored balances)
-  - [ ] `getMonthlyIncomeExpense(months: number)` — income vs spending per month, filtered by type rules
-  - [ ] `getSpendingByCategory(month: string)` — category breakdown for a given month
-  - [ ] `getCreditUtilization()` — balance/limit for each credit card, include owner name
-  - [ ] `getUpcomingBills(count: number)` — next N recurring bills by due date
-  - [ ] `getRecentTransactions(count: number)` — last N transactions across all accounts
-  - [ ] `getMonthOverMonthChange()` — net worth change vs previous month
+- [x] Create `src/actions/dashboard.ts` with server actions:
+  - [x] `getNetWorth(year)` — sum of all active account balances (stored balances), assets vs liabilities, month-over-month change
+  - [x] `getMonthlyIncomeExpense(year)` — income vs spending per month for a year, filtered by INCOME_TYPES/SPENDING_TYPES
+  - [x] `getSpendingByCategory(year, month)` — category breakdown for a given month, sorted by amount desc
+  - [x] `getCreditUtilization()` — balance/limit/utilization % for each credit card, include owner name
+  - [x] `getUpcomingBills(count)` — next N recurring bills by due date with days-until-due
+  - [x] `getRecentTransactions(count)` — last N transactions across all accounts with account info
+  - [x] `getMonthOverMonthChange(year)` — net change per month for a year
 
 ### 2.2 Dashboard Components
 - [ ] Create `src/components/dashboard/net-worth-card.tsx`
