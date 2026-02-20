@@ -7,6 +7,61 @@ datasource db {
   provider = "postgresql"
 }
 
+// ── Enums ───────────────────────────────────────────────────────────
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  LOAN
+  MORTGAGE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  LOAN_PRINCIPAL
+  LOAN_INTEREST
+  INTEREST_EARNED
+  INTEREST_CHARGED
+}
+
+enum TransactionSource {
+  MANUAL
+  IMPORT
+  PLAID
+  RECURRING
+  SYSTEM
+}
+
+enum LoanType {
+  MORTGAGE
+  AUTO
+  STUDENT
+  PERSONAL
+}
+
+enum RecurringFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum InterestLogType {
+  CHARGED
+  EARNED
+}
+
+enum AprRateType {
+  STANDARD
+  INTRO
+  BALANCE_TRANSFER
+  CASH_ADVANCE
+  PENALTY
+  PROMOTIONAL
+}
+
 // ── Better Auth Models ──────────────────────────────────────────────
 
 model user {
@@ -18,8 +73,13 @@ model user {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      session[]
-  authAccounts  authAccount[]
+  sessions       session[]
+  authAccounts   authAccount[]
+  accounts       Account[]
+  transactions   Transaction[]
+  recurringBills RecurringBill[]
+  budgets        Budget[]
+  interestLogs   InterestLog[]
 }
 
 model session {
@@ -60,4 +120,159 @@ model verification {
   expiresAt  DateTime
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
+}
+
+// ── Finance Models ──────────────────────────────────────────────────
+
+model Account {
+  id          String      @id @default(cuid())
+  name        String
+  type        AccountType
+  balance     Decimal     @default(0) @db.Decimal(12, 2)
+  creditLimit Decimal?    @db.Decimal(12, 2)
+  owner       String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  userId String
+  user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions      Transaction[]
+  creditCardDetails CreditCardDetails?
+  aprRates          AprRate[]
+  loan              Loan?
+  recurringBills    RecurringBill[]
+  interestLogs      InterestLog[]
+
+  @@index([userId])
+  @@index([userId, type])
+}
+
+model CreditCardDetails {
+  id                       String  @id @default(cuid())
+  statementCloseDay        Int
+  paymentDueDay            Int
+  gracePeriodDays          Int     @default(25)
+  lastStatementBalance     Decimal @default(0) @db.Decimal(12, 2)
+  lastStatementPaidInFull  Boolean @default(true)
+  minimumPaymentPct        Decimal @default(0.02) @db.Decimal(5, 4)
+  minimumPaymentFloor      Decimal @default(25) @db.Decimal(12, 2)
+
+  accountId String  @unique
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model AprRate {
+  id             String      @id @default(cuid())
+  rateType       AprRateType
+  apr            Decimal     @db.Decimal(6, 4)
+  effectiveDate  DateTime
+  expirationDate DateTime?
+  description    String?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+
+  accountId    String
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([accountId, isActive])
+}
+
+model Loan {
+  id                 String   @id @default(cuid())
+  loanType           LoanType
+  originalBalance    Decimal  @db.Decimal(12, 2)
+  interestRate       Decimal  @db.Decimal(6, 4)
+  termMonths         Int
+  startDate          DateTime
+  monthlyPayment     Decimal  @db.Decimal(12, 2)
+  extraPaymentAmount Decimal  @default(0) @db.Decimal(12, 2)
+
+  accountId String  @unique
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  date        DateTime
+  description String
+  amount      Decimal           @db.Decimal(12, 2)
+  type        TransactionType
+  category    String?
+  source      TransactionSource @default(MANUAL)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  userId    String
+  user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Self-referential FK for linked transfers
+  linkedTransactionId String?       @unique
+  linkedTransaction   Transaction?  @relation("LinkedTransactions", fields: [linkedTransactionId], references: [id])
+  linkedBy            Transaction?  @relation("LinkedTransactions")
+
+  // Per-transaction APR rate (credit card purchases)
+  aprRateId String?
+  aprRate   AprRate? @relation(fields: [aprRateId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([accountId, date])
+  @@index([userId, type])
+  @@index([userId, category])
+  @@index([date, amount, description])
+}
+
+model RecurringBill {
+  id               String             @id @default(cuid())
+  name             String
+  amount           Decimal            @db.Decimal(12, 2)
+  frequency        RecurringFrequency
+  dayOfMonth       Int
+  isVariableAmount Boolean            @default(false)
+  category         String?
+  isActive         Boolean            @default(true)
+  nextDueDate      DateTime
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  userId    String
+  user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, nextDueDate])
+}
+
+model Budget {
+  id       String  @id @default(cuid())
+  category String
+  period   String
+  limit    Decimal @db.Decimal(12, 2)
+
+  userId String
+  user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, period])
+  @@index([userId, period])
+}
+
+model InterestLog {
+  id     String          @id @default(cuid())
+  date   DateTime
+  amount Decimal         @db.Decimal(12, 2)
+  type   InterestLogType
+  notes  String?
+
+  userId    String
+  user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, date])
+  @@index([userId, date])
 }

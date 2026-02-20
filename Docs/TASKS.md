@@ -84,29 +84,30 @@
 - [ ] Verify cron container connects to PostgreSQL and logs startup
 
 ### 1.5 Database Schema
-- [ ] Create `src/db/index.ts` — PrismaClient singleton (with global caching for dev hot-reload)
-- [ ] Initialize Prisma: `pnpm exec prisma init` (creates `prisma/schema.prisma`)
-- [ ] Define `prisma/schema.prisma` with all models and enums:
-  - [ ] **Enums:**
-    - [ ] `AccountType` — CHECKING, SAVINGS, CREDIT_CARD, LOAN, MORTGAGE
-    - [ ] `TransactionType` — INCOME, EXPENSE, TRANSFER, LOAN_PRINCIPAL, LOAN_INTEREST, INTEREST_EARNED, INTEREST_CHARGED
-    - [ ] `TransactionSource` — MANUAL, IMPORT, PLAID, RECURRING, SYSTEM
-    - [ ] `LoanType` — MORTGAGE, AUTO, STUDENT, PERSONAL
-    - [ ] `RecurringFrequency` — MONTHLY, QUARTERLY, ANNUAL
-    - [ ] `InterestLogType` — CHARGED, EARNED
-    - [ ] `AprRateType` — STANDARD, INTRO, BALANCE_TRANSFER, CASH_ADVANCE, PENALTY, PROMOTIONAL
-  - [ ] **Models:**
-    - [ ] `Account` — with `owner` String? for household member
-    - [ ] `CreditCardDetails` — 1:1 with Account (statementCloseDay, paymentDueDay, gracePeriodDays @default(25), lastStatementBalance, lastStatementPaidInFull, minimumPaymentPct, minimumPaymentFloor)
-    - [ ] `AprRate` — per-account APR rate definitions (rateType, apr, effectiveDate, expirationDate, description, isActive). @@index([accountId, isActive])
-    - [ ] `Loan` — 1:1 with Account via accountId @unique
-    - [ ] `Transaction` — with `aprRateId` String? relation to AprRate. All indexes per ARCHITECTURE.md
-    - [ ] `RecurringBill` — with `isVariableAmount` Boolean @default(false)
-    - [ ] `Budget` — with @@unique([category, period])
-    - [ ] `InterestLog` — with @@index([accountId, date])
-- [ ] Run `pnpm exec prisma migrate dev --name init` to create and apply initial migration
-- [ ] Run `pnpm exec prisma generate` to generate Prisma Client
-- [ ] Verify all tables and indexes created in PostgreSQL
+- [x] Create `src/db/index.ts` — PrismaClient singleton (with global caching for dev hot-reload) *(done in Task 1.3)*
+- [x] Initialize Prisma: `pnpm exec prisma init` (creates `prisma/schema.prisma`) *(done in Task 1.3)*
+- [x] Define `prisma/schema.prisma` with all models and enums:
+  - [x] **Enums:**
+    - [x] `AccountType` — CHECKING, SAVINGS, CREDIT_CARD, LOAN, MORTGAGE
+    - [x] `TransactionType` — INCOME, EXPENSE, TRANSFER, LOAN_PRINCIPAL, LOAN_INTEREST, INTEREST_EARNED, INTEREST_CHARGED
+    - [x] `TransactionSource` — MANUAL, IMPORT, PLAID, RECURRING, SYSTEM
+    - [x] `LoanType` — MORTGAGE, AUTO, STUDENT, PERSONAL
+    - [x] `RecurringFrequency` — MONTHLY, QUARTERLY, ANNUAL
+    - [x] `InterestLogType` — CHARGED, EARNED
+    - [x] `AprRateType` — STANDARD, INTRO, BALANCE_TRANSFER, CASH_ADVANCE, PENALTY, PROMOTIONAL
+  - [x] **Models:**
+    - [x] `Account` — with `owner` String?, `userId` FK, balance Decimal(12,2), creditLimit, isActive
+    - [x] `CreditCardDetails` — 1:1 with Account (statementCloseDay, paymentDueDay, gracePeriodDays @default(25), lastStatementBalance, lastStatementPaidInFull, minimumPaymentPct, minimumPaymentFloor)
+    - [x] `AprRate` — per-account APR rate definitions (rateType, apr, effectiveDate, expirationDate, description, isActive). @@index([accountId, isActive])
+    - [x] `Loan` — 1:1 with Account via accountId @unique
+    - [x] `Transaction` — with `aprRateId` String? relation to AprRate, `linkedTransactionId` self-referential @unique FK, indexes on [userId,date], [accountId,date], [userId,type], [userId,category], [date,amount,description]
+    - [x] `RecurringBill` — with `isVariableAmount` Boolean @default(false), `userId` and `accountId` FKs
+    - [x] `Budget` — with @@unique([userId, category, period])
+    - [x] `InterestLog` — with @@index([accountId, date]), @@index([userId, date])
+  - [x] All finance models include `userId` FK to `user` for multi-user data scoping
+- [x] Run `pnpm exec prisma generate` to generate Prisma Client (validated schema)
+- [ ] Run `pnpm exec prisma migrate dev --name init` to create and apply initial migration *(requires running PostgreSQL)*
+- [ ] Verify all tables and indexes created in PostgreSQL *(requires running PostgreSQL)*
 
 ### 1.6 Seed Data
 - [ ] Create `src/db/seed.ts` with realistic demo data:
