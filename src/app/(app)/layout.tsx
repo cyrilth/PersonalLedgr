@@ -1,3 +1,12 @@
+/**
+ * App route group layout — provides the authenticated chrome.
+ *
+ * Wraps all (app)/ pages with: YearProvider (global year context), Sidebar
+ * (navigation + user menu + theme toggle), Header (page title + year picker),
+ * and Footer (disclaimer link). This layout is only rendered for authenticated
+ * users — the proxy redirects unauthenticated requests to /login.
+ */
+
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"

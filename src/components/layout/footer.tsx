@@ -1,3 +1,8 @@
+/**
+ * App footer — displays a short disclaimer with a link to the full text.
+ * One of three places the disclaimer appears (also: first-launch modal, settings page).
+ */
+
 import Link from "next/link"
 
 export function Footer() {

@@ -1,5 +1,18 @@
 "use client"
 
+/**
+ * User profile management page.
+ *
+ * Three sections:
+ * 1. Avatar + display name — click avatar to upload image (PNG/JPG/WEBP, max 2MB),
+ *    client-side cropped to 256px square webp, stored as base64 in user.image
+ * 2. Email — read-only display
+ * 3. Change password — validates current password server-side via Better Auth
+ *
+ * All updates use Better Auth's client SDK (updateUser, changePassword) directly
+ * rather than custom server actions.
+ */
+
 import { useState, useRef } from "react"
 import { toast } from "sonner"
 import { useSession, updateUser, changePassword } from "@/lib/auth-client"
@@ -10,6 +23,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Camera, Trash2 } from "lucide-react"
 
+/**
+ * Client-side image resize: crops to center square, scales to maxSize px,
+ * and converts to webp at 85% quality. Returns a base64 data URL.
+ */
 function resizeImage(file: File, maxSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()

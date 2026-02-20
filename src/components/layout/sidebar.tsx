@@ -1,5 +1,13 @@
 "use client"
 
+/**
+ * Main sidebar navigation.
+ *
+ * Desktop: fixed 256px sidebar with nav links, user menu, and theme toggle.
+ * Mobile: off-canvas drawer triggered by a hamburger button, with overlay backdrop.
+ * Active link is highlighted based on the current pathname.
+ */
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"

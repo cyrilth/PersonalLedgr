@@ -1,3 +1,12 @@
+/**
+ * Root layout — wraps the entire application.
+ *
+ * Provides ThemeProvider (dark/light mode), DisclaimerModal (first-launch legal),
+ * and Toaster (sonner toast notifications). Does NOT include sidebar/header — those
+ * are in the (app) route group layout. The (auth) route group gets a clean layout
+ * without navigation chrome.
+ */
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";

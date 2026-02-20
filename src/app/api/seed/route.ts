@@ -1,3 +1,13 @@
+/**
+ * API route for seeding and wiping demo data.
+ *
+ * POST /api/seed?action=generate — populate database with demo data
+ * POST /api/seed?action=wipe     — clear all finance data
+ *
+ * Used by the settings page and for development/testing.
+ * Note: no auth check — should be restricted in production.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/db"
 import { seed } from "@/db/seed"

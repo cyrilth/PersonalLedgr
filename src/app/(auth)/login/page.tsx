@@ -1,5 +1,13 @@
 "use client"
 
+/**
+ * Login page — email/password sign-in form.
+ *
+ * Uses Better Auth's signIn.email() for authentication. On success,
+ * redirects to the dashboard. On failure, displays the error message
+ * inline. Link to /register for new users.
+ */
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"

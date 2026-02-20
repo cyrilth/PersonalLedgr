@@ -1,3 +1,10 @@
+/**
+ * Standalone CLI runner for the wipe script.
+ *
+ * Run via: pnpm db:wipe (which calls tsx src/db/run-wipe.ts)
+ * See run-seed.ts for why this needs its own PrismaClient.
+ */
+
 import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"

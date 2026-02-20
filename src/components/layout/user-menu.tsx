@@ -1,5 +1,13 @@
 "use client"
 
+/**
+ * User profile dropdown menu in the sidebar footer.
+ *
+ * Shows the user's avatar (image or initials) and name as a trigger.
+ * Dropdown contains: user info, Profile link, and Log out button.
+ * Opens upward (side="top") since it's positioned at the bottom of the sidebar.
+ */
+
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LogOut, UserIcon } from "lucide-react"

@@ -1,7 +1,21 @@
+/**
+ * Demo data seeder — populates the database with realistic finance data.
+ *
+ * Creates a demo user with 7 accounts (checking, 2 CCs, savings, mortgage,
+ * car loan, student loan), 6 months of varied transactions, recurring bills,
+ * budgets, APR rates, and interest logs. Demonstrates all transaction types
+ * including linked transfer pairs and loan payment splits.
+ *
+ * This is a pure library module (exports `seed()`) — the standalone CLI runner
+ * is in run-seed.ts. This separation is required because Next.js Turbopack
+ * statically analyzes all imports including dynamic import().
+ */
+
 import type { PrismaClient } from "@prisma/client"
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+/** Generate a date N months in the past (negative = future), on a specific day. */
 function monthsAgo(months: number, day: number = 1): Date {
   const d = new Date()
   d.setMonth(d.getMonth() - months, day)
@@ -9,10 +23,12 @@ function monthsAgo(months: number, day: number = 1): Date {
   return d
 }
 
+/** Random decimal between min and max, rounded to 2 decimal places. */
 function randomBetween(min: number, max: number): number {
   return Math.round((Math.random() * (max - min) + min) * 100) / 100
 }
 
+/** Generate a unique ID (using UUID since we're outside of Prisma's auto-generation). */
 function cuid(): string {
   return crypto.randomUUID()
 }
@@ -562,16 +578,19 @@ export async function seed(prisma?: PrismaClient) {
     aprRateId: chaseIntroApr.id,
   })
 
-  // Create all transactions (linked pairs must be created carefully due to unique constraint)
+  // ── Insert Transactions ──────────────────────────────────────────
+  // Linked transfer pairs have a mutual FK (linkedTransactionId), which
+  // creates a chicken-and-egg problem. We solve it in 3 steps:
+  // 1. Insert non-linked transactions normally
+  // 2. For each linked pair: create A without the link, create B with link to A,
+  //    then update A to link back to B
   const nonLinked = transactions.filter((t) => !t.linkedTransactionId)
   const linked = transactions.filter((t) => t.linkedTransactionId)
 
-  // Create non-linked transactions in bulk
   for (const t of nonLinked) {
     await prisma.transaction.create({ data: t })
   }
 
-  // Create linked transactions: process pairs together
   const linkedById = new Map(linked.map((t) => [t.id as string, t]))
   const processed = new Set<string>()
 
@@ -580,15 +599,10 @@ export async function seed(prisma?: PrismaClient) {
     const partner = linkedById.get(t.linkedTransactionId as string)
     if (!partner) continue
 
-    // Create first without the link, then the second with link, then update first
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { linkedTransactionId: _linkedId, ...tWithoutLink } = t
-    await prisma.transaction.create({
-      data: tWithoutLink,
-    })
-    await prisma.transaction.create({
-      data: partner,
-    })
+    await prisma.transaction.create({ data: tWithoutLink })
+    await prisma.transaction.create({ data: partner })
     await prisma.transaction.update({
       where: { id: t.id as string },
       data: { linkedTransactionId: partner.id as string },

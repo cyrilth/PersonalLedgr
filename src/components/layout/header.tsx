@@ -1,5 +1,13 @@
 "use client"
 
+/**
+ * App header — displays the current page title and the global year picker.
+ *
+ * Page title is derived from the current pathname using a lookup table.
+ * The year picker (right-aligned) lets users scope all views to a calendar year,
+ * showing 7 options from currentYear+1 down to currentYear-5.
+ */
+
 import { usePathname } from "next/navigation"
 import { CalendarDays } from "lucide-react"
 import { useYear } from "@/contexts/year-context"
@@ -23,6 +31,7 @@ const pageTitles: Record<string, string> = {
   "/profile": "Profile",
 }
 
+// Static list computed once at module load — year range: [currentYear+1, ..., currentYear-5]
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i)
 

@@ -1,3 +1,12 @@
+/**
+ * Wipes all finance data from the database.
+ *
+ * Deletes in dependency order (children before parents) to satisfy FK constraints.
+ * Auth models (users, sessions) are preserved by default — uncomment the auth
+ * section to also wipe users. This is a pure library module; the CLI runner
+ * is in run-wipe.ts.
+ */
+
 import type { PrismaClient } from "@prisma/client"
 
 export async function wipe(prisma?: PrismaClient) {

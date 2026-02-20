@@ -1,3 +1,13 @@
+/**
+ * Next.js 16 proxy — replaces the deprecated middleware.ts.
+ *
+ * Uses Better Auth's cookie-only session check (no DB hit) for fast
+ * route protection. This runs on every non-static request:
+ * - Unauthenticated users are redirected to /login
+ * - Authenticated users are redirected away from /login and /register
+ * - Public paths (/login, /register, /api/auth) are always accessible
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionCookie } from "better-auth/cookies"
 
@@ -13,7 +23,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Authenticated user trying to access auth pages
+  // Authenticated user trying to access auth pages — send them to dashboard
   if (session && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/", request.url))
   }
@@ -21,6 +31,7 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next()
 }
 
+// Match all routes except static assets (images, fonts, Next.js internals)
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 }

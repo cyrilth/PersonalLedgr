@@ -1,5 +1,16 @@
 "use client"
 
+/**
+ * First-launch disclaimer modal.
+ *
+ * Shows a full-screen overlay with the legal disclaimer text on first visit.
+ * Cannot be dismissed without clicking "I understand and accept" — no close
+ * button, no backdrop click. Acceptance is persisted to localStorage so it
+ * only shows once per browser (clearing storage re-shows it).
+ *
+ * Rendered in the root layout so it appears on all pages including login.
+ */
+
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"

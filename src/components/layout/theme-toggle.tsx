@@ -1,5 +1,14 @@
 "use client"
 
+/**
+ * Dark/light mode toggle button.
+ *
+ * Uses CSS transitions to crossfade between sun and moon icons.
+ * The sun icon rotates and scales out in dark mode while the moon
+ * icon rotates and scales in (and vice versa for light mode).
+ * Located in the sidebar footer next to the user menu.
+ */
+
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"

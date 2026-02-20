@@ -1,5 +1,13 @@
 "use client"
 
+/**
+ * Registration page — create a new user account.
+ *
+ * Client-side validation: password must be 8+ chars and match confirmation.
+ * Uses Better Auth's signUp.email() which creates the user, authAccount,
+ * and session in one call. On success, redirects to the dashboard.
+ */
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"

@@ -1,3 +1,12 @@
+/**
+ * Application-wide constants for enums, categories, and display labels.
+ *
+ * These mirror the Prisma enums defined in schema.prisma but live here so
+ * client components can reference them without importing Prisma directly.
+ * The SPENDING_TYPES and INCOME_TYPES arrays encode the core architecture
+ * principle: transfers are NEVER income or expense.
+ */
+
 // ── Transaction Types ────────────────────────────────────────────────
 // Must match Prisma enum TransactionType in schema.prisma
 
@@ -14,14 +23,21 @@ export const TRANSACTION_TYPES = {
 export type TransactionType =
   (typeof TRANSACTION_TYPES)[keyof typeof TRANSACTION_TYPES]
 
-/** Types that count as real spending in reports */
+/**
+ * Types that count as real spending in reports.
+ * TRANSFER, LOAN_PRINCIPAL are excluded — they move money between accounts
+ * but don't represent actual spending.
+ */
 export const SPENDING_TYPES: TransactionType[] = [
   TRANSACTION_TYPES.EXPENSE,
   TRANSACTION_TYPES.LOAN_INTEREST,
   TRANSACTION_TYPES.INTEREST_CHARGED,
 ]
 
-/** Types that count as real income in reports */
+/**
+ * Types that count as real income in reports.
+ * TRANSFER is excluded — receiving a transfer is not income.
+ */
 export const INCOME_TYPES: TransactionType[] = [
   TRANSACTION_TYPES.INCOME,
   TRANSACTION_TYPES.INTEREST_EARNED,
@@ -98,6 +114,7 @@ export const APR_RATE_TYPES = {
 export type AprRateType = (typeof APR_RATE_TYPES)[keyof typeof APR_RATE_TYPES]
 
 // ── Categories ──────────────────────────────────────────────────────
+// Default set of transaction categories. Users can add custom ones via settings (Phase 7).
 
 export const DEFAULT_CATEGORIES = [
   "Housing",
@@ -131,6 +148,7 @@ export const DEFAULT_CATEGORIES = [
 ] as const
 
 // ── Display Labels ──────────────────────────────────────────────────
+// Human-readable labels for enum values, used in UI dropdowns, tables, and badges.
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   INCOME: "Income",
