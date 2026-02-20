@@ -12,6 +12,7 @@ export function DisclaimerModal() {
   useEffect(() => {
     const accepted = localStorage.getItem(STORAGE_KEY)
     if (accepted !== "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShow(true)
     }
   }, [])

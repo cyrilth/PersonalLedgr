@@ -11,4 +11,4 @@ COPY cron/ ./cron/
 
 RUN pnpm exec prisma generate
 
-CMD ["node", "--import", "tsx", "cron/src/index.ts"]
+CMD ["./node_modules/.bin/tsx", "cron/src/index.ts"]

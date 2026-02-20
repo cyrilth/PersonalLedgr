@@ -14,6 +14,9 @@ async function main() {
   // - plaid-sync.ts       (Plaid sync every 6 hours — Phase 6)
 
   console.log("[cron] All jobs registered. Waiting for schedules...")
+
+  // Keep the process alive so node-cron schedules can fire
+  setInterval(() => {}, 1 << 30)
 }
 
 main().catch((err) => {

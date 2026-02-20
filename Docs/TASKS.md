@@ -45,7 +45,7 @@
   - `user`, `session`, `authAccount` (renamed from `account`), and `verification` models
   - `authAccount` renamed to avoid conflict with the finance `Account` model
   - Configured `account.modelName: "authAccount"` in Better Auth server config
-- [ ] Add `userId` foreign key to all user-owned finance models:
+- [x] Add `userId` foreign key to all user-owned finance models *(done in Task 1.5)*:
   - `Account.userId`, `Transaction.userId`, `Budget.userId`, `RecurringBill.userId`, `InterestLog.userId`
   - All queries must filter by `userId` from session
 - [x] Create `src/db/index.ts` — PrismaClient singleton with global caching for dev hot-reload
@@ -59,9 +59,9 @@
   - Protects all routes except `/login`, `/register`, and `/api/auth`
   - Redirects unauthenticated users to `/login`
   - Redirects authenticated users away from `/login` and `/register` to `/`
-- [ ] Test: unauthenticated user redirected to login
-- [ ] Test: registration creates user and establishes session
-- [ ] Test: login with valid credentials grants access
+- [x] Test: unauthenticated user redirected to login
+- [x] Test: registration creates user and establishes session
+- [x] Test: login with valid credentials grants access
 - [ ] Test: login with invalid credentials shows error
 - [ ] Test: each user sees only their own data
 
@@ -79,9 +79,9 @@
   - `cron` — scheduled jobs container, depends on db, shares DATABASE_URL
 - [x] Create `.env.example` with all environment variables (DATABASE_URL, POSTGRES_PASSWORD, BETTER_AUTH_SECRET, BETTER_AUTH_URL, APP_PORT)
 - [x] Create `.dockerignore` (node_modules, .next, .git, cron/node_modules, Docs)
-- [ ] Test `docker compose up --build` starts all three containers
-- [ ] Verify app connects to PostgreSQL
-- [ ] Verify cron container connects to PostgreSQL and logs startup
+- [x] Test `docker compose up --build` starts all three containers
+- [x] Verify app connects to PostgreSQL
+- [x] Verify cron container connects to PostgreSQL and logs startup
 
 ### 1.5 Database Schema
 - [x] Create `src/db/index.ts` — PrismaClient singleton (with global caching for dev hot-reload) *(done in Task 1.3)*
@@ -106,8 +106,8 @@
     - [x] `InterestLog` — with @@index([accountId, date]), @@index([userId, date])
   - [x] All finance models include `userId` FK to `user` for multi-user data scoping
 - [x] Run `pnpm exec prisma generate` to generate Prisma Client (validated schema)
-- [ ] Run `pnpm exec prisma migrate dev --name init` to create and apply initial migration *(requires running PostgreSQL)*
-- [ ] Verify all tables and indexes created in PostgreSQL *(requires running PostgreSQL)*
+- [x] Run `pnpm exec prisma migrate dev --name init` to create and apply initial migration *(requires running PostgreSQL)*
+- [x] Verify all tables and indexes created in PostgreSQL *(requires running PostgreSQL)*
 
 ### 1.6 Seed Data
 - [x] Create `src/db/seed.ts` with realistic demo data:
@@ -125,8 +125,8 @@
 - [x] Create API route `src/app/api/seed/route.ts`:
   - POST `/api/seed?action=wipe` — calls wipe logic
   - POST `/api/seed?action=generate` — calls seed logic
-- [ ] Test seed populates all tables correctly *(requires running PostgreSQL)*
-- [ ] Test wipe clears all data *(requires running PostgreSQL)*
+- [x] Test seed populates all tables correctly *(requires running PostgreSQL)*
+- [x] Test wipe clears all data *(requires running PostgreSQL)*
 
 ### 1.7 Base Layout
 - [x] Create `src/components/layout/sidebar.tsx`
@@ -682,9 +682,9 @@
 - [ ] `disclaimer.spec.ts` — fresh load shows disclaimer, accept persists, cleared storage re-shows
 
 ### Integration Verification
-- [ ] Test Docker build and startup from clean state (all 3 containers)
-- [ ] Test seed data wipe and regeneration via both CLI and API routes
-- [ ] Test cron container connects to DB and logs job registration on startup
+- [x] Test Docker build and startup from clean state (all 3 containers)
+- [x] Test seed data wipe and regeneration via both CLI and API routes
+- [x] Test cron container connects to DB and logs job registration on startup
 
 ### Documentation
 - [ ] README.md with:

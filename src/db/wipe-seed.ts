@@ -1,8 +1,11 @@
-import { PrismaClient } from "../generated/prisma/index.js"
+import type { PrismaClient } from "@prisma/client"
 
-const prisma = new PrismaClient()
+export async function wipe(prisma?: PrismaClient) {
+  if (!prisma) {
+    const { prisma: dbPrisma } = await import("@/db")
+    prisma = dbPrisma
+  }
 
-export async function wipe() {
   console.log("[wipe] Clearing all data...")
 
   // Delete in dependency order (children before parents)
@@ -24,13 +27,3 @@ export async function wipe() {
   console.log("[wipe] All finance data cleared.")
 }
 
-// Run directly via tsx (pnpm db:wipe)
-const isDirectRun = process.argv[1]?.includes("wipe")
-if (isDirectRun) {
-  wipe()
-    .catch((e) => {
-      console.error("[wipe] Error:", e)
-      process.exit(1)
-    })
-    .finally(() => prisma.$disconnect())
-}

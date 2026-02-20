@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "tsx src/db/seed.ts",
-    "db:wipe": "tsx src/db/wipe-seed.ts"
+    "db:seed": "tsx src/db/run-seed.ts",
+    "db:wipe": "tsx src/db/run-wipe.ts"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "better-auth": "^1.4.18",
     "class-variance-authority": "^0.7.1",
@@ -21,6 +22,7 @@
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "node-cron": "^4.2.1",
+    "pg": "^8.18.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-day-picker": "^9.13.2",
@@ -41,6 +43,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.3.1",
