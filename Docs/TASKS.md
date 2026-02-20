@@ -62,8 +62,8 @@
 - [x] Test: unauthenticated user redirected to login
 - [x] Test: registration creates user and establishes session
 - [x] Test: login with valid credentials grants access
-- [ ] Test: login with invalid credentials shows error
-- [ ] Test: each user sees only their own data
+- [x] Test: login with invalid credentials shows error
+- [ ] Test: each user sees only their own data *(deferred — no data-displaying pages yet)*
 
 ### 1.4 Docker Setup (3 Containers)
 - [x] Create root `Dockerfile` for Next.js with multi-stage build (deps → builder → runner)
@@ -144,7 +144,7 @@
 - [x] Create placeholder pages for all routes inside `(app)/`:
   - Dashboard (`/`), Transactions, Accounts, Loans, Recurring Bills, Budgets, Import, Settings
 - [x] Verify navigation redirects work (all protected routes → `/login` when unauthenticated)
-- [ ] Verify dark/light mode toggle works and persists *(requires browser testing)*
+- [x] Verify dark/light mode toggle works and persists
 
 ### 1.8 First-Launch Disclaimer Screen
 - [x] Create `src/components/disclaimer-modal.tsx`:
@@ -155,7 +155,49 @@
   - Cannot be dismissed without clicking accept (no close button, no backdrop click)
   - Shown again if localStorage is cleared
 - [x] Integrate into root layout: DisclaimerModal rendered inside ThemeProvider, checks localStorage on mount
-- [ ] Test: fresh browser shows disclaimer, accepting persists, clearing storage re-shows it *(requires browser testing)*
+- [x] Test: fresh browser shows disclaimer, accepting persists, clearing storage re-shows it
+
+### 1.8b Global Year Picker
+- [x] Create `src/contexts/year-context.tsx` — `YearProvider` with `useState`, localStorage persistence (`personalledgr-selected-year`), validation (2000–currentYear+1), hydration guard
+- [x] Export `useYear()` hook returning `{ year, setYear }`
+- [x] Wrap `src/app/(app)/layout.tsx` with `<YearProvider>` so all app pages have access
+- [x] Add year picker dropdown to `src/components/layout/header.tsx` — shadcn `Select` with `CalendarDays` icon, 7 year options (currentYear+1 down to currentYear-5), right-aligned via `ml-auto`
+- [x] Test: header shows year dropdown defaulting to current year
+- [x] Test: changing year persists across page refresh (localStorage)
+- [x] Test: year stays consistent when navigating between pages
+
+### 1.9 User Profile & Session Management
+- [x] Create `src/components/layout/user-menu.tsx` — user profile dropdown in sidebar footer (above theme toggle):
+  - Display user avatar: uploaded image if available, otherwise initials derived from user name (e.g., "JD" for "John Doe")
+  - Initials avatar: circular badge with primary background color, white text, consistent sizing
+  - Show user name and email below/beside avatar
+  - Dropdown menu with:
+    - "Profile" link → opens profile settings
+    - "Log out" button → calls `signOut()` from auth-client, redirects to `/login`
+- [x] Create `src/app/(app)/profile/page.tsx` — user profile management page:
+  - **Display name:** editable text field, updates `user.name` via Better Auth
+  - **Email:** displayed read-only
+  - **Avatar upload:**
+    - Click-to-upload on avatar area
+    - Accept image files only (PNG, JPG, WEBP), max 2MB
+    - Crop/resize to 256px square webp on upload (client-side canvas)
+    - Store as base64 data URL in `user.image` field (Better Auth's built-in column)
+    - Show preview before saving
+    - "Remove avatar" button to revert to initials
+  - **Change password:** current password + new password + confirm new password fields
+- [x] ~~Create `src/actions/profile.ts`~~ — not needed; profile page uses Better Auth client SDK directly (`updateUser`, `changePassword` from auth-client)
+- [x] Create `src/components/ui/avatar-initials.tsx` — reusable avatar component:
+  - Props: `name`, `image`, `size` (sm/md/lg)
+  - If `image` is set: render `<img>` in circular container
+  - If no image: extract first letter of first name + first letter of last name, render in colored circle
+  - Fallback: single letter or generic user icon if no name
+- [x] Integrate user menu into sidebar:
+  - UserMenu + ThemeToggle in compact sidebar footer area
+- [x] Profile accessible only via user dropdown menu (not in sidebar nav)
+- [x] Test: log out clears session and redirects to `/login`
+- [x] Test: initials avatar displays correctly for single-name and two-name users (verified "TU" for "Test User")
+- [ ] Test: avatar upload stores image and displays on refresh *(deferred — needs test image file)*
+- [x] Test: password change works with correct current password, rejects incorrect
 
 ---
 
@@ -566,11 +608,12 @@
 
 ### 7.1 Settings Page
 - [ ] Build `src/app/settings/page.tsx`:
+  - [ ] **Account & Profile:** Link to `/profile` page for name, avatar, and password management (implemented in Task 1.9)
   - [ ] **Theme:** Dark/light mode toggle (redundant with sidebar toggle but accessible here too)
   - [ ] **Categories:** Add/rename/delete custom categories
   - [ ] **Disclaimer:** Full disclaimer text displayed in a card/section, with note about first-launch acknowledgment
   - [ ] **Recalculate All Balances:** Button that recalculates all account balances from transactions, shows drift report, confirm to apply
-  - [ ] **Seed Data:** 
+  - [ ] **Seed Data:**
     - "Wipe All Data" button with double confirmation (type "DELETE" to confirm)
     - "Load Demo Data" button to re-seed
   - [ ] **Database Backup:** Trigger manual backup, list recent backups with download links

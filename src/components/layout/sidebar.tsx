@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { UserMenu } from "@/components/layout/user-menu"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -108,7 +109,8 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t p-3">
+        <div className="flex items-center justify-between border-t p-3">
+          <UserMenu />
           <ThemeToggle />
         </div>
       </aside>

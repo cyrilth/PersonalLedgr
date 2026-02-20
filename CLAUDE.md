@@ -102,13 +102,16 @@ src/
       budgets/
       import/
       settings/
-  actions/                # Server actions (dashboard, accounts, transactions, auth, etc.)
+      profile/              # User profile management (name, avatar, password)
+  actions/                # Server actions (dashboard, accounts, transactions, profile, etc.)
   lib/
     auth.ts               # Better Auth server configuration
-    auth-client.ts        # Better Auth client (signIn, signUp, useSession)
+    auth-client.ts        # Better Auth client (signIn, signUp, signOut, useSession)
   proxy.ts               # Route protection via Next.js 16 proxy (redirect unauthenticated to /login)
   components/
-    layout/               # Sidebar, header, footer, theme-toggle
+    layout/               # Sidebar, header, footer, theme-toggle, user-menu
+    ui/
+      avatar-initials.tsx # Reusable avatar component (image or initials fallback)
     dashboard/            # Dashboard widget components
     accounts/             # Account cards, forms, charts
     transactions/         # Transaction table, filters, forms, transfer wizard

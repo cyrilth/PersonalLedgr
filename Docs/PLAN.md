@@ -95,6 +95,7 @@ WHERE type IN ('expense', 'loan_interest', 'interest_charged')
 13. **Seed data wipe** — settings page includes one-click option to clear all demo/seed data
 14. **Variable recurring bills** — all recurring bill amounts are editable. `is_variable_amount` flag indicates estimated vs fixed amounts; estimated bills prompt user to confirm/edit actual amount when generated
 15. **Flexible CSV import** — column mapper supports negative numbers, separate debit/credit columns, and credit/debit indicator column patterns
+16. **Global year picker** — header-level year selector (context + localStorage persistence) scopes all pages to a calendar year. Pages consume via `useYear()` hook and pass the year to server actions as a parameter
 
 ## Pages
 
@@ -112,6 +113,10 @@ WHERE type IN ('expense', 'loan_interest', 'interest_charged')
 | `/budgets` | Category budgets vs actual spending |
 | `/import` | CSV import with flexible column mapping (3 patterns) and duplicate detection |
 | `/settings` | Categories, theme toggle, recalculate all balances, wipe seed data, Plaid connections (Phase 6), backup/restore |
+
+## Global Year Picker
+
+A header-level year selector allows users to scope all views to a specific calendar year. Implemented as a React context (`YearProvider`) wrapping the `(app)` layout, with localStorage persistence (key: `personalledgr-selected-year`). Defaults to the current year. Pages consume via the `useYear()` hook and pass the selected year to server actions as a parameter. The dropdown shows 7 years (current year + 1 down to current year - 5).
 
 ## Build Phases
 
