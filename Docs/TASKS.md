@@ -39,53 +39,26 @@
 - [x] Ensure shadcn/ui CSS variables include both light and dark palettes in `globals.css`
 
 ### 1.3 Authentication (Better Auth)
-- [ ] Add `BETTER_AUTH_SECRET` to `.env` (generate via `openssl rand -base64 32`)
-- [ ] Add `BETTER_AUTH_URL=http://localhost:3000` to `.env`
-- [ ] Generate Better Auth schema for Prisma: `pnpm exec @better-auth/cli generate`
-  - This adds `user`, `session`, `account`, and `verification` models to `prisma/schema.prisma`
-  - Rename the Better Auth `account` model to `authAccount` to avoid conflict with the finance `Account` model
+- [x] Add `BETTER_AUTH_SECRET` to `.env` (generate via `openssl rand -base64 32`)
+- [x] Add `BETTER_AUTH_URL=http://localhost:3000` to `.env`
+- [x] Define Better Auth schema in `prisma/schema.prisma`:
+  - `user`, `session`, `authAccount` (renamed from `account`), and `verification` models
+  - `authAccount` renamed to avoid conflict with the finance `Account` model
+  - Configured `account.modelName: "authAccount"` in Better Auth server config
 - [ ] Add `userId` foreign key to all user-owned finance models:
   - `Account.userId`, `Transaction.userId`, `Budget.userId`, `RecurringBill.userId`, `InterestLog.userId`
   - All queries must filter by `userId` from session
-- [ ] Create `src/lib/auth.ts` — Better Auth server config:
-  ```typescript
-  import { betterAuth } from "better-auth";
-  import { prismaAdapter } from "better-auth/adapters/prisma";
-  import { prisma } from "@/db";
-
-  export const auth = betterAuth({
-    database: prismaAdapter(prisma, { provider: "postgresql" }),
-    emailAndPassword: { enabled: true },
-  });
-  ```
-- [ ] Create `src/lib/auth-client.ts` — Better Auth client:
-  ```typescript
-  import { createAuthClient } from "better-auth/react";
-
-  export const { signIn, signUp, signOut, useSession } = createAuthClient();
-  ```
-- [ ] Create `src/app/api/auth/[...all]/route.ts` — Better Auth API route handler:
-  ```typescript
-  import { auth } from "@/lib/auth";
-  import { toNextJsHandler } from "better-auth/next-js";
-
-  export const { POST, GET } = toNextJsHandler(auth);
-  ```
-- [ ] Create `src/app/(auth)/login/page.tsx` — login form:
-  - Email and password fields
-  - Submit calls `signIn.email({ email, password })`
-  - Link to registration page
-  - Error display for invalid credentials
-- [ ] Create `src/app/(auth)/register/page.tsx` — registration form:
-  - Name, email, password, confirm password fields
-  - Client-side validation (password match, min length)
-  - Submit calls `signUp.email({ name, email, password })`
-  - Auto-redirect after successful registration
-  - Link to login page
-- [ ] Create `src/middleware.ts` — protect all routes except `/login`, `/register`, and `/api/auth`:
-  - Use `auth.api.getSession({ headers: request.headers })` to check session
-  - Redirect unauthenticated users to `/login`
-  - Redirect authenticated users away from `/login` and `/register` to `/`
+- [x] Create `src/db/index.ts` — PrismaClient singleton with global caching for dev hot-reload
+- [x] Create `src/lib/auth.ts` — Better Auth server config with `prismaAdapter`, `emailAndPassword`, `nextCookies` plugin
+- [x] Create `src/lib/auth-client.ts` — Better Auth client (`signIn`, `signUp`, `signOut`, `useSession`)
+- [x] Create `src/app/api/auth/[...all]/route.ts` — Better Auth API route handler
+- [x] Create `src/app/(auth)/login/page.tsx` — login form with error display, link to register
+- [x] Create `src/app/(auth)/register/page.tsx` — registration form with validation (password match, min 8 chars), link to login
+- [x] Create `src/proxy.ts` — Next.js 16 proxy (replaces deprecated `middleware.ts`):
+  - Uses `getSessionCookie()` from `better-auth/cookies` for fast cookie-only check
+  - Protects all routes except `/login`, `/register`, and `/api/auth`
+  - Redirects unauthenticated users to `/login`
+  - Redirects authenticated users away from `/login` and `/register` to `/`
 - [ ] Test: unauthenticated user redirected to login
 - [ ] Test: registration creates user and establishes session
 - [ ] Test: login with valid credentials grants access

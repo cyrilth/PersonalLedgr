@@ -44,7 +44,7 @@ A self-hosted personal finance application to track all household money flow: in
 | Framework | Next.js 15 (App Router) | Full-stack: UI + API routes + server actions |
 | Database | PostgreSQL 16 (Docker) | Relational integrity, aggregation queries |
 | ORM | Prisma ORM | Type-safe, auto-generated client, excellent migrations and schema DSL |
-| Auth | Better Auth | Email/password auth, Prisma adapter, session management, middleware |
+| Auth | Better Auth | Email/password auth, Prisma adapter, session management, proxy-based route protection |
 | Styling | Tailwind CSS 4 | Utility-first, first-class Next.js support |
 | Charts | Recharts | Flexible React charting for dashboards |
 | UI Components | shadcn/ui | Polished, accessible, customizable |

@@ -105,7 +105,7 @@ src/
   lib/
     auth.ts               # Better Auth server configuration
     auth-client.ts        # Better Auth client (signIn, signUp, useSession)
-  middleware.ts           # Route protection (redirect unauthenticated to /login)
+  proxy.ts               # Route protection via Next.js 16 proxy (redirect unauthenticated to /login)
   components/
     layout/               # Sidebar, header, footer, theme-toggle
     dashboard/            # Dashboard widget components
