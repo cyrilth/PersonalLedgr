@@ -110,56 +110,41 @@
 - [ ] Verify all tables and indexes created in PostgreSQL *(requires running PostgreSQL)*
 
 ### 1.6 Seed Data
-- [ ] Create `src/db/seed.ts` with realistic demo data:
-  - [ ] 4 accounts with owner field:
-    - Chase Checking ($8,450, owner: "John")
-    - Chase Sapphire CC (-$2,340, limit $15k, owner: "John")
-    - Discover It CC (-$890, limit $8k, owner: "Jane")
-    - Marcus Savings ($25,000, owner: null — joint)
-  - [ ] Credit card details for both CCs:
-    - Chase Sapphire: statement_close_day 15, payment_due_day 10, grace_period_days 25
-    - Discover It: statement_close_day 20, payment_due_day 15, grace_period_days 21
-  - [ ] APR rates:
-    - Chase Sapphire: standard 24.99%, plus intro 0% on a specific purchase expiring 6 months out
-    - Discover It: standard 22.49%
-  - [ ] 3 loans: Mortgage ($285k, 6.75%, $2,076/mo), Car Loan ($18.5k, 5.49%, $535/mo), Student Loan ($32k, 4.99%, $480/mo)
-  - [ ] 6 months of transactions:
-    - Monthly income (paycheck $6,500 x2)
-    - Recurring bills on credit cards (T-Mobile $145, Comcast $89.99, Netflix $22.99, Spotify $15.99, gym $24.99)
-    - Some CC transactions with specific apr_rate_id (e.g., Best Buy TV purchase at 0% intro)
-    - Variable expenses (groceries, dining, gas, shopping)
-    - Monthly CC payments from checking (transfer pairs with linked_transaction_id)
-    - Monthly mortgage/loan payments (auto-split into principal + interest)
-    - Savings transfers from checking
-    - Interest earned on savings
-    - Interest charged on credit cards
-  - [ ] 5 recurring bills (3 fixed, 2 variable with is_variable_amount=true: electricity, water)
-  - [ ] 3 budget entries (Groceries $600, Dining $300, Entertainment $200)
-  - [ ] Interest log entries for past 6 months
-- [ ] Add seed script to package.json: `"db:seed": "tsx src/db/seed.ts"` (run via `pnpm db:seed`)
-- [ ] Create `src/db/wipe-seed.ts` — clears all data from all tables (truncate cascade)
-- [ ] Add wipe script to package.json: `"db:wipe": "tsx src/db/wipe-seed.ts"` (run via `pnpm db:wipe`)
-- [ ] Create API route `src/app/api/seed/route.ts`:
-  - POST `/api/seed/wipe` — calls wipe logic, returns confirmation
-  - POST `/api/seed/generate` — calls seed logic
-- [ ] Test seed populates all tables correctly
-- [ ] Test wipe clears all data
+- [x] Create `src/db/seed.ts` with realistic demo data:
+  - [x] 7 accounts (4 banking + 3 loan accounts) with owner field
+  - [x] Credit card details for both CCs (Chase Sapphire + Discover It)
+  - [x] APR rates: Chase standard 24.99%, intro 0% (Best Buy), Discover standard 22.49%
+  - [x] 3 loans: Mortgage ($285k, 6.75%), Car ($18.5k, 5.49%), Student ($32k, 4.99%)
+  - [x] 6 months of transactions: paychecks, recurring bills, variable expenses, CC payments (linked transfer pairs), mortgage/loan splits (principal + interest), savings transfers (linked), interest earned/charged, Best Buy 0% intro purchase
+  - [x] 5 recurring bills (3 fixed, 2 variable)
+  - [x] 3 budget entries (Groceries $600, Dining $300, Entertainment $200)
+  - [x] 12 interest log entries (6 months x savings earned + Discover charged)
+- [x] Add seed script to package.json: `"db:seed": "tsx src/db/seed.ts"` *(done in Task 1.4)*
+- [x] Create `src/db/wipe-seed.ts` — deletes all finance data in dependency order
+- [x] Add wipe script to package.json: `"db:wipe": "tsx src/db/wipe-seed.ts"` *(done in Task 1.4)*
+- [x] Create API route `src/app/api/seed/route.ts`:
+  - POST `/api/seed?action=wipe` — calls wipe logic
+  - POST `/api/seed?action=generate` — calls seed logic
+- [ ] Test seed populates all tables correctly *(requires running PostgreSQL)*
+- [ ] Test wipe clears all data *(requires running PostgreSQL)*
 
 ### 1.7 Base Layout
-- [ ] Create `src/components/layout/sidebar.tsx`
+- [x] Create `src/components/layout/sidebar.tsx`
   - Sidebar with nav links: Dashboard, Transactions, Accounts, Loans, Recurring Bills, Budgets, Import, Settings
   - Icons from lucide-react for each link
   - Active link highlighting based on current route
   - Theme toggle in sidebar footer
-  - Collapsible on mobile (hamburger menu)
-- [ ] Create `src/components/layout/header.tsx` — page title + breadcrumbs
-- [ ] Create `src/components/layout/footer.tsx` — app footer with short disclaimer text:
-  - "PersonalLedgr is provided as-is. Not financial advice. See Disclaimer for details."
-  - "Disclaimer" links to full disclaimer on settings page
-- [ ] Create `src/app/layout.tsx` — root layout wrapping children with ThemeProvider + sidebar + footer
-- [ ] Create placeholder pages for all routes (just title + "coming soon")
-- [ ] Verify navigation works between all pages
-- [ ] Verify dark/light mode toggle works and persists
+  - Collapsible on mobile (hamburger menu with overlay)
+- [x] Create `src/components/layout/header.tsx` — page title derived from current route
+- [x] Create `src/components/layout/footer.tsx` — app footer with short disclaimer text linking to settings
+- [x] Create `src/app/(app)/layout.tsx` — app layout wrapping children with sidebar + header + footer
+  - Root layout (`src/app/layout.tsx`) provides ThemeProvider only
+  - `(app)` route group provides sidebar/header/footer for authenticated pages
+  - `(auth)` route group provides clean layout for login/register
+- [x] Create placeholder pages for all routes inside `(app)/`:
+  - Dashboard (`/`), Transactions, Accounts, Loans, Recurring Bills, Budgets, Import, Settings
+- [x] Verify navigation redirects work (all protected routes → `/login` when unauthenticated)
+- [ ] Verify dark/light mode toggle works and persists *(requires browser testing)*
 
 ### 1.8 First-Launch Disclaimer Screen
 - [ ] Create `src/components/disclaimer-modal.tsx`:

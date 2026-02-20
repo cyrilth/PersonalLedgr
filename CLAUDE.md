@@ -91,16 +91,17 @@ src/
       seed/               # Seed data API
       recalculate/        # Balance recalculation API
       plaid/              # Plaid integration (Phase 6)
-    (auth)/               # Auth route group (no layout)
+    (auth)/               # Auth route group (clean layout, no sidebar)
       login/              # Login page
       register/           # Registration page
-    accounts/[id]/        # Account detail pages
-    loans/[id]/           # Loan detail pages
-    transactions/
-    recurring/
-    budgets/
-    import/
-    settings/
+    (app)/                # App route group (sidebar + header + footer layout)
+      accounts/[id]/      # Account detail pages
+      loans/[id]/         # Loan detail pages
+      transactions/
+      recurring/
+      budgets/
+      import/
+      settings/
   actions/                # Server actions (dashboard, accounts, transactions, auth, etc.)
   lib/
     auth.ts               # Better Auth server configuration
