@@ -214,14 +214,14 @@
   - [x] `getMonthOverMonthChange(year)` — net change per month for a year
 
 ### 2.1b Dashboard Data Tests
-- [ ] Test: `getNetWorth()` returns correct assets, liabilities, and total for seeded data
-- [ ] Test: `getNetWorth()` excludes inactive accounts
-- [ ] Test: `getMonthlyIncomeExpense()` only includes INCOME_TYPES and SPENDING_TYPES (no transfers)
-- [ ] Test: `getSpendingByCategory()` groups and sorts categories by amount desc
-- [ ] Test: `getCreditUtilization()` returns correct balance/limit/utilization %
-- [ ] Test: `getUpcomingBills()` returns bills sorted by due date with correct days-until-due
-- [ ] Test: `getRecentTransactions()` returns correct count with account info
-- [ ] Test: `getMonthOverMonthChange()` calculates net change per month correctly
+- [x] Test: `getNetWorth()` returns correct assets, liabilities, and total for seeded data
+- [x] Test: `getNetWorth()` excludes inactive accounts
+- [x] Test: `getMonthlyIncomeExpense()` only includes INCOME_TYPES and SPENDING_TYPES (no transfers)
+- [x] Test: `getSpendingByCategory()` groups and sorts categories by amount desc
+- [x] Test: `getCreditUtilization()` returns correct balance/limit/utilization %
+- [x] Test: `getUpcomingBills()` returns bills sorted by due date with correct days-until-due
+- [x] Test: `getRecentTransactions()` returns correct count with account info
+- [x] Test: `getMonthOverMonthChange()` calculates net change per month correctly
 
 ### 2.2 Dashboard Components
 - [x] Create `src/components/dashboard/net-worth-card.tsx`
@@ -252,9 +252,9 @@
 - [x] Add loading skeletons for each card (CardSkeleton + ChartSkeleton components)
 
 ### 2.3b Dashboard Page Tests
-- [ ] Test: Dashboard page renders all widget components without errors
-- [ ] Test: Loading skeletons display while data is fetching
-- [ ] Test: Dashboard correctly passes year context to data-fetching actions
+- [ ] Test: Dashboard page renders all widget components without errors *(deferred — requires jsdom environment + React component testing setup)*
+- [ ] Test: Loading skeletons display while data is fetching *(deferred — requires jsdom environment)*
+- [ ] Test: Dashboard correctly passes year context to data-fetching actions *(deferred — requires jsdom environment)*
 
 ### 2.4 Accounts Pages
 - [x] Add `LOAN_TYPE_LABELS` and `APR_RATE_TYPE_LABELS` to `src/lib/constants.ts`
@@ -296,20 +296,20 @@
   - Recent transactions list (reuses row layout from dashboard)
 
 ### 2.4b Accounts Tests
-- [ ] Test: `getAccounts()` returns accounts grouped by type in correct order
-- [ ] Test: `getAccounts()` only returns active accounts for the authenticated user
-- [ ] Test: `getAccount(id)` returns CC details, loan data, APR rates, transactions, and balance history
-- [ ] Test: `getAccount(id)` rejects access to another user's account
-- [ ] Test: `createAccount()` inserts account with nested CC details when type is CREDIT_CARD
-- [ ] Test: `createAccount()` inserts account with nested loan details when type is LOAN/MORTGAGE
-- [ ] Test: `createAccount()` creates opening balance transaction for non-zero balance
-- [ ] Test: `updateAccount()` updates account and upserts CC/loan details
-- [ ] Test: `deleteAccount(id)` soft-deletes (sets isActive = false)
-- [ ] Test: `deleteAccount(id)` rejects deletion of another user's account
-- [ ] Test: `recalculateBalance(id)` detects drift between stored and calculated balance
-- [ ] Test: `confirmRecalculate(id)` applies the corrected balance
-- [ ] Test: `getBalanceHistory()` returns correct month-by-month balances
-- [ ] Test: Account detail page renders balance chart, CC details, APR rates, and recent transactions
+- [x] Test: `getAccounts()` returns accounts grouped by type in correct order
+- [x] Test: `getAccounts()` only returns active accounts for the authenticated user
+- [x] Test: `getAccount(id)` returns CC details, loan data, APR rates, transactions, and balance history
+- [x] Test: `getAccount(id)` rejects access to another user's account
+- [x] Test: `createAccount()` inserts account with nested CC details when type is CREDIT_CARD
+- [x] Test: `createAccount()` inserts account with nested loan details when type is LOAN/MORTGAGE
+- [x] Test: `createAccount()` creates opening balance transaction for non-zero balance
+- [x] Test: `updateAccount()` updates account and upserts CC/loan details
+- [x] Test: `deleteAccount(id)` soft-deletes (sets isActive = false)
+- [x] Test: `deleteAccount(id)` rejects deletion of another user's account
+- [x] Test: `recalculateBalance(id)` detects drift between stored and calculated balance
+- [x] Test: `confirmRecalculate(id)` applies the corrected balance
+- [x] Test: `getBalanceHistory()` returns correct month-by-month balances
+- [ ] Test: Account detail page renders balance chart, CC details, APR rates, and recent transactions *(deferred — requires jsdom environment)*
 
 ### 2.5 Recalculate API
 - [x] Add `recalculateAllBalances()` to `src/actions/accounts.ts` — returns drift report for all active accounts
@@ -322,11 +322,11 @@
   - [x] Error handling for missing params and invalid account IDs
 
 ### 2.5b Recalculate API Tests
-- [ ] Test: POST with `{ accountId }` returns stored, calculated, and drift values
-- [ ] Test: POST with `{ accountId, confirm: true }` applies correction and updates balance
-- [ ] Test: POST with `{ all: true }` returns drift report for all active accounts
-- [ ] Test: POST with `{ all: true, confirm: true }` applies corrections only for accounts with drift
-- [ ] Test: Returns error for missing params and invalid account IDs
+- [x] Test: POST with `{ accountId }` returns stored, calculated, and drift values
+- [x] Test: POST with `{ accountId, confirm: true }` applies correction and updates balance
+- [x] Test: POST with `{ all: true }` returns drift report for all active accounts
+- [x] Test: POST with `{ all: true, confirm: true }` applies corrections only for accounts with drift
+- [x] Test: Returns error for missing params and invalid account IDs
 
 ---
 
@@ -341,15 +341,15 @@
   - [x] `bulkCategorize(ids, category)` — update category for multiple transactions
 
 ### 3.1b Transaction CRUD Tests
-- [ ] Test: `getTransactions()` returns paginated results with correct total count
-- [ ] Test: `getTransactions()` filters by account, category, type, date range, search, and owner
-- [ ] Test: `getTransactions()` only returns transactions for the authenticated user
-- [ ] Test: `createTransaction()` inserts transaction and updates account balance
-- [ ] Test: `createTransaction()` rejects transaction on another user's account
-- [ ] Test: `updateTransaction()` reverses old balance impact and applies new
-- [ ] Test: `deleteTransaction()` reverses balance impact and deletes record
-- [ ] Test: `deleteTransaction()` on a linked transfer unlinks/deletes the paired transaction
-- [ ] Test: `bulkCategorize()` updates category for multiple transactions
+- [x] Test: `getTransactions()` returns paginated results with correct total count (68 tests in `transactions.test.ts`)
+- [x] Test: `getTransactions()` filters by account, category, type, date range, search, and owner
+- [x] Test: `getTransactions()` only returns transactions for the authenticated user
+- [x] Test: `createTransaction()` inserts transaction and updates account balance
+- [x] Test: `createTransaction()` rejects transaction on another user's account
+- [x] Test: `updateTransaction()` reverses old balance impact and applies new
+- [x] Test: `deleteTransaction()` reverses balance impact and deletes record
+- [x] Test: `deleteTransaction()` on a linked transfer unlinks/deletes the paired transaction
+- [x] Test: `bulkCategorize()` updates category for multiple transactions
 
 ### 3.2 Transfer Wizard
 - [ ] Create `src/actions/transfers.ts`:
@@ -372,12 +372,12 @@
   - Description (auto-generated like "Transfer to Savings" but editable)
 
 ### 3.2b Transfer Wizard Tests
-- [ ] Test: `createTransfer()` creates two linked transactions with correct types and amounts
-- [ ] Test: `createTransfer()` updates both account balances atomically
-- [ ] Test: `createTransfer()` links A→B and B→A via `linked_transaction_id`
-- [ ] Test: Transfer transactions are typed as `TRANSFER` (not income/expense)
-- [ ] Test: Transfer wizard validates source ≠ destination account
-- [ ] Test: Transfer wizard shows owner names on account dropdowns
+- [ ] Test: `createTransfer()` creates two linked transactions with correct types and amounts *(blocked — `transfers.ts` not yet implemented)*
+- [ ] Test: `createTransfer()` updates both account balances atomically *(blocked)*
+- [ ] Test: `createTransfer()` links A→B and B→A via `linked_transaction_id` *(blocked)*
+- [ ] Test: Transfer transactions are typed as `TRANSFER` (not income/expense) *(blocked)*
+- [ ] Test: Transfer wizard validates source ≠ destination account *(blocked — component not yet implemented)*
+- [ ] Test: Transfer wizard shows owner names on account dropdowns *(blocked — component not yet implemented)*
 
 ### 3.3 Loan Payment Recording
 - [ ] Create `src/actions/loan-payments.ts`:
@@ -399,14 +399,14 @@
   - Shows calculated principal/interest split before confirming
 
 ### 3.3b Loan Payment Tests
-- [ ] Test: `recordLoanPayment()` calculates correct principal/interest split from amortization formula
-- [ ] Test: `recordLoanPayment()` creates transfer transaction on checking and principal+interest transactions on loan
-- [ ] Test: `recordLoanPayment()` links checking transaction to loan principal transaction
-- [ ] Test: `recordLoanPayment()` updates loan balance and remaining months
-- [ ] Test: `recordLoanPayment()` updates checking account balance
-- [ ] Test: `recordLoanPayment()` logs interest to `interest_log`
-- [ ] Test: Loan payment form pre-fills with monthly payment amount
-- [ ] Test: Loan payment form shows calculated split before confirming
+- [ ] Test: `recordLoanPayment()` calculates correct principal/interest split from amortization formula *(blocked — `loan-payments.ts` not yet implemented)*
+- [ ] Test: `recordLoanPayment()` creates transfer transaction on checking and principal+interest transactions on loan *(blocked)*
+- [ ] Test: `recordLoanPayment()` links checking transaction to loan principal transaction *(blocked)*
+- [ ] Test: `recordLoanPayment()` updates loan balance and remaining months *(blocked)*
+- [ ] Test: `recordLoanPayment()` updates checking account balance *(blocked)*
+- [ ] Test: `recordLoanPayment()` logs interest to `interest_log` *(blocked)*
+- [ ] Test: Loan payment form pre-fills with monthly payment amount *(blocked — component not yet implemented)*
+- [ ] Test: Loan payment form shows calculated split before confirming *(blocked — component not yet implemented)*
 
 ### 3.4 Per-Transaction APR Management
 - [ ] Create `src/actions/apr-rates.ts`:
@@ -424,12 +424,12 @@
   - Show which transactions are using each rate
 
 ### 3.4b APR Management Tests
-- [ ] Test: `getAprRates()` returns all rates (active and expired) for a credit card
-- [ ] Test: `createAprRate()` adds a new rate to a credit card
-- [ ] Test: `updateAprRate()` edits rate details
-- [ ] Test: `deleteAprRate()` soft-deletes (sets `is_active = false`)
-- [ ] Test: APR rate selector shows only active rates for the selected CC account
-- [ ] Test: APR rates management section displays rates with correct type badges
+- [ ] Test: `getAprRates()` returns all rates (active and expired) for a credit card *(blocked — `apr-rates.ts` not yet implemented)*
+- [ ] Test: `createAprRate()` adds a new rate to a credit card *(blocked)*
+- [ ] Test: `updateAprRate()` edits rate details *(blocked)*
+- [ ] Test: `deleteAprRate()` soft-deletes (sets `is_active = false`) *(blocked)*
+- [ ] Test: APR rate selector shows only active rates for the selected CC account *(blocked — component not yet implemented)*
+- [ ] Test: APR rates management section displays rates with correct type badges *(blocked — component not yet implemented)*
 
 ### 3.5 Transaction List Page
 - [ ] Create `src/components/transactions/transaction-filters.tsx`:
@@ -460,22 +460,22 @@
   - Bulk categorize selected transactions
 
 ### 3.5b Transaction List Page Tests
-- [ ] Test: Transaction table renders with correct columns and color coding by type
-- [ ] Test: Filters (account, category, type, date range, search, owner) correctly narrow results
-- [ ] Test: Pagination works with server-side data
-- [ ] Test: Linked transaction indicator shows and navigates to paired transaction
-- [ ] Test: Bulk categorize updates category for all selected transactions
-- [ ] Test: Transaction form adapts fields based on selected tab (Expense/Income/Transfer/Loan Payment)
+- [ ] Test: Transaction table renders with correct columns and color coding by type *(blocked — components not yet implemented)*
+- [ ] Test: Filters (account, category, type, date range, search, owner) correctly narrow results *(blocked)*
+- [ ] Test: Pagination works with server-side data *(blocked)*
+- [ ] Test: Linked transaction indicator shows and navigates to paired transaction *(blocked)*
+- [ ] Test: Bulk categorize updates category for all selected transactions *(blocked)*
+- [ ] Test: Transaction form adapts fields based on selected tab (Expense/Income/Transfer/Loan Payment) *(blocked)*
 
 ### 3.6 Verification
-- [ ] Test: Create expense on CC → only shows in expense totals, balance updated
-- [ ] Test: Create CC payment from checking → shows as transfer, excluded from totals, both balances updated
-- [ ] Test: Create checking → savings transfer → both sides excluded from income/expense
-- [ ] Test: Create loan payment → principal excluded, interest shows as expense, loan balance updated
-- [ ] Test: Delete a linked transfer → both sides deleted, both balances reversed
-- [ ] Test: Edit transaction amount → old balance reversed, new balance applied
-- [ ] Test: Dashboard totals match expected values after all scenarios
-- [ ] Test: Per-transaction APR rates display correctly on transactions
+- [x] Test: Create expense on CC → only shows in expense totals, balance updated *(covered by `transactions.test.ts` + `dashboard.test.ts`)*
+- [ ] Test: Create CC payment from checking → shows as transfer, excluded from totals, both balances updated *(blocked — `transfers.ts` not yet implemented)*
+- [ ] Test: Create checking → savings transfer → both sides excluded from income/expense *(blocked — `transfers.ts` not yet implemented)*
+- [ ] Test: Create loan payment → principal excluded, interest shows as expense, loan balance updated *(blocked — `loan-payments.ts` not yet implemented)*
+- [x] Test: Delete a linked transfer → both sides deleted, both balances reversed *(covered by `transactions.test.ts`)*
+- [x] Test: Edit transaction amount → old balance reversed, new balance applied *(covered by `transactions.test.ts`)*
+- [ ] Test: Dashboard totals match expected values after all scenarios *(deferred — integration/E2E test)*
+- [ ] Test: Per-transaction APR rates display correctly on transactions *(blocked — `apr-rates.ts` not yet implemented)*
 
 ---
 
