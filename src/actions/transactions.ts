@@ -60,6 +60,9 @@ export async function getTransactions(filters: {
   // Build dynamic where clause
   const where: Record<string, unknown> = { userId }
 
+  // Exclude transactions belonging to soft-deleted accounts by default
+  const accountFilter: Record<string, unknown> = { isActive: true }
+
   if (filters.accountId) {
     where.accountId = filters.accountId
   }
@@ -85,8 +88,10 @@ export async function getTransactions(filters: {
   }
 
   if (filters.owner) {
-    where.account = { owner: filters.owner }
+    accountFilter.owner = filters.owner
   }
+
+  where.account = accountFilter
 
   const [transactions, total] = await Promise.all([
     prisma.transaction.findMany({

@@ -107,6 +107,21 @@ describe("getNetWorth", () => {
     )
   })
 
+  it("excludes transactions from inactive accounts in month delta", async () => {
+    mockAccountFindMany.mockResolvedValue([] as never)
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getNetWorth(2026)
+
+    expect(mockTransactionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: { isActive: true },
+        }),
+      })
+    )
+  })
+
   it("calculates month-over-month change from current month transactions", async () => {
     mockAccountFindMany.mockResolvedValue([
       { balance: decimal(5000), type: "CHECKING" },
@@ -145,6 +160,20 @@ describe("getMonthlyIncomeExpense", () => {
   it("throws Unauthorized when no session", async () => {
     mockGetSession.mockResolvedValue(null as never)
     await expect(getMonthlyIncomeExpense(2026)).rejects.toThrow("Unauthorized")
+  })
+
+  it("excludes transactions from inactive accounts", async () => {
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getMonthlyIncomeExpense(2026)
+
+    expect(mockTransactionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: { isActive: true },
+        }),
+      })
+    )
   })
 
   it("only includes INCOME_TYPES and SPENDING_TYPES (no transfers)", async () => {
@@ -527,6 +556,20 @@ describe("getRecentTransactions", () => {
     )
   })
 
+  it("excludes transactions from inactive accounts", async () => {
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getRecentTransactions()
+
+    expect(mockTransactionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: { isActive: true },
+        }),
+      })
+    )
+  })
+
   it("orders by date descending (newest first)", async () => {
     mockTransactionFindMany.mockResolvedValue([] as never)
 
@@ -594,6 +637,20 @@ describe("getMonthOverMonthChange", () => {
 
     const feb = result.find((m) => m.month === "2026-02")!
     expect(feb.netChange).toBe(2500) // 4500 + (-2000)
+  })
+
+  it("excludes transactions from inactive accounts", async () => {
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getMonthOverMonthChange(2026)
+
+    expect(mockTransactionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: { isActive: true },
+        }),
+      })
+    )
   })
 
   it("includes all transaction types in net change (including transfers)", async () => {

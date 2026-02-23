@@ -252,13 +252,25 @@ describe("getTransactions", () => {
     )
   })
 
-  it("adds owner filter as nested account.owner condition", async () => {
+  it("always filters to active accounts by default", async () => {
+    await getTransactions()
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: expect.objectContaining({ isActive: true }),
+        }),
+      })
+    )
+  })
+
+  it("adds owner filter merged with active account condition", async () => {
     await getTransactions({ owner: "Alice" })
 
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          account: { owner: "Alice" },
+          account: { isActive: true, owner: "Alice" },
         }),
       })
     )

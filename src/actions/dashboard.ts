@@ -61,6 +61,7 @@ export async function getNetWorth(year: number) {
     where: {
       userId,
       date: { gte: startOfCurrentMonth },
+      account: { isActive: true },
     },
     select: { amount: true, type: true, account: { select: { type: true } } },
   })
@@ -107,6 +108,7 @@ export async function getMonthlyIncomeExpense(year: number) {
           "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
         >,
       },
+      account: { isActive: true },
     },
     select: { date: true, amount: true, type: true },
     orderBy: { date: "asc" },
@@ -166,6 +168,7 @@ export async function getSpendingByCategory(year: number, month: number) {
           "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
         >,
       },
+      account: { isActive: true },
     },
     select: { category: true, amount: true },
   })
@@ -275,7 +278,7 @@ export async function getRecentTransactions(count: number = 10) {
   const userId = await requireUserId()
 
   const transactions = await prisma.transaction.findMany({
-    where: { userId },
+    where: { userId, account: { isActive: true } },
     select: {
       id: true,
       date: true,
@@ -319,6 +322,7 @@ export async function getMonthOverMonthChange(year: number) {
     where: {
       userId,
       date: { gte: startDate, lt: endDate },
+      account: { isActive: true },
     },
     select: { date: true, amount: true },
     orderBy: { date: "asc" },

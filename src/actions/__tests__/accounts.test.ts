@@ -14,27 +14,43 @@ vi.mock("@/lib/auth", () => ({
   },
 }))
 
-vi.mock("@/db", () => ({
-  prisma: {
-    account: {
-      findMany: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
+vi.mock("@/db", () => {
+  const mockTx = {
     transaction: {
       findMany: vi.fn(),
-      create: vi.fn(),
-      aggregate: vi.fn(),
+      updateMany: vi.fn(),
     },
-    creditCardDetails: {
-      upsert: vi.fn(),
+    account: {
+      delete: vi.fn(),
     },
-    loan: {
-      upsert: vi.fn(),
+  }
+  return {
+    prisma: {
+      account: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      },
+      transaction: {
+        findMany: vi.fn(),
+        create: vi.fn(),
+        aggregate: vi.fn(),
+        count: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      creditCardDetails: {
+        upsert: vi.fn(),
+      },
+      loan: {
+        upsert: vi.fn(),
+      },
+      $transaction: vi.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
+      _mockTx: mockTx,
     },
-  },
-}))
+  }
+})
 
 // ── Imports (after mocks) ─────────────────────────────────────────────────────
 
@@ -42,15 +58,19 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/db"
 import {
   getAccounts,
+  getInactiveAccounts,
   getAccount,
   createAccount,
   updateAccount,
   deleteAccount,
+  reactivateAccount,
   recalculateBalance,
   confirmRecalculate,
   recalculateAllBalances,
   confirmRecalculateAll,
   getBalanceHistory,
+  getAccountTransactions,
+  permanentlyDeleteAccount,
 } from "../accounts"
 
 // ── Typed mock accessors ──────────────────────────────────────────────────────
@@ -63,8 +83,12 @@ const mockAccountUpdate = vi.mocked(prisma.account.update)
 const mockTransactionFindMany = vi.mocked(prisma.transaction.findMany)
 const mockTransactionCreate = vi.mocked(prisma.transaction.create)
 const mockTransactionAggregate = vi.mocked(prisma.transaction.aggregate)
+const mockTransactionCount = vi.mocked(prisma.transaction.count)
 const mockCCUpsert = vi.mocked(prisma.creditCardDetails.upsert)
 const mockLoanUpsert = vi.mocked(prisma.loan.upsert)
+const mock$Transaction = vi.mocked(prisma.$transaction)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockTx = (prisma as any)._mockTx
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -622,6 +646,86 @@ describe("deleteAccount", () => {
   })
 })
 
+// ── getInactiveAccounts ───────────────────────────────────────────────────────
+
+describe("getInactiveAccounts", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(getInactiveAccounts()).rejects.toThrow("Unauthorized")
+  })
+
+  it("queries with isActive: false", async () => {
+    mockAccountFindMany.mockResolvedValue([] as never)
+
+    await getInactiveAccounts()
+
+    expect(mockAccountFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "user-1", isActive: false }),
+      })
+    )
+  })
+
+  it("returns inactive accounts grouped by type", async () => {
+    mockAccountFindMany.mockResolvedValue([
+      { id: "a1", name: "Old Checking", type: "CHECKING", balance: decimal(500), creditLimit: null, owner: null, isActive: false },
+      { id: "a2", name: "Old CC", type: "CREDIT_CARD", balance: decimal(-200), creditLimit: decimal(5000), owner: null, isActive: false },
+    ] as never)
+
+    const result = await getInactiveAccounts()
+
+    expect(result).toHaveLength(2)
+    expect(result[0].type).toBe("CHECKING")
+    expect(result[1].type).toBe("CREDIT_CARD")
+    expect(result[0].accounts[0].isActive).toBe(false)
+  })
+})
+
+// ── reactivateAccount ─────────────────────────────────────────────────────────
+
+describe("reactivateAccount", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(reactivateAccount("acc-1")).rejects.toThrow("Unauthorized")
+  })
+
+  it("throws Account not found for non-existent account", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(reactivateAccount("acc-nonexistent")).rejects.toThrow("Account not found")
+  })
+
+  it("sets isActive to true", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    mockAccountUpdate.mockResolvedValue({} as never)
+
+    await reactivateAccount("acc-1")
+
+    expect(mockAccountUpdate).toHaveBeenCalledWith({
+      where: { id: "acc-1" },
+      data: { isActive: true },
+    })
+  })
+
+  it("verifies ownership by querying with userId", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    mockAccountUpdate.mockResolvedValue({} as never)
+
+    await reactivateAccount("acc-1")
+
+    expect(mockAccountFindFirst).toHaveBeenCalledWith({
+      where: { id: "acc-1", userId: "user-1" },
+    })
+  })
+
+  it("returns { success: true }", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    mockAccountUpdate.mockResolvedValue({} as never)
+
+    const result = await reactivateAccount("acc-1")
+    expect(result).toEqual({ success: true })
+  })
+})
+
 // ── recalculateBalance ────────────────────────────────────────────────────────
 
 describe("recalculateBalance", () => {
@@ -844,5 +948,117 @@ describe("getBalanceHistory", () => {
       expect(typeof entry.balance).toBe("number")
       expect(entry.date).toMatch(/^\d{4}-\d{2}$/)
     })
+  })
+})
+
+// ── getAccountTransactions ──────────────────────────────────────────────────
+
+describe("getAccountTransactions", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(getAccountTransactions("acc-1")).rejects.toThrow("Unauthorized")
+  })
+
+  it("throws Account not found for non-existent account", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(getAccountTransactions("acc-bad")).rejects.toThrow("Account not found")
+  })
+
+  it("returns paginated transactions with correct totals", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount() as never)
+    mockTransactionFindMany.mockResolvedValue([
+      { id: "txn-1", date: new Date("2026-01-15"), description: "Coffee", amount: decimal(-5.50), type: "EXPENSE", category: "Food" },
+      { id: "txn-2", date: new Date("2026-01-14"), description: "Salary", amount: decimal(3000), type: "INCOME", category: "Salary" },
+    ] as never)
+    mockTransactionCount.mockResolvedValue(25 as never)
+
+    const result = await getAccountTransactions("acc-1", 1, 10)
+
+    expect(result.transactions).toHaveLength(2)
+    expect(result.transactions[0].amount).toBe(-5.50)
+    expect(result.total).toBe(25)
+    expect(result.page).toBe(1)
+    expect(result.pageSize).toBe(10)
+    expect(result.totalPages).toBe(3)
+  })
+
+  it("passes correct skip/take for pagination", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount() as never)
+    mockTransactionFindMany.mockResolvedValue([] as never)
+    mockTransactionCount.mockResolvedValue(0 as never)
+
+    await getAccountTransactions("acc-1", 3, 5)
+
+    expect(mockTransactionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { accountId: "acc-1" },
+        skip: 10,
+        take: 5,
+      })
+    )
+  })
+})
+
+// ── permanentlyDeleteAccount ────────────────────────────────────────────────
+
+describe("permanentlyDeleteAccount", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(permanentlyDeleteAccount("acc-1")).rejects.toThrow("Unauthorized")
+  })
+
+  it("throws Account not found for non-existent account", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(permanentlyDeleteAccount("acc-bad")).rejects.toThrow("Account not found")
+  })
+
+  it("throws if account is still active", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: true }) as never)
+    await expect(permanentlyDeleteAccount("acc-1")).rejects.toThrow("Cannot permanently delete an active account")
+  })
+
+  it("nulls linked transaction FKs before deleting", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    vi.mocked(mockTx.transaction.findMany).mockResolvedValue([
+      { id: "txn-1" },
+      { id: "txn-2" },
+    ] as never)
+    vi.mocked(mockTx.transaction.updateMany).mockResolvedValue({ count: 1 } as never)
+    vi.mocked(mockTx.account.delete).mockResolvedValue({} as never)
+
+    await permanentlyDeleteAccount("acc-1")
+
+    // Should null out outgoing links (from this account)
+    expect(mockTx.transaction.updateMany).toHaveBeenCalledWith({
+      where: { accountId: "acc-1", linkedTransactionId: { not: null } },
+      data: { linkedTransactionId: null },
+    })
+
+    // Should null out incoming links (from other accounts)
+    expect(mockTx.transaction.updateMany).toHaveBeenCalledWith({
+      where: { linkedTransactionId: { in: ["txn-1", "txn-2"] } },
+      data: { linkedTransactionId: null },
+    })
+  })
+
+  it("hard-deletes the account", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    vi.mocked(mockTx.transaction.findMany).mockResolvedValue([] as never)
+    vi.mocked(mockTx.account.delete).mockResolvedValue({} as never)
+
+    const result = await permanentlyDeleteAccount("acc-1")
+
+    expect(mockTx.account.delete).toHaveBeenCalledWith({ where: { id: "acc-1" } })
+    expect(result).toEqual({ success: true })
+  })
+
+  it("skips FK nulling when account has no transactions", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ isActive: false }) as never)
+    vi.mocked(mockTx.transaction.findMany).mockResolvedValue([] as never)
+    vi.mocked(mockTx.account.delete).mockResolvedValue({} as never)
+
+    await permanentlyDeleteAccount("acc-1")
+
+    expect(mockTx.transaction.updateMany).not.toHaveBeenCalled()
   })
 })

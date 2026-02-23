@@ -328,6 +328,17 @@
 - [x] Test: POST with `{ all: true, confirm: true }` applies corrections only for accounts with drift
 - [x] Test: Returns error for missing params and invalid account IDs
 
+### 2.6 Account Reactivation (Inactive Accounts) ✅
+- [x] Add `reactivateAccount(id)` to `src/actions/accounts.ts` — sets `isActive = true` on a soft-deleted account
+- [x] Add `getInactiveAccounts()` to `src/actions/accounts.ts` — returns all accounts where `isActive = false`, grouped by type
+- [x] Update `src/app/(app)/accounts/page.tsx` with Active / Inactive tabs:
+  - Active tab (default): shows current active accounts (existing behavior)
+  - Inactive tab: shows soft-deleted accounts with "Reactivate" button on each card
+  - Badge on Inactive tab showing count of inactive accounts (hidden if zero)
+- [x] Test: `reactivateAccount()` sets `isActive = true` and account reappears in active list
+- [x] Test: `getInactiveAccounts()` returns only soft-deleted accounts
+- [ ] Test: Reactivated account's transactions reappear in transaction list and dashboard totals
+
 ---
 
 ## Phase 3: Transactions & Intelligence
@@ -485,12 +496,12 @@
 ## Phase 4: Loans & Interest
 
 ### 4.1 Loan CRUD
-- [ ] Create `src/actions/loans.ts`:
-  - [ ] `getLoans()` — all loans with account data
-  - [ ] `getLoan(id)` — single loan with full detail
-  - [ ] `createLoan(data)` — create account (type: loan/mortgage) + loan record
-  - [ ] `updateLoan(id, data)` — update loan details
-  - [ ] `deleteLoan(id)` — soft delete account
+- [x] Create `src/actions/loans.ts`:
+  - [x] `getLoans()` — all loans with account data
+  - [x] `getLoan(id)` — single loan with full detail
+  - [x] `createLoan(data)` — create account (type: loan/mortgage) + loan record
+  - [x] `updateLoan(id, data)` — update loan details
+  - [x] `deleteLoan(id)` — soft delete account
 
 ### 4.2 Amortization Engine
 - [ ] Create amortization functions in `src/lib/calculations.ts`:

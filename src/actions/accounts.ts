@@ -412,6 +412,61 @@ export async function updateAccount(
 }
 
 /**
+ * Returns all inactive (soft-deleted) accounts grouped by type.
+ *
+ * Mirror of getAccounts() but with isActive: false. Used by the
+ * inactive-accounts tab so users can review and reactivate deleted accounts.
+ */
+export async function getInactiveAccounts(): Promise<AccountGroup[]> {
+  const userId = await requireUserId()
+
+  const accounts = await prisma.account.findMany({
+    where: { userId, isActive: false },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      balance: true,
+      creditLimit: true,
+      owner: true,
+      isActive: true,
+    },
+    orderBy: { name: "asc" },
+  })
+
+  const mapped: AccountSummary[] = accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+    balance: toNumber(a.balance),
+    creditLimit: a.creditLimit ? toNumber(a.creditLimit) : null,
+    owner: a.owner,
+    isActive: a.isActive,
+  }))
+
+  return groupAccountsByType(mapped, TYPE_ORDER, ACCOUNT_TYPE_LABELS)
+}
+
+/**
+ * Reactivates a soft-deleted account by setting isActive back to true.
+ *
+ * Verifies ownership before updating. The inverse of deleteAccount().
+ */
+export async function reactivateAccount(id: string) {
+  const userId = await requireUserId()
+
+  const existing = await prisma.account.findFirst({ where: { id, userId } })
+  if (!existing) throw new Error("Account not found")
+
+  await prisma.account.update({
+    where: { id },
+    data: { isActive: true },
+  })
+
+  return { success: true }
+}
+
+/**
  * Soft-deletes an account by setting isActive to false.
  *
  * Accounts are never hard-deleted because transactions reference them.
@@ -556,6 +611,100 @@ export async function confirmRecalculateAll() {
   )
 
   return results
+}
+
+/**
+ * Returns paginated transactions for a specific account (including inactive accounts).
+ *
+ * Unlike getTransactions() in transactions.ts which filters out inactive accounts,
+ * this action is needed to show what will be deleted in the permanent delete confirmation.
+ */
+export async function getAccountTransactions(
+  accountId: string,
+  page: number = 1,
+  pageSize: number = 10
+) {
+  const userId = await requireUserId()
+
+  const account = await prisma.account.findFirst({ where: { id: accountId, userId } })
+  if (!account) throw new Error("Account not found")
+
+  const [transactions, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { accountId },
+      orderBy: { date: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        date: true,
+        description: true,
+        amount: true,
+        type: true,
+        category: true,
+      },
+    }),
+    prisma.transaction.count({ where: { accountId } }),
+  ])
+
+  return {
+    transactions: transactions.map((t) => ({
+      id: t.id,
+      date: t.date,
+      description: t.description,
+      amount: toNumber(t.amount),
+      type: t.type,
+      category: t.category,
+    })),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
+}
+
+/**
+ * Permanently hard-deletes an inactive account and all its data.
+ *
+ * Only works on inactive accounts (isActive: false) to prevent accidental data loss.
+ * Handles the self-referential linkedTransactionId FK by nulling it on both sides
+ * before deleting. Prisma cascade handles: transactions, CreditCardDetails, Loan,
+ * AprRates, InterestLogs, RecurringBills.
+ */
+export async function permanentlyDeleteAccount(id: string) {
+  const userId = await requireUserId()
+
+  const account = await prisma.account.findFirst({ where: { id, userId } })
+  if (!account) throw new Error("Account not found")
+  if (account.isActive) throw new Error("Cannot permanently delete an active account. Deactivate it first.")
+
+  await prisma.$transaction(async (tx) => {
+    // Get all transaction IDs belonging to this account
+    const accountTxns = await tx.transaction.findMany({
+      where: { accountId: id },
+      select: { id: true },
+    })
+    const accountTxnIds = accountTxns.map((t) => t.id)
+
+    if (accountTxnIds.length > 0) {
+      // Null out linkedTransactionId on transactions IN this account pointing OUT
+      await tx.transaction.updateMany({
+        where: { accountId: id, linkedTransactionId: { not: null } },
+        data: { linkedTransactionId: null },
+      })
+
+      // Null out linkedTransactionId on transactions in OTHER accounts pointing INTO this account's transactions
+      await tx.transaction.updateMany({
+        where: { linkedTransactionId: { in: accountTxnIds } },
+        data: { linkedTransactionId: null },
+      })
+    }
+
+    // Hard-delete the account — Prisma cascades handle child records
+    await tx.account.delete({ where: { id } })
+  })
+
+  return { success: true }
 }
 
 /**
