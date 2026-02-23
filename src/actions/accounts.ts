@@ -365,6 +365,72 @@ export async function confirmRecalculate(id: string) {
   return { balance: calculated }
 }
 
+export async function recalculateAllBalances() {
+  const userId = await requireUserId()
+
+  const accounts = await prisma.account.findMany({
+    where: { userId, isActive: true },
+    select: { id: true, name: true, type: true, balance: true },
+  })
+
+  const results = await Promise.all(
+    accounts.map(async (account) => {
+      const result = await prisma.transaction.aggregate({
+        where: { accountId: account.id },
+        _sum: { amount: true },
+      })
+
+      const stored = toNumber(account.balance)
+      const calculated = toNumber(result._sum.amount ?? 0)
+      const drift = Math.round((calculated - stored) * 100) / 100
+
+      return {
+        accountId: account.id,
+        name: account.name,
+        type: account.type,
+        storedBalance: stored,
+        calculatedBalance: calculated,
+        drift,
+      }
+    })
+  )
+
+  return results
+}
+
+export async function confirmRecalculateAll() {
+  const userId = await requireUserId()
+
+  const accounts = await prisma.account.findMany({
+    where: { userId, isActive: true },
+    select: { id: true, balance: true },
+  })
+
+  const results = await Promise.all(
+    accounts.map(async (account) => {
+      const result = await prisma.transaction.aggregate({
+        where: { accountId: account.id },
+        _sum: { amount: true },
+      })
+
+      const calculated = toNumber(result._sum.amount ?? 0)
+      const stored = toNumber(account.balance)
+      const drift = Math.round((calculated - stored) * 100) / 100
+
+      if (drift !== 0) {
+        await prisma.account.update({
+          where: { id: account.id },
+          data: { balance: calculated },
+        })
+      }
+
+      return { accountId: account.id, balance: calculated, corrected: drift !== 0 }
+    })
+  )
+
+  return results
+}
+
 export async function getBalanceHistory(
   accountId: string,
   months: number = 12

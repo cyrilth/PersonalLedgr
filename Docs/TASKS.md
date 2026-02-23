@@ -281,10 +281,14 @@
   - Recent transactions list (reuses row layout from dashboard)
 
 ### 2.5 Recalculate API
-- [ ] Create `src/app/api/recalculate/route.ts`:
-  - POST with `{ accountId: string }` — recalculate single account
-  - POST with `{ all: true }` — recalculate all accounts
-  - Returns `{ results: [{ accountId, name, storedBalance, calculatedBalance, drift }] }`
+- [x] Add `recalculateAllBalances()` to `src/actions/accounts.ts` — returns drift report for all active accounts
+- [x] Add `confirmRecalculateAll()` to `src/actions/accounts.ts` — applies corrections for all accounts with drift
+- [x] Create `src/app/api/recalculate/route.ts`:
+  - [x] POST with `{ accountId: string }` — recalculate single account, returns `{ result: { stored, calculated, drift } }`
+  - [x] POST with `{ accountId, confirm: true }` — apply correction for single account
+  - [x] POST with `{ all: true }` — recalculate all accounts, returns `{ results: [{ accountId, name, type, storedBalance, calculatedBalance, drift }] }`
+  - [x] POST with `{ all: true, confirm: true }` — apply corrections for all accounts with drift
+  - [x] Error handling for missing params and invalid account IDs
 
 ---
 
