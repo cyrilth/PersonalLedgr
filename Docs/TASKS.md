@@ -609,20 +609,20 @@
     - Update account balance (for non-pending only)
 
 ### 5.2 Budgets
-- [ ] Create `src/actions/budgets.ts`:
-  - [ ] `getBudgets(period)` — budgets for a month with actual spending calculated
-  - [ ] `createBudget(data)` — insert budget
-  - [ ] `updateBudget(id, data)` — update limit
-  - [ ] `deleteBudget(id)` — delete
-  - [ ] `getBudgetVsActual(period)` — for each budget, return limit and actual spending
-  - [ ] `copyBudgets(fromPeriod, toPeriod)` — copy budget entries from one month to another
-- [ ] Create `src/components/budgets/budget-bar.tsx`:
+- [x] Create `src/actions/budgets.ts`:
+  - [x] `getBudgets(period)` — budgets for a month with actual spending calculated
+  - [x] `createBudget(data)` — insert budget
+  - [x] `updateBudget(id, data)` — update limit
+  - [x] `deleteBudget(id)` — delete
+  - [x] `getBudgetVsActual(period)` — for each budget, return limit and actual spending
+  - [x] `copyBudgets(fromPeriod, toPeriod)` — copy budget entries from one month to another
+- [x] Create `src/components/budgets/budget-bar.tsx`:
   - Category name
   - Progress bar: actual / limit
   - Color: green (<80%), orange (80-100%), red (>100%)
   - Remaining amount or overage amount
-- [ ] Create `src/components/budgets/budget-form.tsx` — add/edit budget dialog
-- [ ] Build `src/app/budgets/page.tsx`:
+- [x] Create `src/components/budgets/budget-form.tsx` — add/edit budget dialog
+- [x] Build `src/app/(app)/budgets/page.tsx`:
   - Month selector
   - Grid of budget bars
   - Total budgeted vs total spent
@@ -666,7 +666,13 @@
 
 ---
 
-## Phase 6: Bank Connectivity (Plaid)
+## Phase 6: Bank Connectivity (Plaid) — OUT OF SCOPE
+
+> **Status:** Deferred indefinitely. Plaid integration is not planned for the current release.
+> If revisited in the future, the tasks below outline the original design.
+
+<details>
+<summary>Original tasks (collapsed)</summary>
 
 ### 6.1 Plaid Setup
 - [ ] Create Plaid developer account and get sandbox credentials
@@ -713,6 +719,8 @@
   - Show Plaid transaction alongside potential match
   - Actions: "It's a match" (skip/merge), "It's new" (import), "Ignore"
 
+</details>
+
 ---
 
 ## Phase 7: Settings & Polish
@@ -729,7 +737,6 @@
     - "Load Demo Data" button to re-seed
   - [ ] **Database Backup:** Trigger manual backup, list recent backups with download links
   - [ ] **Data Export:** Download all data as JSON or CSV
-  - [ ] **Plaid Connections** (Phase 6 — show placeholder until implemented)
 
 ### 7.2 Polish & UX
 - [ ] Add toast notifications for all CRUD operations (using sonner)
