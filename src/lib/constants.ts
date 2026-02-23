@@ -168,6 +168,22 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   MORTGAGE: "Mortgage",
 }
 
+export const LOAN_TYPE_LABELS: Record<LoanType, string> = {
+  MORTGAGE: "Mortgage",
+  AUTO: "Auto",
+  STUDENT: "Student",
+  PERSONAL: "Personal",
+}
+
+export const APR_RATE_TYPE_LABELS: Record<AprRateType, string> = {
+  STANDARD: "Standard",
+  INTRO: "Introductory",
+  BALANCE_TRANSFER: "Balance Transfer",
+  CASH_ADVANCE: "Cash Advance",
+  PENALTY: "Penalty",
+  PROMOTIONAL: "Promotional",
+}
+
 export const TRANSACTION_SOURCE_LABELS: Record<TransactionSource, string> = {
   MANUAL: "Manual",
   IMPORT: "Import",

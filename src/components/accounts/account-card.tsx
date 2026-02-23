@@ -1,0 +1,87 @@
+"use client"
+
+import Link from "next/link"
+import { Landmark, PiggyBank, CreditCard, HandCoins, Home } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { formatCurrency } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+
+interface AccountCardProps {
+  id: string
+  name: string
+  type: string
+  balance: number
+  creditLimit: number | null
+  owner: string | null
+}
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  CHECKING: Landmark,
+  SAVINGS: PiggyBank,
+  CREDIT_CARD: CreditCard,
+  LOAN: HandCoins,
+  MORTGAGE: Home,
+}
+
+const DEBT_TYPES = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
+
+function getUtilizationColor(pct: number): string {
+  if (pct < 30) return "text-positive"
+  if (pct < 70) return "text-yellow-500"
+  return "text-negative"
+}
+
+function getProgressColor(pct: number): string {
+  if (pct < 30) return "[&>div]:bg-positive"
+  if (pct < 70) return "[&>div]:bg-yellow-500"
+  return "[&>div]:bg-negative"
+}
+
+export function AccountCard({ id, name, type, balance, creditLimit, owner }: AccountCardProps) {
+  const Icon = ICON_MAP[type] || Landmark
+  const isDebt = DEBT_TYPES.includes(type)
+  const displayBalance = isDebt ? Math.abs(balance) : balance
+  const limit = creditLimit ? Number(creditLimit) : 0
+  const utilization = type === "CREDIT_CARD" && limit > 0 ? (Math.abs(balance) / limit) * 100 : 0
+
+  return (
+    <Link href={`/accounts/${id}`}>
+      <Card className="transition-colors hover:bg-muted/50">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-muted p-2">
+                <Icon className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{name}</p>
+                {owner && (
+                  <p className="text-xs text-muted-foreground">{owner}</p>
+                )}
+              </div>
+            </div>
+            <p className={cn("text-sm font-semibold", isDebt && "text-negative")}>
+              {formatCurrency(displayBalance)}
+            </p>
+          </div>
+
+          {type === "CREDIT_CARD" && limit > 0 && (
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{formatCurrency(Math.abs(balance))} / {formatCurrency(limit)}</span>
+                <span className={getUtilizationColor(utilization)}>
+                  {utilization.toFixed(0)}%
+                </span>
+              </div>
+              <Progress
+                value={Math.min(utilization, 100)}
+                className={cn("h-1.5", getProgressColor(utilization))}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
