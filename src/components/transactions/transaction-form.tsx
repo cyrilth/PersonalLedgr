@@ -35,7 +35,6 @@ import { TransferWizard } from "./transfer-wizard"
 import { LoanPaymentForm } from "./loan-payment-form"
 import { createTransaction } from "@/actions/transactions"
 import { getAprRates } from "@/actions/apr-rates"
-import { DEFAULT_CATEGORIES } from "@/lib/constants"
 
 interface AccountOption {
   id: string
@@ -58,6 +57,7 @@ interface TransactionFormProps {
   onSuccess: () => void
   accounts: AccountOption[]
   loanAccounts: LoanAccountOption[]
+  categories?: string[]
 }
 
 interface AprRate {
@@ -73,6 +73,7 @@ export function TransactionForm({
   onSuccess,
   accounts,
   loanAccounts,
+  categories = [],
 }: TransactionFormProps) {
   const [tab, setTab] = useState<string>("expense")
   const [transferOpen, setTransferOpen] = useState(false)
@@ -258,7 +259,7 @@ export function TransactionForm({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {DEFAULT_CATEGORIES.map((cat) => (
+                      {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
                         </SelectItem>

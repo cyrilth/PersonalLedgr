@@ -10,6 +10,7 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
+import { KeyboardProvider } from "@/components/layout/keyboard-provider"
 import { YearProvider } from "@/contexts/year-context"
 
 export default function AppLayout({
@@ -27,6 +28,7 @@ export default function AppLayout({
           <Footer />
         </div>
       </div>
+      <KeyboardProvider />
     </YearProvider>
   )
 }

@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { TRANSACTION_TYPE_LABELS, DEFAULT_CATEGORIES } from "@/lib/constants"
+import { TRANSACTION_TYPE_LABELS } from "@/lib/constants"
 import type { TransactionType } from "@/lib/constants"
 import { formatDate, getAmountColor, formatAmount, cn } from "@/lib/utils"
 
@@ -49,6 +49,7 @@ interface TransactionTableProps {
   selectedIds: Set<string>
   onSelectChange: (ids: Set<string>) => void
   onCategoryChange: (id: string, category: string) => void
+  categories?: string[]
 }
 
 export function TransactionTable({
@@ -56,6 +57,7 @@ export function TransactionTable({
   selectedIds,
   onSelectChange,
   onCategoryChange,
+  categories = [],
 }: TransactionTableProps) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
 
@@ -147,7 +149,7 @@ export function TransactionTable({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEFAULT_CATEGORIES.map((cat) => (
+                      {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
                         </SelectItem>

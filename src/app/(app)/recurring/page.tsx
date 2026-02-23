@@ -49,6 +49,7 @@ import {
   type RecurringBillSummary,
 } from "@/actions/recurring"
 import { getAccountsFlat } from "@/actions/accounts"
+import { getCategoryNames } from "@/actions/categories"
 import { formatCurrency, cn } from "@/lib/utils"
 
 // ── Skeleton ──────────────────────────────────────────────────────────
@@ -167,6 +168,7 @@ function BillSummaryBar({ bills }: { bills: RecurringBillSummary[] }) {
 export default function RecurringBillsPage() {
   const [bills, setBills] = useState<RecurringBillSummary[] | null>(null)
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
+  const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editData, setEditData] = useState<{
@@ -188,9 +190,10 @@ export default function RecurringBillsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [billsData, accountsData] = await Promise.all([
+      const [billsData, accountsData, categoryNames] = await Promise.all([
         getRecurringBills(),
         getAccountsFlat(),
+        getCategoryNames(),
       ])
       setBills(billsData)
       setAccounts(
@@ -199,6 +202,7 @@ export default function RecurringBillsPage() {
           name: a.name,
         }))
       )
+      setCategories(categoryNames)
     } catch (err) {
       console.error("Failed to load recurring bills:", err)
       toast.error("Failed to load recurring bills")
@@ -384,6 +388,7 @@ export default function RecurringBillsPage() {
         onSuccess={fetchData}
         editData={editData}
         accounts={accounts}
+        categories={categories}
       />
 
       {/* Delete confirmation dialog */}

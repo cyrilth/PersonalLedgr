@@ -32,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { DEFAULT_CATEGORIES } from "@/lib/constants"
 import { createBudget, updateBudget } from "@/actions/budgets"
 
 interface BudgetFormProps {
@@ -45,9 +44,10 @@ interface BudgetFormProps {
     category: string
     limit: number
   } | null
+  categories?: string[]
 }
 
-export function BudgetForm({ open, onOpenChange, onSuccess, period, editData }: BudgetFormProps) {
+export function BudgetForm({ open, onOpenChange, onSuccess, period, editData, categories = [] }: BudgetFormProps) {
   const isEdit = !!editData
 
   // -- Form state --
@@ -132,7 +132,7 @@ export function BudgetForm({ open, onOpenChange, onSuccess, period, editData }: 
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {DEFAULT_CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
                   </SelectItem>

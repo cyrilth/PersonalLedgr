@@ -29,7 +29,7 @@ import { TransactionTable } from "@/components/transactions/transaction-table"
 import { TransactionForm } from "@/components/transactions/transaction-form"
 import { getTransactions, updateTransaction, bulkCategorize } from "@/actions/transactions"
 import { getAccountsFlat } from "@/actions/accounts"
-import { DEFAULT_CATEGORIES } from "@/lib/constants"
+import { getCategoryNames } from "@/actions/categories"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useYear } from "@/contexts/year-context"
 
@@ -51,6 +51,16 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [formOpen, setFormOpen] = useState(false)
   const [bulkCategory, setBulkCategory] = useState("")
+  const [categories, setCategories] = useState<string[]>([])
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const data = await getCategoryNames()
+      setCategories(data)
+    } catch (err) {
+      console.error("Failed to load categories:", err)
+    }
+  }, [])
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -87,7 +97,8 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchAccounts()
-  }, [fetchAccounts])
+    fetchCategories()
+  }, [fetchAccounts, fetchCategories])
 
   useEffect(() => {
     fetchTransactions()
@@ -181,6 +192,7 @@ export default function TransactionsPage() {
         filters={filters}
         onFiltersChange={setFilters}
         accounts={accounts.map((a) => ({ id: a.id, name: a.name, owner: a.owner }))}
+        categories={categories}
       />
 
       {/* Bulk categorize bar */}
@@ -195,7 +207,7 @@ export default function TransactionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pick" disabled>Set category...</SelectItem>
-              {DEFAULT_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {cat}
                 </SelectItem>
@@ -228,6 +240,7 @@ export default function TransactionsPage() {
           selectedIds={selectedIds}
           onSelectChange={setSelectedIds}
           onCategoryChange={handleCategoryChange}
+          categories={categories}
         />
       )}
 
@@ -263,6 +276,7 @@ export default function TransactionsPage() {
         onSuccess={handleSuccess}
         accounts={accountOptions}
         loanAccounts={loanAccounts}
+        categories={categories}
       />
     </div>
   )

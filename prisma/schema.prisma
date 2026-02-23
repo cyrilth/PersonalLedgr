@@ -79,6 +79,7 @@ model user {
   recurringBills RecurringBill[]
   budgets        Budget[]
   interestLogs   InterestLog[]
+  userCategories UserCategory[]
 }
 
 model session {
@@ -258,6 +259,19 @@ model Budget {
 
   @@unique([userId, category, period])
   @@index([userId, period])
+}
+
+model UserCategory {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, isActive])
 }
 
 model InterestLog {

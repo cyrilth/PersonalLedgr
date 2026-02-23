@@ -33,10 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import {
-  RECURRING_FREQUENCY_LABELS,
-  DEFAULT_CATEGORIES,
-} from "@/lib/constants"
+import { RECURRING_FREQUENCY_LABELS } from "@/lib/constants"
 import type { RecurringFrequency } from "@/lib/constants"
 import { createRecurringBill, updateRecurringBill } from "@/actions/recurring"
 
@@ -55,6 +52,7 @@ interface BillFormProps {
     accountId: string
   } | null
   accounts: { id: string; name: string }[]
+  categories?: string[]
 }
 
 export function BillForm({
@@ -63,6 +61,7 @@ export function BillForm({
   onSuccess,
   editData,
   accounts,
+  categories = [],
 }: BillFormProps) {
   const isEdit = !!editData
 
@@ -270,7 +269,7 @@ export function BillForm({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {DEFAULT_CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
                   </SelectItem>

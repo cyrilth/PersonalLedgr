@@ -17,10 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { X } from "lucide-react"
-import {
-  TRANSACTION_TYPE_LABELS,
-  DEFAULT_CATEGORIES,
-} from "@/lib/constants"
+import { TRANSACTION_TYPE_LABELS } from "@/lib/constants"
 import type { TransactionType } from "@/lib/constants"
 
 export interface TransactionFilters {
@@ -51,12 +48,14 @@ interface TransactionFilterBarProps {
   filters: TransactionFilters
   onFiltersChange: (filters: TransactionFilters) => void
   accounts: AccountOption[]
+  categories?: string[]
 }
 
 export function TransactionFilterBar({
   filters,
   onFiltersChange,
   accounts,
+  categories = [],
 }: TransactionFilterBarProps) {
   function update(patch: Partial<TransactionFilters>) {
     onFiltersChange({ ...filters, ...patch })
@@ -117,7 +116,7 @@ export function TransactionFilterBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {DEFAULT_CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 {cat}
               </SelectItem>

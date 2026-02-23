@@ -47,6 +47,7 @@ import {
 } from "@/actions/budgets"
 import { BudgetBar } from "@/components/budgets/budget-bar"
 import { BudgetForm } from "@/components/budgets/budget-form"
+import { getCategoryNames } from "@/actions/categories"
 import { formatCurrency } from "@/lib/utils"
 import { useYear } from "@/contexts/year-context"
 
@@ -168,6 +169,7 @@ function BudgetSummaryBar({ budgets }: { budgets: BudgetVsActual[] }) {
 export default function BudgetsPage() {
   const { year } = useYear()
   const [budgets, setBudgets] = useState<BudgetVsActual[] | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editData, setEditData] = useState<{
@@ -199,8 +201,12 @@ export default function BudgetsPage() {
   const fetchBudgets = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getBudgetVsActual(period)
+      const [data, categoryNames] = await Promise.all([
+        getBudgetVsActual(period),
+        getCategoryNames(),
+      ])
       setBudgets(data)
+      setCategories(categoryNames)
     } catch (err) {
       console.error("Failed to load budgets:", err)
       toast.error("Failed to load budgets")
@@ -347,6 +353,7 @@ export default function BudgetsPage() {
         onSuccess={fetchBudgets}
         period={period}
         editData={editData}
+        categories={categories}
       />
 
       {/* Delete confirmation dialog */}
