@@ -33,36 +33,15 @@ import {
 import {
   ACCOUNT_TYPE_LABELS,
   LOAN_TYPE_LABELS,
-  APR_RATE_TYPE_LABELS,
-  INCOME_TYPES,
-  SPENDING_TYPES,
 } from "@/lib/constants"
 import type { AccountType, LoanType, AprRateType } from "@/lib/constants"
-import { formatCurrency, formatDate, formatDateShort } from "@/lib/utils"
+import { formatCurrency, formatDate, formatDateShort, getAmountColor, formatAmount } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
 type AccountDetail = Awaited<ReturnType<typeof getAccount>>
 
 /** Account types whose balances are stored as negative (money owed). */
 const DEBT_TYPES = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
-
-/** Get color class for transaction amount based on its type. */
-function getAmountColor(type: string): string {
-  if ((INCOME_TYPES as readonly string[]).includes(type)) return "text-positive"
-  if ((SPENDING_TYPES as readonly string[]).includes(type)) return "text-negative"
-  return "text-transfer"
-}
-
-/** Format amount with sign: income positive, spending negative, transfers show stored sign. */
-function formatAmount(amount: number, type: string): string {
-  if ((INCOME_TYPES as readonly string[]).includes(type)) {
-    return `+${formatCurrency(Math.abs(amount))}`
-  }
-  if ((SPENDING_TYPES as readonly string[]).includes(type)) {
-    return `-${formatCurrency(Math.abs(amount))}`
-  }
-  return amount >= 0 ? `+${formatCurrency(amount)}` : `-${formatCurrency(Math.abs(amount))}`
-}
 
 /** Skeleton placeholder shown while account detail is loading. */
 function DetailSkeleton() {

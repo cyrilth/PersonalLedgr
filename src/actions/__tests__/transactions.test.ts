@@ -450,6 +450,30 @@ describe("createTransaction", () => {
     expect(typeof result.amount).toBe("number")
   })
 
+  it("passes aprRateId through to Prisma when provided", async () => {
+    await createTransaction({ ...validInput, aprRateId: "apr-1" })
+
+    expect(txClient.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ aprRateId: "apr-1" }),
+    })
+  })
+
+  it("stores null aprRateId when not provided", async () => {
+    await createTransaction(validInput)
+
+    expect(txClient.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ aprRateId: null }),
+    })
+  })
+
+  it("stores null aprRateId when empty string provided", async () => {
+    await createTransaction({ ...validInput, aprRateId: "" })
+
+    expect(txClient.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ aprRateId: null }),
+    })
+  })
+
   it("returns correct shape from createTransaction", async () => {
     const result = await createTransaction(validInput)
 

@@ -110,6 +110,39 @@ export async function getAccounts(): Promise<AccountGroup[]> {
 }
 
 /**
+ * Returns a flat list of all active accounts with optional loan info.
+ *
+ * Used by the transaction form and filter dropdowns which need a simple
+ * array rather than grouped data. Loan/mortgage accounts include their
+ * interest rate and monthly payment for the loan payment form.
+ */
+export async function getAccountsFlat() {
+  const userId = await requireUserId()
+
+  const accounts = await prisma.account.findMany({
+    where: { userId, isActive: true },
+    include: {
+      loan: { select: { interestRate: true, monthlyPayment: true } },
+    },
+    orderBy: { name: "asc" },
+  })
+
+  return accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+    balance: toNumber(a.balance),
+    owner: a.owner,
+    loan: a.loan
+      ? {
+          interestRate: toNumber(a.loan.interestRate),
+          monthlyPayment: toNumber(a.loan.monthlyPayment),
+        }
+      : null,
+  }))
+}
+
+/**
  * Returns full detail for a single account.
  *
  * Includes nested CC details, loan record, active APR rates, last 20 transactions,

@@ -77,6 +77,28 @@ export function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
 }
 
+// ── Transaction Amount Helpers ───────────────────────────────────────
+
+import { INCOME_TYPES, SPENDING_TYPES } from "./constants"
+
+/** Get color class for transaction amount based on its type. */
+export function getAmountColor(type: string): string {
+  if ((INCOME_TYPES as readonly string[]).includes(type)) return "text-positive"
+  if ((SPENDING_TYPES as readonly string[]).includes(type)) return "text-negative"
+  return "text-transfer"
+}
+
+/** Format amount with sign: income positive, spending negative, transfers show stored sign. */
+export function formatAmount(amount: number, type: string): string {
+  if ((INCOME_TYPES as readonly string[]).includes(type)) {
+    return `+${formatCurrency(Math.abs(amount))}`
+  }
+  if ((SPENDING_TYPES as readonly string[]).includes(type)) {
+    return `-${formatCurrency(Math.abs(amount))}`
+  }
+  return amount >= 0 ? `+${formatCurrency(amount)}` : `-${formatCurrency(Math.abs(amount))}`
+}
+
 // ── ID Generation ────────────────────────────────────────────────────
 
 /** Generate a random UUID (used as fallback ID when Prisma's cuid() isn't available). */

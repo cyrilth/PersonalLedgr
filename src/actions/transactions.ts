@@ -138,6 +138,7 @@ export async function createTransaction(data: {
   notes?: string
   accountId: string
   source?: string
+  aprRateId?: string
 }) {
   const userId = await requireUserId()
 
@@ -159,6 +160,7 @@ export async function createTransaction(data: {
         source: (data.source as "MANUAL" | "IMPORT" | "PLAID" | "RECURRING" | "SYSTEM") ?? "MANUAL",
         userId,
         accountId: data.accountId,
+        aprRateId: data.aprRateId || null,
       },
     })
 
