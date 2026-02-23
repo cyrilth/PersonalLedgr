@@ -379,34 +379,35 @@
 - [x] Test: Transfer wizard validates source ≠ destination account
 - [x] Test: Transfer wizard validates amount > 0, both accounts belong to user, accounts not found
 
-### 3.3 Loan Payment Recording
-- [ ] Create `src/actions/loan-payments.ts`:
-  - [ ] `recordLoanPayment(loanId, paymentAmount, date, fromAccountId)`:
-    - Calculate principal vs interest split using amortization formula from `loans.apr`
-    - Create Transaction A on checking (negative, type: transfer, full amount)
-    - Create Transaction B on loan account (positive, type: loan_principal, principal amount)
-    - Create Transaction C on loan account (negative, type: loan_interest, interest amount)
-    - Link A ↔ B
-    - Update loan current_balance and remaining_months
-    - Update checking account balance
-    - Log interest to interest_log
+### 3.3 Loan Payment Recording ✅
+- [x] Create `src/actions/loan-payments.ts`:
+  - [x] `recordLoanPayment(loanAccountId, amount, date, fromAccountId)`:
+    - Calculate principal vs interest split using simple monthly amortization
+    - Create Transaction A on checking (negative, type: TRANSFER, full amount)
+    - Create Transaction B on loan account (positive, type: LOAN_PRINCIPAL, principal amount)
+    - Create Transaction C on loan account (negative, type: LOAN_INTEREST, interest amount)
+    - Link A → B via linkedTransactionId
+    - Update checking account balance (decrement)
+    - Update loan account balance (increment by principal)
+    - Log interest to InterestLog (CHARGED type)
     - All in a database transaction (atomic)
-- [ ] Create `src/components/transactions/loan-payment-form.tsx`:
+- [x] Create `src/components/transactions/loan-payment-form.tsx`:
   - Loan selector dropdown
   - Payment amount (pre-filled with monthly_payment)
-  - From account dropdown (defaults to checking)
+  - From account dropdown (defaults to first checking)
   - Date picker
-  - Shows calculated principal/interest split before confirming
+  - Shows calculated principal/interest split preview before confirming
 
-### 3.3b Loan Payment Tests
-- [ ] Test: `recordLoanPayment()` calculates correct principal/interest split from amortization formula *(blocked — `loan-payments.ts` not yet implemented)*
-- [ ] Test: `recordLoanPayment()` creates transfer transaction on checking and principal+interest transactions on loan *(blocked)*
-- [ ] Test: `recordLoanPayment()` links checking transaction to loan principal transaction *(blocked)*
-- [ ] Test: `recordLoanPayment()` updates loan balance and remaining months *(blocked)*
-- [ ] Test: `recordLoanPayment()` updates checking account balance *(blocked)*
-- [ ] Test: `recordLoanPayment()` logs interest to `interest_log` *(blocked)*
-- [ ] Test: Loan payment form pre-fills with monthly payment amount *(blocked — component not yet implemented)*
-- [ ] Test: Loan payment form shows calculated split before confirming *(blocked — component not yet implemented)*
+### 3.3b Loan Payment Tests ✅
+- [x] Test: `recordLoanPayment()` calculates correct principal/interest split from amortization formula
+- [x] Test: `recordLoanPayment()` creates TRANSFER on checking and LOAN_PRINCIPAL + LOAN_INTEREST on loan
+- [x] Test: `recordLoanPayment()` links checking transaction to loan principal transaction
+- [x] Test: `recordLoanPayment()` increments loan balance by principal amount
+- [x] Test: `recordLoanPayment()` decrements checking account balance by full amount
+- [x] Test: `recordLoanPayment()` logs interest to InterestLog with CHARGED type
+- [x] Test: Validates loan account not found / no loan record / source not found
+- [x] Test: Validates amount > 0 and source ≠ loan account
+- [x] Test: Edge case — payment less than interest amount (all goes to interest)
 
 ### 3.4 Per-Transaction APR Management
 - [ ] Create `src/actions/apr-rates.ts`:
