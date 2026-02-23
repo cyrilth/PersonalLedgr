@@ -264,6 +264,24 @@ export async function createAccount(data: {
     },
   })
 
+  // Create an opening balance transaction so the transaction ledger matches the
+  // stored balance from day one. Without this, recalculate would show drift equal
+  // to the starting balance for any newly created account.
+  if (data.balance !== 0) {
+    await prisma.transaction.create({
+      data: {
+        date: new Date(),
+        description: "Opening Balance",
+        amount: data.balance,
+        type: data.balance > 0 ? "INCOME" : "EXPENSE",
+        category: "Opening Balance",
+        source: "SYSTEM",
+        userId,
+        accountId: account.id,
+      },
+    })
+  }
+
   return { id: account.id }
 }
 
