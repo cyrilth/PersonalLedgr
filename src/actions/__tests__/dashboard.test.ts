@@ -25,6 +25,9 @@ vi.mock("@/db", () => ({
     recurringBill: {
       findMany: vi.fn(),
     },
+    interestLog: {
+      findMany: vi.fn(),
+    },
   },
 }))
 
@@ -40,6 +43,7 @@ import {
   getUpcomingBills,
   getRecentTransactions,
   getMonthOverMonthChange,
+  getInterestSummary,
 } from "../dashboard"
 
 // ── Typed mock accessors ──────────────────────────────────────────────────────
@@ -48,6 +52,7 @@ const mockGetSession = vi.mocked(auth.api.getSession)
 const mockAccountFindMany = vi.mocked(prisma.account.findMany)
 const mockTransactionFindMany = vi.mocked(prisma.transaction.findMany)
 const mockRecurringBillFindMany = vi.mocked(prisma.recurringBill.findMany)
+const mockInterestLogFindMany = vi.mocked(prisma.interestLog.findMany)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -673,5 +678,97 @@ describe("getMonthOverMonthChange", () => {
 
     expect(dateFilter.gte).toEqual(new Date(2025, 0, 1))
     expect(dateFilter.lt).toEqual(new Date(2026, 0, 1))
+  })
+})
+
+// ── getInterestSummary ──────────────────────────────────────────────────────
+
+describe("getInterestSummary", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(getInterestSummary()).rejects.toThrow("Unauthorized")
+  })
+
+  it("returns zeros when no interest logs exist", async () => {
+    mockInterestLogFindMany.mockResolvedValue([] as never)
+
+    const result = await getInterestSummary()
+
+    expect(result.thisMonth.charged).toBe(0)
+    expect(result.thisMonth.earned).toBe(0)
+    expect(result.thisMonth.net).toBe(0)
+    expect(result.thisYear.charged).toBe(0)
+    expect(result.thisYear.earned).toBe(0)
+    expect(result.thisYear.net).toBe(0)
+  })
+
+  it("separates charged and earned interest for month and year", async () => {
+    const now = new Date()
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 15)
+    // A date from earlier this year but a different month
+    const earlierMonth = now.getMonth() > 0
+      ? new Date(now.getFullYear(), 0, 15)
+      : new Date(now.getFullYear(), now.getMonth(), 5)
+
+    mockInterestLogFindMany.mockResolvedValue([
+      // Current month charges and earnings
+      { date: thisMonth, amount: decimal(50), type: "CHARGED" },
+      { date: thisMonth, amount: decimal(10), type: "EARNED" },
+      // Earlier in the year (only counts toward year totals if different month)
+      { date: earlierMonth, amount: decimal(100), type: "CHARGED" },
+      { date: earlierMonth, amount: decimal(25), type: "EARNED" },
+    ] as never)
+
+    const result = await getInterestSummary()
+
+    // Year totals include everything
+    expect(result.thisYear.charged).toBe(150)
+    expect(result.thisYear.earned).toBe(35)
+    expect(result.thisYear.net).toBe(-115)
+  })
+
+  it("calculates net as earned minus charged", async () => {
+    const now = new Date()
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 10)
+
+    mockInterestLogFindMany.mockResolvedValue([
+      { date: thisMonth, amount: decimal(200), type: "EARNED" },
+      { date: thisMonth, amount: decimal(50), type: "CHARGED" },
+    ] as never)
+
+    const result = await getInterestSummary()
+
+    // Net = earned - charged = 200 - 50 = 150
+    expect(result.thisMonth.net).toBe(150)
+    expect(result.thisYear.net).toBe(150)
+  })
+
+  it("uses absolute values for amounts", async () => {
+    const now = new Date()
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 10)
+
+    mockInterestLogFindMany.mockResolvedValue([
+      { date: thisMonth, amount: decimal(-30), type: "CHARGED" },
+      { date: thisMonth, amount: decimal(20), type: "EARNED" },
+    ] as never)
+
+    const result = await getInterestSummary()
+
+    expect(result.thisMonth.charged).toBe(30)
+    expect(result.thisMonth.earned).toBe(20)
+  })
+
+  it("queries only active accounts and current year", async () => {
+    mockInterestLogFindMany.mockResolvedValue([] as never)
+
+    await getInterestSummary()
+
+    expect(mockInterestLogFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          account: { isActive: true },
+        }),
+      })
+    )
   })
 })

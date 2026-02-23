@@ -349,3 +349,65 @@ export async function getMonthOverMonthChange(year: number) {
     netChange,
   }))
 }
+
+/**
+ * Returns an interest summary for the dashboard: total interest charged (paid)
+ * and earned for the current month and year-to-date, plus the net interest.
+ *
+ * Queries the InterestLog table, grouping by type (CHARGED vs EARNED) and
+ * filtering by date ranges. All amounts are returned as positive numbers —
+ * "charged" means cost to the user, "earned" means income from savings.
+ *
+ * @returns Object with thisMonth and thisYear breakdowns, plus net (earned - charged)
+ */
+export async function getInterestSummary() {
+  const userId = await requireUserId()
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfYear = new Date(now.getFullYear(), 0, 1)
+
+  // Fetch all interest logs for the current year
+  const logs = await prisma.interestLog.findMany({
+    where: {
+      userId,
+      date: { gte: startOfYear },
+      account: { isActive: true },
+    },
+    select: { date: true, amount: true, type: true },
+  })
+
+  let monthCharged = 0
+  let monthEarned = 0
+  let yearCharged = 0
+  let yearEarned = 0
+
+  for (const log of logs) {
+    const amount = Math.abs(toNumber(log.amount))
+    const logDate = new Date(log.date)
+
+    if (log.type === "CHARGED") {
+      yearCharged += amount
+      if (logDate >= startOfMonth) monthCharged += amount
+    } else {
+      yearEarned += amount
+      if (logDate >= startOfMonth) monthEarned += amount
+    }
+  }
+
+  // Round to cents
+  const round = (n: number) => Math.round(n * 100) / 100
+
+  return {
+    thisMonth: {
+      charged: round(monthCharged),
+      earned: round(monthEarned),
+      net: round(monthEarned - monthCharged),
+    },
+    thisYear: {
+      charged: round(yearCharged),
+      earned: round(yearEarned),
+      net: round(yearEarned - yearCharged),
+    },
+  }
+}

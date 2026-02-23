@@ -10,21 +10,74 @@
  * there's nothing keeping the event loop alive.
  */
 
+import cron from "node-cron"
 import { prisma } from "./db.js"
+import { runCCInterestAccrual } from "./jobs/interest-cc.js"
+import { runStatementClose } from "./jobs/statement-close.js"
+import { runAprExpiration } from "./jobs/apr-expiration.js"
+import { runSavingsInterest } from "./jobs/interest-savings.js"
 
 async function main() {
   await prisma.$connect()
   console.log("[cron] Connected to database")
 
-  // Jobs will be registered here as they are built (Phase 4-5):
-  // - interest-cc.ts      (daily CC interest accrual)
-  // - interest-savings.ts (monthly savings interest)
-  // - statement-close.ts  (daily CC statement cycle processing)
-  // - apr-expiration.ts   (daily expired APR rate cleanup)
+  // Daily at midnight — credit card interest accrual
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      await runCCInterestAccrual()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runCCInterestAccrual:", err)
+    }
+  })
+  console.log("[cron] Registered: interest-cc (daily midnight)")
+
+  // Daily at midnight — credit card statement cycle processing
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      await runStatementClose()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runStatementClose:", err)
+    }
+  })
+  console.log("[cron] Registered: statement-close (daily midnight)")
+
+  // Daily at midnight — expired APR rate cleanup
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      await runAprExpiration()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runAprExpiration:", err)
+    }
+  })
+  console.log("[cron] Registered: apr-expiration (daily midnight)")
+
+  // Monthly on the 1st at midnight — savings APY payout
+  cron.schedule("0 0 1 * *", async () => {
+    try {
+      await runSavingsInterest()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runSavingsInterest:", err)
+    }
+  })
+  console.log("[cron] Registered: interest-savings (monthly 1st midnight)")
+
+  // Jobs still to be registered (Phase 4-5):
   // - recurring-bills.ts  (daily recurring bill generation)
   // - plaid-sync.ts       (Plaid sync every 6 hours — Phase 6)
 
   console.log("[cron] All jobs registered. Waiting for schedules...")
+
+  // Run all jobs immediately if CRON_RUN_NOW is set (for testing)
+  if (process.env.CRON_RUN_NOW === "true") {
+    console.log("[cron] CRON_RUN_NOW=true, running all jobs immediately...")
+    await runCCInterestAccrual()
+    await runStatementClose()
+    await runAprExpiration()
+    await runSavingsInterest()
+    console.log("[cron] All jobs completed.")
+    await prisma.$disconnect()
+    process.exit(0)
+  }
 
   // Keep the Node.js process alive for cron schedule execution
   setInterval(() => {}, 1 << 30)

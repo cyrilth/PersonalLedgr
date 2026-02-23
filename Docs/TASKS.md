@@ -538,7 +538,7 @@
   - Interest paid to date vs remaining chart
 
 ### 4.4 Interest Tracking — Cron Jobs
-- [ ] Implement `cron/src/jobs/interest-cc.ts`:
+- [x] Implement `cron/src/jobs/interest-cc.ts`:
   - Runs daily at midnight
   - For each active credit card:
     - Load credit_card_details (grace period, statement status)
@@ -550,24 +550,24 @@
     - Sum daily interest across all transactions
     - Write daily accumulator (can store in a daily_interest_accrual table or accumulate in memory)
     - On month end: write total to interest_log + create interest_charged transaction + update balance
-- [ ] Implement `cron/src/jobs/interest-savings.ts`:
+- [x] Implement `cron/src/jobs/interest-savings.ts`:
   - Runs monthly on 1st
   - For each savings account: `balance * (apy / 100 / 12)`
   - Write to interest_log
   - Create interest_earned transaction
   - Update savings account balance
-- [ ] Implement `cron/src/jobs/statement-close.ts`:
+- [x] Implement `cron/src/jobs/statement-close.ts`:
   - Runs daily at midnight
   - For each CC where today = statement_close_day:
     - Snapshot balance to last_statement_balance
     - Check if prior statement was paid in full (compare payments received vs last_statement_balance)
     - Update last_statement_paid_in_full flag
-- [ ] Implement `cron/src/jobs/apr-expiration.ts`:
+- [x] Implement `cron/src/jobs/apr-expiration.ts`:
   - Runs daily at midnight
   - Find apr_rates where expiration_date <= today AND is_active = true
   - Set is_active = false
   - For transactions still using the expired rate, reassign to the account's active standard rate
-- [ ] Create interest summary component for dashboard:
+- [x] Create interest summary component for dashboard:
   - Total interest paid this month/year across all debts
   - Total interest earned this month/year on savings
   - Net interest (earned - paid)
