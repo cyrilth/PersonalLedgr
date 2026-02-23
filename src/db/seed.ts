@@ -61,6 +61,21 @@ export async function seed(prisma?: PrismaClient) {
     },
   })
   const userId = demoUser.id
+
+  // Create auth account with password so the demo user can log in
+  await prisma.authAccount.upsert({
+    where: { id: `${userId}-credential` },
+    update: {},
+    create: {
+      id: `${userId}-credential`,
+      accountId: userId,
+      providerId: "credential",
+      userId,
+      password:
+        "87503ef442cb390da0c27d671804afe5:f1ad5489f6a4abce94328002053ed803eee5c2f144b8e8711202adb9ba194c6d5e676c0e199ae3b7a236e598ee12fc282f3eff6f631caa8283fc06a3798003e2",
+    },
+  })
+
   console.log("[seed] Demo user:", demoUser.email)
 
   // ── Accounts ────────────────────────────────────────────────────
