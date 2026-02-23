@@ -409,28 +409,34 @@
 - [x] Test: Validates amount > 0 and source ≠ loan account
 - [x] Test: Edge case — payment less than interest amount (all goes to interest)
 
-### 3.4 Per-Transaction APR Management
-- [ ] Create `src/actions/apr-rates.ts`:
-  - [ ] `getAprRates(accountId)` — all rates for a credit card (active and expired)
-  - [ ] `createAprRate(data)` — add a new rate to a credit card
-  - [ ] `updateAprRate(id, data)` — edit rate
-  - [ ] `deleteAprRate(id)` — soft delete (is_active = false)
+### 3.4 Per-Transaction APR Management ✅
+- [x] Create `src/actions/apr-rates.ts`:
+  - [x] `getAprRates(accountId)` — all rates for a credit card (active and expired) with transaction counts
+  - [x] `createAprRate(data)` — add a new rate to a credit card
+  - [x] `updateAprRate(id, data)` — edit rate (partial updates)
+  - [x] `deleteAprRate(id)` — soft delete (isActive = false)
 - [ ] Add APR rate selector to transaction form when account is credit card:
   - Dropdown showing active rates for the selected CC account
   - "Standard rate" as default
   - Option to create a new rate inline (e.g., "Add 0% intro rate")
-- [ ] Create APR rates management section on account detail page:
-  - List of all rates (active + expired) with type, rate, effective/expiration dates
-  - Add/edit/deactivate rates
-  - Show which transactions are using each rate
+- [x] Create APR rates management section on account detail page (`AprRateManager`):
+  - List of all rates (active + expired) with type badges, rate, effective/expiration dates
+  - Transaction count per rate
+  - Add/edit/deactivate rates via dialog
+  - Inactive rates shown with reduced opacity
 
-### 3.4b APR Management Tests
-- [ ] Test: `getAprRates()` returns all rates (active and expired) for a credit card *(blocked — `apr-rates.ts` not yet implemented)*
-- [ ] Test: `createAprRate()` adds a new rate to a credit card *(blocked)*
-- [ ] Test: `updateAprRate()` edits rate details *(blocked)*
-- [ ] Test: `deleteAprRate()` soft-deletes (sets `is_active = false`) *(blocked)*
-- [ ] Test: APR rate selector shows only active rates for the selected CC account *(blocked — component not yet implemented)*
-- [ ] Test: APR rates management section displays rates with correct type badges *(blocked — component not yet implemented)*
+### 3.4b APR Management Tests ✅
+- [x] Test: `getAprRates()` returns all rates (active and expired) for a credit card with transaction counts
+- [x] Test: `getAprRates()` queries with correct ordering (active first, newest first)
+- [x] Test: `getAprRates()` rejects non-credit-card accounts
+- [x] Test: `createAprRate()` adds a new rate to a credit card with correct data
+- [x] Test: `createAprRate()` allows 0% APR and handles null expiration
+- [x] Test: `createAprRate()` rejects negative APR
+- [x] Test: `updateAprRate()` updates only provided fields (partial update)
+- [x] Test: `updateAprRate()` can clear expiration date by passing null
+- [x] Test: `updateAprRate()` rejects rates belonging to other users
+- [x] Test: `deleteAprRate()` soft-deletes (sets isActive = false)
+- [x] Test: `deleteAprRate()` rejects rates belonging to other users
 
 ### 3.5 Transaction List Page
 - [ ] Create `src/components/transactions/transaction-filters.tsx`:

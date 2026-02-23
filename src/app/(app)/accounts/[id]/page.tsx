@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BalanceChart } from "@/components/accounts/balance-chart"
 import { AccountForm } from "@/components/accounts/account-form"
+import { AprRateManager } from "@/components/accounts/apr-rate-manager"
 import {
   getAccount,
   deleteAccount,
@@ -303,47 +304,9 @@ export default function AccountDetailPage() {
         </Card>
       )}
 
-      {/* APR Rates Table */}
-      {account.aprRates.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              APR Rates
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="pb-2 pr-4 font-medium">Type</th>
-                    <th className="pb-2 pr-4 font-medium">Rate</th>
-                    <th className="pb-2 pr-4 font-medium">Effective</th>
-                    <th className="pb-2 font-medium">Expiration</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {account.aprRates.map((rate) => (
-                    <tr key={rate.id}>
-                      <td className="py-2 pr-4">
-                        <Badge variant="outline">
-                          {APR_RATE_TYPE_LABELS[rate.rateType as AprRateType]}
-                        </Badge>
-                      </td>
-                      <td className="py-2 pr-4 font-medium">
-                        {(rate.apr * 100).toFixed(2)}%
-                      </td>
-                      <td className="py-2 pr-4">{formatDate(rate.effectiveDate)}</td>
-                      <td className="py-2">
-                        {rate.expirationDate ? formatDate(rate.expirationDate) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+      {/* APR Rates Management */}
+      {account.type === "CREDIT_CARD" && (
+        <AprRateManager accountId={account.id} />
       )}
 
       {/* Loan Details */}
