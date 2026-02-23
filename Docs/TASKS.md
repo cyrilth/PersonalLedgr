@@ -242,33 +242,43 @@
 - [x] Add loading skeletons for each card (CardSkeleton + ChartSkeleton components)
 
 ### 2.4 Accounts Pages
-- [ ] Create `src/actions/accounts.ts`:
-  - [ ] `getAccounts()` — all active accounts with balances, grouped by type
-  - [ ] `getAccount(id)` — single account with credit_card_details or loan data
-  - [ ] `createAccount(data)` — insert new account + credit_card_details if CC + loans if loan/mortgage
-  - [ ] `updateAccount(id, data)` — update account
-  - [ ] `deleteAccount(id)` — soft delete (is_active = false)
-  - [ ] `recalculateBalance(id)` — sum transactions, return stored vs calculated, update on confirm
-  - [ ] `recalculateAllBalances()` — recalculate for all active accounts, return drift report
-- [ ] Create `src/components/accounts/account-card.tsx`
-  - Account name, type icon, balance, owner name
-  - Utilization bar if credit card
-- [ ] Create `src/components/accounts/account-form.tsx`
-  - Form for add/edit account (dialog)
-  - Conditional fields: credit_limit + CC details fields if type = credit_card, loan fields if type = loan/mortgage, apy if savings
-  - Owner dropdown/text field for household member
-- [ ] Build `src/app/accounts/page.tsx`
-  - Grid of account cards grouped by type (Banking, Credit Cards, Loans)
-  - Total balance per group
-- [ ] Create `src/components/accounts/balance-chart.tsx` — Recharts line chart of balance over time
-- [ ] Build `src/app/accounts/[id]/page.tsx`:
-  - Account header with balance, type, institution, APR/APY, owner
-  - **Recalculate Balance button** — shows stored vs calculated, drift amount, confirm to update
-  - Balance over time chart
-  - Transaction list filtered to this account
-  - If credit card: show APR rates table, grace period info, utilization
-  - If loan: show loan details, remaining balance
-  - Interest history (from interest_log)
+- [x] Add `LOAN_TYPE_LABELS` and `APR_RATE_TYPE_LABELS` to `src/lib/constants.ts`
+- [x] Create `src/actions/accounts.ts`:
+  - [x] `getAccounts()` — all active accounts with balances, grouped by type (CHECKING, SAVINGS, CREDIT_CARD, LOAN, MORTGAGE order)
+  - [x] `getAccount(id)` — single account with CC details, loan data, APR rates, last 20 transactions, 12-month balance history
+  - [x] `createAccount(data)` — insert new account + nested CC details if CC + loan if loan/mortgage
+  - [x] `updateAccount(id, data)` — update account + upsert CC/loan details
+  - [x] `deleteAccount(id)` — soft delete (isActive = false), verify ownership
+  - [x] `recalculateBalance(id)` — sum transactions, return stored vs calculated vs drift
+  - [x] `confirmRecalculate(id)` — apply recalculated balance
+  - [x] `getBalanceHistory(accountId, months)` — walk backwards from current balance subtracting monthly transaction sums
+  - [ ] `recalculateAllBalances()` — recalculate for all active accounts, return drift report *(deferred to Task 2.5)*
+- [x] Create `src/components/accounts/account-card.tsx`
+  - Account name, type icon (Landmark/PiggyBank/CreditCard/HandCoins/Home), balance, owner name
+  - Utilization bar with color thresholds if credit card
+  - Entire card clickable (links to detail page)
+- [x] Create `src/components/accounts/account-form.tsx`
+  - Dialog form for add/edit account with controlled open/onOpenChange
+  - Type select disabled in edit mode
+  - Conditional CC fields (credit limit, statement close day, payment due day, grace period)
+  - Conditional loan fields (loan type, original balance, interest rate, term, start date, monthly/extra payment)
+  - Mortgage type: auto-sets loan type to MORTGAGE, hides loan type dropdown, shows "Mortgage Details" heading
+  - Loan type: shows loan type dropdown filtered to Auto/Student/Personal, shows "Loan Details" heading
+  - Toast notifications on success/error
+- [x] Build `src/app/(app)/accounts/page.tsx`
+  - Grid of account cards grouped by type with group totals
+  - "Add Account" button opens form dialog
+  - Skeleton loading state
+  - Empty state with prompt to add first account
+- [x] Create `src/components/accounts/balance-chart.tsx` — Recharts LineChart with theme-aware styling, abs values for debt accounts
+- [x] Build `src/app/(app)/accounts/[id]/page.tsx`:
+  - Account header with back link, name, type label, owner, edit/delete buttons
+  - Balance display with recalculate button (shows stored vs calculated, drift, "Apply Correction" if drift ≠ 0)
+  - Balance history line chart
+  - Credit card details section (statement close/due day, grace period, last statement, min payment)
+  - APR rates table (type badge, rate, effective/expiration dates)
+  - Loan details section (type, original balance, rate, term, start date, monthly/extra payment)
+  - Recent transactions list (reuses row layout from dashboard)
 
 ### 2.5 Recalculate API
 - [ ] Create `src/app/api/recalculate/route.ts`:
