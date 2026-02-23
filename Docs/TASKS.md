@@ -237,9 +237,9 @@
   - Color: green for income, red for expense, gray for transfer
 
 ### 2.3 Dashboard Page
-- [ ] Assemble `src/app/page.tsx` with all dashboard components in responsive grid layout
-- [ ] Ensure all data comes from server actions (no client-side fetching for initial load)
-- [ ] Add loading skeletons for each card
+- [x] Assemble `src/app/(app)/page.tsx` with all dashboard components in responsive grid layout
+- [x] Ensure all data comes from server actions (no client-side fetching for initial load)
+- [x] Add loading skeletons for each card (CardSkeleton + ChartSkeleton components)
 
 ### 2.4 Accounts Pages
 - [ ] Create `src/actions/accounts.ts`:
