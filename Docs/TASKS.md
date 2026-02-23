@@ -213,6 +213,16 @@
   - [x] `getRecentTransactions(count)` — last N transactions across all accounts with account info
   - [x] `getMonthOverMonthChange(year)` — net change per month for a year
 
+### 2.1b Dashboard Data Tests
+- [ ] Test: `getNetWorth()` returns correct assets, liabilities, and total for seeded data
+- [ ] Test: `getNetWorth()` excludes inactive accounts
+- [ ] Test: `getMonthlyIncomeExpense()` only includes INCOME_TYPES and SPENDING_TYPES (no transfers)
+- [ ] Test: `getSpendingByCategory()` groups and sorts categories by amount desc
+- [ ] Test: `getCreditUtilization()` returns correct balance/limit/utilization %
+- [ ] Test: `getUpcomingBills()` returns bills sorted by due date with correct days-until-due
+- [ ] Test: `getRecentTransactions()` returns correct count with account info
+- [ ] Test: `getMonthOverMonthChange()` calculates net change per month correctly
+
 ### 2.2 Dashboard Components
 - [x] Create `src/components/dashboard/net-worth-card.tsx`
   - Total net worth with trend arrow (up/down vs last month)
@@ -240,6 +250,11 @@
 - [x] Assemble `src/app/(app)/page.tsx` with all dashboard components in responsive grid layout
 - [x] Ensure all data comes from server actions (no client-side fetching for initial load)
 - [x] Add loading skeletons for each card (CardSkeleton + ChartSkeleton components)
+
+### 2.3b Dashboard Page Tests
+- [ ] Test: Dashboard page renders all widget components without errors
+- [ ] Test: Loading skeletons display while data is fetching
+- [ ] Test: Dashboard correctly passes year context to data-fetching actions
 
 ### 2.4 Accounts Pages
 - [x] Add `LOAN_TYPE_LABELS` and `APR_RATE_TYPE_LABELS` to `src/lib/constants.ts`
@@ -280,6 +295,22 @@
   - Loan details section (type, original balance, rate, term, start date, monthly/extra payment)
   - Recent transactions list (reuses row layout from dashboard)
 
+### 2.4b Accounts Tests
+- [ ] Test: `getAccounts()` returns accounts grouped by type in correct order
+- [ ] Test: `getAccounts()` only returns active accounts for the authenticated user
+- [ ] Test: `getAccount(id)` returns CC details, loan data, APR rates, transactions, and balance history
+- [ ] Test: `getAccount(id)` rejects access to another user's account
+- [ ] Test: `createAccount()` inserts account with nested CC details when type is CREDIT_CARD
+- [ ] Test: `createAccount()` inserts account with nested loan details when type is LOAN/MORTGAGE
+- [ ] Test: `createAccount()` creates opening balance transaction for non-zero balance
+- [ ] Test: `updateAccount()` updates account and upserts CC/loan details
+- [ ] Test: `deleteAccount(id)` soft-deletes (sets isActive = false)
+- [ ] Test: `deleteAccount(id)` rejects deletion of another user's account
+- [ ] Test: `recalculateBalance(id)` detects drift between stored and calculated balance
+- [ ] Test: `confirmRecalculate(id)` applies the corrected balance
+- [ ] Test: `getBalanceHistory()` returns correct month-by-month balances
+- [ ] Test: Account detail page renders balance chart, CC details, APR rates, and recent transactions
+
 ### 2.5 Recalculate API
 - [x] Add `recalculateAllBalances()` to `src/actions/accounts.ts` — returns drift report for all active accounts
 - [x] Add `confirmRecalculateAll()` to `src/actions/accounts.ts` — applies corrections for all accounts with drift
@@ -289,6 +320,13 @@
   - [x] POST with `{ all: true }` — recalculate all accounts, returns `{ results: [{ accountId, name, type, storedBalance, calculatedBalance, drift }] }`
   - [x] POST with `{ all: true, confirm: true }` — apply corrections for all accounts with drift
   - [x] Error handling for missing params and invalid account IDs
+
+### 2.5b Recalculate API Tests
+- [ ] Test: POST with `{ accountId }` returns stored, calculated, and drift values
+- [ ] Test: POST with `{ accountId, confirm: true }` applies correction and updates balance
+- [ ] Test: POST with `{ all: true }` returns drift report for all active accounts
+- [ ] Test: POST with `{ all: true, confirm: true }` applies corrections only for accounts with drift
+- [ ] Test: Returns error for missing params and invalid account IDs
 
 ---
 
@@ -301,6 +339,17 @@
   - [x] `updateTransaction(id, data)` — reverse old balance impact, apply new, update transaction
   - [x] `deleteTransaction(id)` — reverse balance impact, delete (also unlink if linked)
   - [x] `bulkCategorize(ids, category)` — update category for multiple transactions
+
+### 3.1b Transaction CRUD Tests
+- [ ] Test: `getTransactions()` returns paginated results with correct total count
+- [ ] Test: `getTransactions()` filters by account, category, type, date range, search, and owner
+- [ ] Test: `getTransactions()` only returns transactions for the authenticated user
+- [ ] Test: `createTransaction()` inserts transaction and updates account balance
+- [ ] Test: `createTransaction()` rejects transaction on another user's account
+- [ ] Test: `updateTransaction()` reverses old balance impact and applies new
+- [ ] Test: `deleteTransaction()` reverses balance impact and deletes record
+- [ ] Test: `deleteTransaction()` on a linked transfer unlinks/deletes the paired transaction
+- [ ] Test: `bulkCategorize()` updates category for multiple transactions
 
 ### 3.2 Transfer Wizard
 - [ ] Create `src/actions/transfers.ts`:
@@ -322,6 +371,14 @@
   - Date picker
   - Description (auto-generated like "Transfer to Savings" but editable)
 
+### 3.2b Transfer Wizard Tests
+- [ ] Test: `createTransfer()` creates two linked transactions with correct types and amounts
+- [ ] Test: `createTransfer()` updates both account balances atomically
+- [ ] Test: `createTransfer()` links A→B and B→A via `linked_transaction_id`
+- [ ] Test: Transfer transactions are typed as `TRANSFER` (not income/expense)
+- [ ] Test: Transfer wizard validates source ≠ destination account
+- [ ] Test: Transfer wizard shows owner names on account dropdowns
+
 ### 3.3 Loan Payment Recording
 - [ ] Create `src/actions/loan-payments.ts`:
   - [ ] `recordLoanPayment(loanId, paymentAmount, date, fromAccountId)`:
@@ -341,6 +398,16 @@
   - Date picker
   - Shows calculated principal/interest split before confirming
 
+### 3.3b Loan Payment Tests
+- [ ] Test: `recordLoanPayment()` calculates correct principal/interest split from amortization formula
+- [ ] Test: `recordLoanPayment()` creates transfer transaction on checking and principal+interest transactions on loan
+- [ ] Test: `recordLoanPayment()` links checking transaction to loan principal transaction
+- [ ] Test: `recordLoanPayment()` updates loan balance and remaining months
+- [ ] Test: `recordLoanPayment()` updates checking account balance
+- [ ] Test: `recordLoanPayment()` logs interest to `interest_log`
+- [ ] Test: Loan payment form pre-fills with monthly payment amount
+- [ ] Test: Loan payment form shows calculated split before confirming
+
 ### 3.4 Per-Transaction APR Management
 - [ ] Create `src/actions/apr-rates.ts`:
   - [ ] `getAprRates(accountId)` — all rates for a credit card (active and expired)
@@ -355,6 +422,14 @@
   - List of all rates (active + expired) with type, rate, effective/expiration dates
   - Add/edit/deactivate rates
   - Show which transactions are using each rate
+
+### 3.4b APR Management Tests
+- [ ] Test: `getAprRates()` returns all rates (active and expired) for a credit card
+- [ ] Test: `createAprRate()` adds a new rate to a credit card
+- [ ] Test: `updateAprRate()` edits rate details
+- [ ] Test: `deleteAprRate()` soft-deletes (sets `is_active = false`)
+- [ ] Test: APR rate selector shows only active rates for the selected CC account
+- [ ] Test: APR rates management section displays rates with correct type badges
 
 ### 3.5 Transaction List Page
 - [ ] Create `src/components/transactions/transaction-filters.tsx`:
@@ -383,6 +458,14 @@
   - Transaction table with pagination (server-side)
   - Add transaction button → opens form dialog
   - Bulk categorize selected transactions
+
+### 3.5b Transaction List Page Tests
+- [ ] Test: Transaction table renders with correct columns and color coding by type
+- [ ] Test: Filters (account, category, type, date range, search, owner) correctly narrow results
+- [ ] Test: Pagination works with server-side data
+- [ ] Test: Linked transaction indicator shows and navigates to paired transaction
+- [ ] Test: Bulk categorize updates category for all selected transactions
+- [ ] Test: Transaction form adapts fields based on selected tab (Expense/Income/Transfer/Loan Payment)
 
 ### 3.6 Verification
 - [ ] Test: Create expense on CC → only shows in expense totals, balance updated
