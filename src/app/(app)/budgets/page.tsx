@@ -48,6 +48,7 @@ import {
 import { BudgetBar } from "@/components/budgets/budget-bar"
 import { BudgetForm } from "@/components/budgets/budget-form"
 import { formatCurrency } from "@/lib/utils"
+import { useYear } from "@/contexts/year-context"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -165,6 +166,7 @@ function BudgetSummaryBar({ budgets }: { budgets: BudgetVsActual[] }) {
 // ── Page Component ───────────────────────────────────────────────────
 
 export default function BudgetsPage() {
+  const { year } = useYear()
   const [budgets, setBudgets] = useState<BudgetVsActual[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -175,9 +177,17 @@ export default function BudgetsPage() {
   } | null>(null)
   const [period, setPeriod] = useState(() => {
     const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    return `${year}-${String(now.getMonth() + 1).padStart(2, "0")}`
   })
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  // Sync period year when global year changes
+  useEffect(() => {
+    setPeriod((prev) => {
+      const month = prev.split("-")[1]
+      return `${year}-${month}`
+    })
+  }, [year])
 
   /** Navigate forward or backward one month. */
   function navigateMonth(direction: -1 | 1) {

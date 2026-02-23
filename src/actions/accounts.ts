@@ -149,7 +149,7 @@ export async function getAccountsFlat() {
  * and 12-month balance history. All Decimal fields are converted to numbers.
  * Throws if the account doesn't exist or doesn't belong to the current user.
  */
-export async function getAccount(id: string) {
+export async function getAccount(id: string, options?: { year?: number }) {
   const userId = await requireUserId()
 
   const account = await prisma.account.findFirst({
@@ -176,7 +176,7 @@ export async function getAccount(id: string) {
 
   if (!account) throw new Error("Account not found")
 
-  const balanceHistory = await getBalanceHistory(id)
+  const balanceHistory = await getBalanceHistory(id, options?.year ? { year: options.year } : undefined)
 
   return {
     id: account.id,
@@ -719,7 +719,7 @@ export async function permanentlyDeleteAccount(id: string) {
  */
 export async function getBalanceHistory(
   accountId: string,
-  months: number = 12
+  options?: { year?: number; months?: number }
 ): Promise<{ date: string; balance: number }[]> {
   const userId = await requireUserId()
 
@@ -728,13 +728,22 @@ export async function getBalanceHistory(
 
   const currentBalance = toNumber(account.balance)
   const now = new Date()
+  const year = options?.year
+  const months = year ? 12 : (options?.months ?? 12)
 
-  // Fetch all transactions within the history window
-  const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
+  // When a specific year is requested, show Jan-Dec of that year.
+  // Otherwise, show the trailing N months from today.
+  const startDate = year
+    ? new Date(year, 0, 1)
+    : new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
+  const endDate = year
+    ? new Date(year, 11, 31, 23, 59, 59, 999)
+    : undefined
+
   const transactions = await prisma.transaction.findMany({
     where: {
       accountId,
-      date: { gte: startDate },
+      date: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
     },
     select: { date: true, amount: true },
     orderBy: { date: "asc" },
@@ -748,11 +757,38 @@ export async function getBalanceHistory(
     monthlyTotals[key] = (monthlyTotals[key] || 0) + toNumber(t.amount)
   }
 
-  // Build month keys from start to current
+  // Build month keys
   const monthKeys: string[] = []
-  for (let i = 0; i < months; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1)
-    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
+  if (year) {
+    // Jan-Dec of the specified year
+    for (let m = 0; m < 12; m++) {
+      monthKeys.push(`${year}-${String(m + 1).padStart(2, "0")}`)
+    }
+  } else {
+    // Trailing N months from today
+    for (let i = 0; i < months; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1)
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
+    }
+  }
+
+  // For a specific year, we need to compute the balance at the start of that year
+  // by subtracting all transactions from startDate onwards from current balance,
+  // then walking forward. computeBalanceHistory walks backward from currentBalance,
+  // so when viewing a past year we need the balance at the END of that year.
+  if (year) {
+    // Get the sum of all transactions AFTER the requested year to compute
+    // the balance at end of that year
+    const afterYearTxns = await prisma.transaction.aggregate({
+      where: {
+        accountId,
+        date: { gt: endDate! },
+      },
+      _sum: { amount: true },
+    })
+    const afterYearSum = toNumber(afterYearTxns._sum.amount ?? 0)
+    const endOfYearBalance = currentBalance - afterYearSum
+    return computeBalanceHistory(endOfYearBalance, monthlyTotals, monthKeys)
   }
 
   return computeBalanceHistory(currentBalance, monthlyTotals, monthKeys)

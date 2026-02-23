@@ -37,6 +37,7 @@ import {
 import type { AccountType, LoanType, AprRateType } from "@/lib/constants"
 import { formatCurrency, formatDate, formatDateShort, getAmountColor, formatAmount } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+import { useYear } from "@/contexts/year-context"
 
 type AccountDetail = Awaited<ReturnType<typeof getAccount>>
 
@@ -69,6 +70,7 @@ function DetailSkeleton() {
 export default function AccountDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { year } = useYear()
   const id = params.id as string
 
   const [account, setAccount] = useState<AccountDetail | null>(null)
@@ -84,7 +86,7 @@ export default function AccountDetailPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getAccount(id)
+      const data = await getAccount(id, { year })
       setAccount(data)
     } catch (err) {
       console.error("Failed to load account:", err)
@@ -92,7 +94,7 @@ export default function AccountDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, year])
 
   useEffect(() => {
     fetchData()

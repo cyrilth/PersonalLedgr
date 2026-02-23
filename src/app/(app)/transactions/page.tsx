@@ -31,11 +31,17 @@ import { getTransactions, updateTransaction, bulkCategorize } from "@/actions/tr
 import { getAccountsFlat } from "@/actions/accounts"
 import { DEFAULT_CATEGORIES } from "@/lib/constants"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useYear } from "@/contexts/year-context"
 
 type FlatAccount = Awaited<ReturnType<typeof getAccountsFlat>>[number]
 
 export default function TransactionsPage() {
-  const [filters, setFilters] = useState<TransactionFilters>(EMPTY_FILTERS)
+  const { year } = useYear()
+  const [filters, setFilters] = useState<TransactionFilters>({
+    ...EMPTY_FILTERS,
+    dateFrom: `${year}-01-01`,
+    dateTo: `${year}-12-31`,
+  })
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof getTransactions>>["transactions"]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -86,6 +92,17 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions()
   }, [fetchTransactions])
+
+  // Sync date filters when global year changes
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      dateFrom: `${year}-01-01`,
+      dateTo: `${year}-12-31`,
+    }))
+    setPage(1)
+    setSelectedIds(new Set())
+  }, [year])
 
   // Reset to page 1 when filters change
   useEffect(() => {
