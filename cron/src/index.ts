@@ -16,7 +16,25 @@ import { runCCInterestAccrual } from "./jobs/interest-cc.js"
 import { runStatementClose } from "./jobs/statement-close.js"
 import { runAprExpiration } from "./jobs/apr-expiration.js"
 import { runSavingsInterest } from "./jobs/interest-savings.js"
+import { runRecurringBills } from "./jobs/recurring-bills.js"
 
+/**
+ * Bootstraps the cron container: connects to the database, registers all
+ * scheduled jobs with node-cron, and keeps the process alive.
+ *
+ * When the `CRON_RUN_NOW` environment variable is set to `"true"`, all jobs
+ * are executed immediately in sequence (useful for testing), then the process
+ * exits cleanly instead of waiting for scheduled triggers.
+ *
+ * Schedule summary:
+ *   - `0 0 * * *`  — interest-cc (daily CC interest accrual)
+ *   - `0 0 * * *`  — statement-close (daily CC statement cycle processing)
+ *   - `0 0 * * *`  — apr-expiration (daily expired APR rate cleanup)
+ *   - `0 0 1 * *`  — interest-savings (monthly savings APY payout)
+ *   - `0 6 * * *`  — recurring-bills (daily bill auto-generation)
+ *
+ * @throws Exits with code 1 if database connection or job registration fails.
+ */
 async function main() {
   await prisma.$connect()
   console.log("[cron] Connected to database")
@@ -61,8 +79,17 @@ async function main() {
   })
   console.log("[cron] Registered: interest-savings (monthly 1st midnight)")
 
-  // Jobs still to be registered (Phase 4-5):
-  // - recurring-bills.ts  (daily recurring bill generation)
+  // Daily at 6 AM — recurring bill auto-generation
+  cron.schedule("0 6 * * *", async () => {
+    try {
+      await runRecurringBills()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runRecurringBills:", err)
+    }
+  })
+  console.log("[cron] Registered: recurring-bills (daily 6 AM)")
+
+  // Jobs still to be registered (Phase 6):
   // - plaid-sync.ts       (Plaid sync every 6 hours — Phase 6)
 
   console.log("[cron] All jobs registered. Waiting for schedules...")
@@ -74,6 +101,7 @@ async function main() {
     await runStatementClose()
     await runAprExpiration()
     await runSavingsInterest()
+    await runRecurringBills()
     console.log("[cron] All jobs completed.")
     await prisma.$disconnect()
     process.exit(0)

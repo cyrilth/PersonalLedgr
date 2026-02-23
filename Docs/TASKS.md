@@ -577,29 +577,29 @@
 ## Phase 5: Recurring Bills, Budgets & Import
 
 ### 5.1 Recurring Bills
-- [ ] Create `src/actions/recurring.ts`:
-  - [ ] `getRecurringBills()` — all active bills with payment account info
-  - [ ] `createRecurringBill(data)` — insert bill (including is_variable_amount flag)
-  - [ ] `updateRecurringBill(id, data)` — update (amount always editable)
-  - [ ] `deleteRecurringBill(id)` — soft delete (is_active = false)
-  - [ ] `getUpcomingBills(days: number)` — bills due in next N days
-  - [ ] `confirmVariableBill(transactionId, actualAmount)` — update pending variable bill transaction with real amount
-- [ ] Create `src/components/recurring/bill-card.tsx`
+- [x] Create `src/actions/recurring.ts`:
+  - [x] `getRecurringBills()` — all active bills with payment account info
+  - [x] `createRecurringBill(data)` — insert bill (including is_variable_amount flag)
+  - [x] `updateRecurringBill(id, data)` — update (amount always editable)
+  - [x] `deleteRecurringBill(id)` — soft delete (is_active = false)
+  - [x] `getUpcomingBills(days: number)` — bills due in next N days
+  - [x] `confirmVariableBill(transactionId, actualAmount)` — update pending variable bill transaction with real amount
+- [x] Create `src/components/recurring/bill-card.tsx`
   - Name, amount, due day, payment account, frequency
   - Badge: "Fixed" or "Variable (estimated)" based on is_variable_amount
   - Edit amount inline
-- [ ] Create `src/components/recurring/bill-form.tsx`
+- [x] Create `src/components/recurring/bill-form.tsx`
   - Add/edit bill dialog
   - Toggle for is_variable_amount
   - When variable: label amount as "Estimated amount"
-- [ ] Create `src/components/recurring/bills-calendar.tsx` — month view showing which days bills are due
-- [ ] Build `src/app/recurring/page.tsx`:
+- [x] Create `src/components/recurring/bills-calendar.tsx` — month view showing which days bills are due
+- [x] Build `src/app/(app)/recurring/page.tsx`:
   - List/grid of all recurring bills
   - Calendar view toggle
   - Group by payment account
   - Total monthly recurring cost (with note: "X bills are estimated")
   - Section for pending variable bills needing confirmation
-- [ ] Implement auto-generation in `cron/src/jobs/recurring-bills.ts`:
+- [x] Implement auto-generation in `cron/src/jobs/recurring-bills.ts`:
   - Daily check at 6 AM
   - For each active bill with auto_generate = true:
     - If due_day matches today (or passed since last generated for this period)
