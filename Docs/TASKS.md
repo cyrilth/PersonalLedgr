@@ -295,12 +295,12 @@
 ## Phase 3: Transactions & Intelligence
 
 ### 3.1 Transaction CRUD
-- [ ] Create `src/actions/transactions.ts`:
-  - [ ] `getTransactions(filters)` — paginated list with filters (account, category, type, date range, search, owner)
-  - [ ] `createTransaction(data)` — insert transaction + update account balance
-  - [ ] `updateTransaction(id, data)` — reverse old balance impact, apply new, update transaction
-  - [ ] `deleteTransaction(id)` — reverse balance impact, delete (also unlink if linked)
-  - [ ] `bulkCategorize(ids, category)` — update category for multiple transactions
+- [x] Create `src/actions/transactions.ts`:
+  - [x] `getTransactions(filters)` — paginated list with filters (account, category, type, date range, search, owner)
+  - [x] `createTransaction(data)` — insert transaction + update account balance
+  - [x] `updateTransaction(id, data)` — reverse old balance impact, apply new, update transaction
+  - [x] `deleteTransaction(id)` — reverse balance impact, delete (also unlink if linked)
+  - [x] `bulkCategorize(ids, category)` — update category for multiple transactions
 
 ### 3.2 Transfer Wizard
 - [ ] Create `src/actions/transfers.ts`:
@@ -688,7 +688,7 @@
 - [ ] `utils.test.ts` — currency formatting, date helpers, uid generator
 
 ### Unit Tests — Server Actions (`src/actions/`)
-- [ ] `transactions.test.ts` — CRUD operations with mocked Prisma Client
+- [x] `transactions.test.ts` — CRUD operations with mocked Prisma Client (68 tests)
 - [ ] `transfers.test.ts` — transfer pairs created atomically with correct `linked_transaction_id`
 - [ ] `transfers.test.ts` — both balances updated, both transactions typed as `transfer`
 - [ ] `loan-payments.test.ts` — principal/interest split matches amortization formula
