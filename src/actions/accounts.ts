@@ -1,5 +1,18 @@
 "use server"
 
+/**
+ * Server actions for account CRUD, balance recalculation, and history.
+ *
+ * Handles all account types (checking, savings, credit card, loan, mortgage)
+ * with nested writes for CC details and loan records. Every query is scoped
+ * to the authenticated user via requireUserId().
+ *
+ * Key patterns:
+ * - Prisma Decimal → toNumber() before returning across the server action boundary
+ * - CC/loan/mortgage balances are stored as negative, displayed with Math.abs()
+ * - Soft delete via isActive flag (never hard-delete accounts with transaction history)
+ */
+
 import { headers } from "next/headers"
 import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
@@ -8,18 +21,29 @@ import type { AccountType } from "@/lib/constants"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+/**
+ * Extracts the authenticated user's ID from the session cookie.
+ * Every account action calls this first to scope queries to the current user.
+ * Throws if no valid session exists (proxy should prevent this, but defense-in-depth).
+ */
 async function requireUserId(): Promise<string> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user?.id) throw new Error("Unauthorized")
   return session.user.id
 }
 
+/**
+ * Convert Prisma Decimal to a plain JS number.
+ * Prisma 7 returns Decimal objects for `@db.Decimal` fields — these need
+ * conversion before serialization across the server action boundary.
+ */
 function toNumber(d: unknown): number {
   return Number(d)
 }
 
 // ── Types ────────────────────────────────────────────────────────────
 
+/** A group of accounts sharing the same type, with a display label and balance total. */
 interface AccountGroup {
   type: string
   label: string
@@ -27,6 +51,7 @@ interface AccountGroup {
   total: number
 }
 
+/** Lightweight account data for list/card display. */
 interface AccountSummary {
   id: string
   name: string
@@ -39,8 +64,16 @@ interface AccountSummary {
 
 // ── Server Actions ───────────────────────────────────────────────────
 
+/** Display order for account type groups on the list page. */
 const TYPE_ORDER: AccountType[] = ["CHECKING", "SAVINGS", "CREDIT_CARD", "LOAN", "MORTGAGE"]
 
+/**
+ * Returns all active accounts grouped by type.
+ *
+ * Groups are ordered: Checking → Savings → Credit Card → Loan → Mortgage.
+ * Each group includes a human-readable label and the sum of its account balances.
+ * Only groups with at least one account are returned.
+ */
 export async function getAccounts(): Promise<AccountGroup[]> {
   const userId = await requireUserId()
 
@@ -82,6 +115,13 @@ export async function getAccounts(): Promise<AccountGroup[]> {
     }))
 }
 
+/**
+ * Returns full detail for a single account.
+ *
+ * Includes nested CC details, loan record, active APR rates, last 20 transactions,
+ * and 12-month balance history. All Decimal fields are converted to numbers.
+ * Throws if the account doesn't exist or doesn't belong to the current user.
+ */
 export async function getAccount(id: string) {
   const userId = await requireUserId()
 
@@ -165,6 +205,13 @@ export async function getAccount(id: string) {
   }
 }
 
+/**
+ * Creates a new account with optional nested CC details or loan record.
+ *
+ * Uses Prisma nested create to atomically insert the account and its
+ * type-specific details in a single operation. CC details are created
+ * when type is CREDIT_CARD; loan records when type is LOAN or MORTGAGE.
+ */
 export async function createAccount(data: {
   name: string
   type: AccountType
@@ -226,6 +273,13 @@ export async function createAccount(data: {
   return { id: account.id }
 }
 
+/**
+ * Updates an existing account and upserts its type-specific details.
+ *
+ * The account type cannot be changed after creation. CC details and loan
+ * records are upserted (created if missing, updated if present) to handle
+ * cases where details were not provided during initial creation.
+ */
 export async function updateAccount(
   id: string,
   data: {
@@ -312,6 +366,12 @@ export async function updateAccount(
   return { success: true }
 }
 
+/**
+ * Soft-deletes an account by setting isActive to false.
+ *
+ * Accounts are never hard-deleted because transactions reference them.
+ * Inactive accounts are excluded from all list queries and balance calculations.
+ */
 export async function deleteAccount(id: string) {
   const userId = await requireUserId()
 
@@ -326,6 +386,12 @@ export async function deleteAccount(id: string) {
   return { success: true }
 }
 
+/**
+ * Compares the stored balance against the sum of all transactions for an account.
+ *
+ * Returns the stored balance, calculated balance, and drift (difference).
+ * Does NOT modify the balance — use confirmRecalculate() to apply corrections.
+ */
 export async function recalculateBalance(id: string) {
   const userId = await requireUserId()
 
@@ -344,6 +410,12 @@ export async function recalculateBalance(id: string) {
   return { stored, calculated, drift }
 }
 
+/**
+ * Applies the recalculated balance for a single account.
+ *
+ * Re-sums all transactions and overwrites the stored balance.
+ * Called after the user reviews the drift from recalculateBalance().
+ */
 export async function confirmRecalculate(id: string) {
   const userId = await requireUserId()
 
@@ -365,6 +437,12 @@ export async function confirmRecalculate(id: string) {
   return { balance: calculated }
 }
 
+/**
+ * Returns a drift report for all active accounts.
+ *
+ * Compares each account's stored balance against the sum of its transactions.
+ * Used by the settings page and recalculate API for bulk drift detection.
+ */
 export async function recalculateAllBalances() {
   const userId = await requireUserId()
 
@@ -398,6 +476,12 @@ export async function recalculateAllBalances() {
   return results
 }
 
+/**
+ * Applies recalculated balances for all active accounts with drift.
+ *
+ * Only updates accounts where the stored balance differs from the transaction sum.
+ * Returns each account's new balance and whether it was corrected.
+ */
 export async function confirmRecalculateAll() {
   const userId = await requireUserId()
 
@@ -431,6 +515,16 @@ export async function confirmRecalculateAll() {
   return results
 }
 
+/**
+ * Computes monthly end-of-month balances by walking backwards from the current balance.
+ *
+ * Algorithm:
+ * 1. Start with the current stored balance as the most recent month's value
+ * 2. Group all transactions in the period by month (YYYY-MM key)
+ * 3. Walk backwards: each prior month's balance = next month's balance - that month's transaction sum
+ *
+ * Returns an array sorted chronologically: [{ date: "2025-03", balance: 1234.56 }, ...]
+ */
 export async function getBalanceHistory(
   accountId: string,
   months: number = 12
@@ -443,7 +537,7 @@ export async function getBalanceHistory(
   const currentBalance = toNumber(account.balance)
   const now = new Date()
 
-  // Get all transactions for the last N months
+  // Fetch all transactions within the history window
   const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
   const transactions = await prisma.transaction.findMany({
     where: {

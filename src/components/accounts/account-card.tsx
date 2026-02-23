@@ -1,5 +1,16 @@
 "use client"
 
+/**
+ * Clickable account card for the accounts grid.
+ *
+ * Displays account name, type icon, balance, and owner. Credit cards
+ * additionally show a utilization progress bar with color thresholds:
+ * green (<30%), yellow (30-70%), red (>70%).
+ *
+ * Debt account balances (CC/loan/mortgage) are stored as negative in the DB
+ * but displayed as positive values here using Math.abs().
+ */
+
 import Link from "next/link"
 import { Landmark, PiggyBank, CreditCard, HandCoins, Home } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,6 +27,7 @@ interface AccountCardProps {
   owner: string | null
 }
 
+/** Maps account type enum to its display icon. */
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CHECKING: Landmark,
   SAVINGS: PiggyBank,
@@ -24,14 +36,17 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   MORTGAGE: Home,
 }
 
+/** Account types whose balances are stored as negative (money owed). */
 const DEBT_TYPES = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
 
+/** Get text color class based on utilization percentage thresholds. */
 function getUtilizationColor(pct: number): string {
   if (pct < 30) return "text-positive"
   if (pct < 70) return "text-yellow-500"
   return "text-negative"
 }
 
+/** Get progress bar indicator class based on utilization. */
 function getProgressColor(pct: number): string {
   if (pct < 30) return "[&>div]:bg-positive"
   if (pct < 70) return "[&>div]:bg-yellow-500"

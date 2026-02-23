@@ -1,5 +1,17 @@
 "use client"
 
+/**
+ * Account detail page — shows full information for a single account.
+ *
+ * Sections displayed vary by account type:
+ * - All: balance card with recalculate button, balance history chart, recent transactions
+ * - Credit Card: CC details (statement/due day, grace period), APR rates table
+ * - Loan/Mortgage: loan details (type, original balance, rate, term, payments)
+ *
+ * The recalculate flow: click "Recalculate" → shows stored vs calculated with drift →
+ * if drift exists, "Apply Correction" button updates the stored balance.
+ */
+
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Pencil, Trash2, RefreshCw, CheckCircle } from "lucide-react"
@@ -30,14 +42,17 @@ import { cn } from "@/lib/utils"
 
 type AccountDetail = Awaited<ReturnType<typeof getAccount>>
 
+/** Account types whose balances are stored as negative (money owed). */
 const DEBT_TYPES = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
 
+/** Get color class for transaction amount based on its type. */
 function getAmountColor(type: string): string {
   if ((INCOME_TYPES as readonly string[]).includes(type)) return "text-positive"
   if ((SPENDING_TYPES as readonly string[]).includes(type)) return "text-negative"
   return "text-transfer"
 }
 
+/** Format amount with sign: income positive, spending negative, transfers show stored sign. */
 function formatAmount(amount: number, type: string): string {
   if ((INCOME_TYPES as readonly string[]).includes(type)) {
     return `+${formatCurrency(Math.abs(amount))}`
@@ -48,6 +63,7 @@ function formatAmount(amount: number, type: string): string {
   return amount >= 0 ? `+${formatCurrency(amount)}` : `-${formatCurrency(Math.abs(amount))}`
 }
 
+/** Skeleton placeholder shown while account detail is loading. */
 function DetailSkeleton() {
   return (
     <div className="space-y-6">

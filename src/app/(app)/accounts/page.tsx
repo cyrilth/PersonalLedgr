@@ -1,5 +1,14 @@
 "use client"
 
+/**
+ * Accounts list page — displays all active accounts grouped by type.
+ *
+ * Groups are ordered: Checking → Savings → Credit Card → Loan → Mortgage,
+ * each with a heading showing the group total. Account cards link to their
+ * detail pages. Includes an "Add Account" button that opens the account form
+ * dialog, skeleton loading state, and an empty state prompt.
+ */
+
 import { useEffect, useState, useCallback } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +21,7 @@ import { formatCurrency } from "@/lib/utils"
 
 type AccountGroups = Awaited<ReturnType<typeof getAccounts>>
 
+/** Skeleton placeholder shown while account data is loading. */
 function AccountsSkeleton() {
   return (
     <div className="space-y-6">

@@ -1,3 +1,16 @@
+/**
+ * API route for balance recalculation.
+ *
+ * Compares stored account balances against the sum of their transactions
+ * and optionally applies corrections. Supports single-account and bulk modes.
+ *
+ * POST body variants:
+ * - { accountId: string }                → check drift for one account
+ * - { accountId: string, confirm: true } → apply correction for one account
+ * - { all: true }                        → check drift for all active accounts
+ * - { all: true, confirm: true }         → apply corrections for all accounts with drift
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import {
   recalculateBalance,

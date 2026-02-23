@@ -1,5 +1,15 @@
 "use client"
 
+/**
+ * Account balance history line chart.
+ *
+ * Renders a Recharts LineChart inside a Card, showing monthly end-of-month
+ * balances over time. For debt accounts (CC/loan/mortgage), balances are
+ * displayed as positive values via Math.abs() since they're stored negative.
+ *
+ * Uses the same tooltip/axis styling conventions as the dashboard charts.
+ */
+
 import {
   LineChart,
   Line,
@@ -13,15 +23,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface BalanceChartProps {
   data: { date: string; balance: number }[]
+  /** When true, displays Math.abs(balance) for debt accounts. */
   isDebt?: boolean
 }
 
+/** Convert "2026-01" to "Jan" for chart axis labels. */
 function formatMonthLabel(date: string): string {
   const [year, m] = date.split("-")
   const d = new Date(Number(year), Number(m) - 1)
   return d.toLocaleDateString("en-US", { month: "short" })
 }
 
+/** Format dollar amounts for tooltip and Y-axis display. */
 function formatDollar(value: number): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }

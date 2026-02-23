@@ -1,5 +1,18 @@
 "use client"
 
+/**
+ * Add/edit account dialog form.
+ *
+ * Renders a Dialog with form fields that adapt based on the selected account type:
+ * - Base fields (all types): name, type, balance, owner
+ * - Credit Card: credit limit, statement close day, payment due day, grace period
+ * - Loan: loan type (Auto/Student/Personal), original balance, interest rate, term, etc.
+ * - Mortgage: same as loan but auto-sets loan type to MORTGAGE and hides the selector
+ *
+ * In edit mode, the type selector is disabled (type cannot change after creation).
+ * On submit, calls createAccount() or updateAccount() server actions.
+ */
+
 import { useState } from "react"
 import { toast } from "sonner"
 import {
@@ -24,6 +37,7 @@ import { ACCOUNT_TYPE_LABELS, LOAN_TYPE_LABELS } from "@/lib/constants"
 import type { AccountType, LoanType } from "@/lib/constants"
 import { createAccount, updateAccount } from "@/actions/accounts"
 
+/** Shape of account data passed to the form in edit mode. */
 interface AccountData {
   id: string
   name: string
