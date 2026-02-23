@@ -214,25 +214,25 @@
   - [x] `getMonthOverMonthChange(year)` — net change per month for a year
 
 ### 2.2 Dashboard Components
-- [ ] Create `src/components/dashboard/net-worth-card.tsx`
+- [x] Create `src/components/dashboard/net-worth-card.tsx`
   - Total net worth with trend arrow (up/down vs last month)
   - Breakdown: total assets vs total liabilities
-- [ ] Create `src/components/dashboard/income-expense-chart.tsx`
+- [x] Create `src/components/dashboard/income-expense-chart.tsx`
   - Recharts BarChart or AreaChart showing monthly income vs expense for last 6-12 months
   - Toggle between 6/12 month views
   - Respects dark/light theme for chart colors
-- [ ] Create `src/components/dashboard/spending-breakdown.tsx`
+- [x] Create `src/components/dashboard/spending-breakdown.tsx`
   - Recharts PieChart / donut chart by category for current month
   - Legend with amounts
-- [ ] Create `src/components/dashboard/credit-utilization.tsx`
+- [x] Create `src/components/dashboard/credit-utilization.tsx`
   - Progress bar for each credit card
   - Color coded: green (<30%), orange (30-70%), red (>70%)
   - Shows balance / limit and owner name
-- [ ] Create `src/components/dashboard/upcoming-bills.tsx`
+- [x] Create `src/components/dashboard/upcoming-bills.tsx`
   - List of next 5-10 bills with due date, amount, and payment account
   - Days until due indicator
   - Badge for variable-amount bills (estimated)
-- [ ] Create `src/components/dashboard/recent-transactions.tsx`
+- [x] Create `src/components/dashboard/recent-transactions.tsx`
   - Last 10 transactions with date, description, amount, account, category
   - Color: green for income, red for expense, gray for transfer
 
