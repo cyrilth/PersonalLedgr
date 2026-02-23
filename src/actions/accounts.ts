@@ -18,6 +18,11 @@ import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants"
 import type { AccountType } from "@/lib/constants"
+import {
+  computeBalanceHistory,
+  groupAccountsByType,
+  computeDrift,
+} from "@/lib/calculations"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -91,28 +96,17 @@ export async function getAccounts(): Promise<AccountGroup[]> {
     orderBy: { name: "asc" },
   })
 
-  const grouped: Record<string, AccountSummary[]> = {}
-  for (const a of accounts) {
-    const type = a.type as string
-    if (!grouped[type]) grouped[type] = []
-    grouped[type].push({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      balance: toNumber(a.balance),
-      creditLimit: a.creditLimit ? toNumber(a.creditLimit) : null,
-      owner: a.owner,
-      isActive: a.isActive,
-    })
-  }
+  const mapped: AccountSummary[] = accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+    balance: toNumber(a.balance),
+    creditLimit: a.creditLimit ? toNumber(a.creditLimit) : null,
+    owner: a.owner,
+    isActive: a.isActive,
+  }))
 
-  return TYPE_ORDER.filter((t) => grouped[t])
-    .map((t) => ({
-      type: t,
-      label: ACCOUNT_TYPE_LABELS[t],
-      accounts: grouped[t],
-      total: grouped[t].reduce((sum, a) => sum + a.balance, 0),
-    }))
+  return groupAccountsByType(mapped, TYPE_ORDER, ACCOUNT_TYPE_LABELS)
 }
 
 /**
@@ -405,9 +399,8 @@ export async function recalculateBalance(id: string) {
 
   const stored = toNumber(account.balance)
   const calculated = toNumber(result._sum.amount ?? 0)
-  const drift = Math.round((calculated - stored) * 100) / 100
 
-  return { stored, calculated, drift }
+  return { stored, calculated, drift: computeDrift(stored, calculated) }
 }
 
 /**
@@ -460,7 +453,6 @@ export async function recalculateAllBalances() {
 
       const stored = toNumber(account.balance)
       const calculated = toNumber(result._sum.amount ?? 0)
-      const drift = Math.round((calculated - stored) * 100) / 100
 
       return {
         accountId: account.id,
@@ -468,7 +460,7 @@ export async function recalculateAllBalances() {
         type: account.type,
         storedBalance: stored,
         calculatedBalance: calculated,
-        drift,
+        drift: computeDrift(stored, calculated),
       }
     })
   )
@@ -499,7 +491,7 @@ export async function confirmRecalculateAll() {
 
       const calculated = toNumber(result._sum.amount ?? 0)
       const stored = toNumber(account.balance)
-      const drift = Math.round((calculated - stored) * 100) / 100
+      const drift = computeDrift(stored, calculated)
 
       if (drift !== 0) {
         await prisma.account.update({
@@ -563,17 +555,5 @@ export async function getBalanceHistory(
     monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
   }
 
-  // Walk backwards from current balance
-  const history: { date: string; balance: number }[] = []
-  let runningBalance = currentBalance
-
-  // Start from the most recent month and work backwards
-  for (let i = monthKeys.length - 1; i >= 0; i--) {
-    history.unshift({ date: monthKeys[i], balance: Math.round(runningBalance * 100) / 100 })
-    // Subtract this month's transactions to get prior month's end balance
-    const monthSum = monthlyTotals[monthKeys[i]] || 0
-    runningBalance -= monthSum
-  }
-
-  return history
+  return computeBalanceHistory(currentBalance, monthlyTotals, monthKeys)
 }

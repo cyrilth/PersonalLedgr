@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
 import { SPENDING_TYPES, INCOME_TYPES } from "@/lib/constants"
+import { computeNetWorth, computeUtilization } from "@/lib/calculations"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -47,18 +48,9 @@ export async function getNetWorth(year: number) {
     select: { balance: true, type: true },
   })
 
-  // Split into assets vs liabilities based on account type
-  let assets = 0
-  let liabilities = 0
-
-  for (const a of accounts) {
-    const bal = toNumber(a.balance)
-    if (a.type === "CREDIT_CARD" || a.type === "LOAN" || a.type === "MORTGAGE") {
-      liabilities += bal
-    } else {
-      assets += bal
-    }
-  }
+  const { assets, liabilities, netWorth } = computeNetWorth(
+    accounts.map((a) => ({ balance: toNumber(a.balance), type: a.type }))
+  )
 
   // To estimate last month's net worth, sum all transaction amounts in the
   // current month and subtract from current totals (reversing the delta).
@@ -78,7 +70,6 @@ export async function getNetWorth(year: number) {
     monthDelta += toNumber(t.amount)
   }
 
-  const netWorth = assets + liabilities // liabilities are stored as negative
   const previousNetWorth = netWorth - monthDelta
 
   return {
@@ -217,14 +208,13 @@ export async function getCreditUtilization() {
   return creditCards.map((cc) => {
     const balance = Math.abs(toNumber(cc.balance))
     const limit = toNumber(cc.creditLimit ?? 0)
-    const utilization = limit > 0 ? (balance / limit) * 100 : 0
 
     return {
       id: cc.id,
       name: cc.name,
       balance,
       limit,
-      utilization: Math.round(utilization * 100) / 100,
+      utilization: computeUtilization(balance, limit),
       owner: cc.owner,
     }
   })

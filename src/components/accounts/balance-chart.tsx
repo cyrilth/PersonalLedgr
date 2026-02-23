@@ -28,14 +28,14 @@ interface BalanceChartProps {
 }
 
 /** Convert "2026-01" to "Jan" for chart axis labels. */
-function formatMonthLabel(date: string): string {
+export function formatMonthLabel(date: string): string {
   const [year, m] = date.split("-")
   const d = new Date(Number(year), Number(m) - 1)
   return d.toLocaleDateString("en-US", { month: "short" })
 }
 
 /** Format dollar amounts for tooltip and Y-axis display. */
-function formatDollar(value: number): string {
+export function formatDollar(value: number): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }
 

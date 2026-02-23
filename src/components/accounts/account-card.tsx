@@ -40,14 +40,14 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 const DEBT_TYPES = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
 
 /** Get text color class based on utilization percentage thresholds. */
-function getUtilizationColor(pct: number): string {
+export function getUtilizationColor(pct: number): string {
   if (pct < 30) return "text-positive"
   if (pct < 70) return "text-yellow-500"
   return "text-negative"
 }
 
 /** Get progress bar indicator class based on utilization. */
-function getProgressColor(pct: number): string {
+export function getProgressColor(pct: number): string {
   if (pct < 30) return "[&>div]:bg-positive"
   if (pct < 70) return "[&>div]:bg-yellow-500"
   return "[&>div]:bg-negative"
