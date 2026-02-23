@@ -363,3 +363,31 @@ export async function deleteLoan(id: string) {
 
   return { success: true }
 }
+
+/**
+ * Calculates total interest already paid on a loan by summing its interest_log entries.
+ *
+ * Queries the InterestLog table for all entries linked to the loan's parent account.
+ * This is the historical counterpart to calculateTotalInterestRemaining() in calculations.ts
+ * which computes future interest from the amortization schedule.
+ *
+ * @param loanId - The Loan record ID (not the Account ID)
+ * @returns Total interest paid as a positive number, rounded to cents
+ * @throws "Loan not found" if the loan doesn't exist or doesn't belong to the current user
+ */
+export async function calculateTotalInterestPaid(loanId: string): Promise<number> {
+  const userId = await requireUserId()
+
+  const account = await prisma.account.findFirst({
+    where: { userId, loan: { id: loanId } },
+  })
+
+  if (!account) throw new Error("Loan not found")
+
+  const result = await prisma.interestLog.aggregate({
+    where: { accountId: account.id },
+    _sum: { amount: true },
+  })
+
+  return Math.round(toNumber(result._sum.amount ?? 0) * 100) / 100
+}

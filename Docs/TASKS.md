@@ -504,12 +504,12 @@
   - [x] `deleteLoan(id)` — soft delete account
 
 ### 4.2 Amortization Engine
-- [ ] Create amortization functions in `src/lib/calculations.ts`:
-  - [ ] `calculatePaymentSplit(balance, apr, monthlyPayment)` → { principal, interest }
-  - [ ] `generateAmortizationSchedule(balance, apr, monthlyPayment, remainingMonths)` → array of { month, payment, principal, interest, remainingBalance }
-  - [ ] `calculateExtraPaymentImpact(balance, apr, monthlyPayment, extraMonthly)` → { newPayoffMonths, interestSaved, newTotalInterest }
-  - [ ] `calculateTotalInterestPaid(loanId)` — sum from interest_log for this loan
-  - [ ] `calculateTotalInterestRemaining(balance, apr, monthlyPayment)` — sum of interest in remaining schedule
+- [x] Create amortization functions in `src/lib/calculations.ts`:
+  - [x] `calculatePaymentSplit(balance, apr, monthlyPayment)` → { principal, interest }
+  - [x] `generateAmortizationSchedule(balance, apr, monthlyPayment, remainingMonths)` → array of { month, payment, principal, interest, remainingBalance }
+  - [x] `calculateExtraPaymentImpact(balance, apr, monthlyPayment, extraMonthly)` → { newPayoffMonths, interestSaved, newTotalInterest }
+  - [x] `calculateTotalInterestPaid(loanId)` — sum from interest_log for this loan (in src/actions/loans.ts)
+  - [x] `calculateTotalInterestRemaining(balance, apr, monthlyPayment)` — sum of interest in remaining schedule
 
 ### 4.3 Loan Pages
 - [ ] Create `src/components/loans/loan-card.tsx`:

@@ -98,6 +98,160 @@ export function groupAccountsByType(
 
 // ── Drift Calculation ───────────────────────────────────────────────
 
+// ── Amortization Engine ─────────────────────────────────────────────
+
+/** Result of splitting a single monthly payment into principal and interest portions. */
+export interface PaymentSplit {
+  principal: number
+  interest: number
+}
+
+/** One row in an amortization schedule. */
+export interface AmortizationRow {
+  month: number
+  payment: number
+  principal: number
+  interest: number
+  remainingBalance: number
+}
+
+/** Result of comparing loan payoff with vs without extra monthly payments. */
+export interface ExtraPaymentImpact {
+  newPayoffMonths: number
+  interestSaved: number
+  newTotalInterest: number
+}
+
+/**
+ * Splits a single monthly payment into principal and interest portions.
+ *
+ * Uses standard amortization math: monthly interest = |balance| * (apr / 100 / 12).
+ * The remainder of the payment goes to principal. If the payment is less than
+ * the interest due, all of it goes to interest (negative amortization scenario).
+ * Works with negative balances (loans stored as negative) by using Math.abs().
+ *
+ * @param balance - Current loan balance (may be negative for owed amounts)
+ * @param apr - Annual percentage rate (e.g., 6.5 for 6.5%)
+ * @param monthlyPayment - Total monthly payment amount
+ * @returns Split rounded to 2 decimal places
+ */
+export function calculatePaymentSplit(
+  balance: number,
+  apr: number,
+  monthlyPayment: number
+): PaymentSplit {
+  const monthlyRate = apr / 100 / 12
+  const interest = Math.round(Math.abs(balance) * monthlyRate * 100) / 100
+  const principal = Math.round((monthlyPayment - interest) * 100) / 100
+
+  return {
+    principal: Math.max(principal, 0),
+    interest: Math.min(interest, monthlyPayment),
+  }
+}
+
+/**
+ * Generates a full amortization schedule for the remaining life of a loan.
+ *
+ * Iterates month by month, splitting each payment into principal/interest,
+ * reducing the balance until it reaches zero or remainingMonths is exhausted.
+ * The final payment is adjusted to exactly pay off the remaining balance.
+ *
+ * @param balance - Current outstanding balance (positive or negative; abs value used)
+ * @param apr - Annual percentage rate (e.g., 6.5 for 6.5%)
+ * @param monthlyPayment - Regular monthly payment amount
+ * @param remainingMonths - Maximum number of months to generate
+ * @returns Array of AmortizationRow entries, one per month until payoff or term end
+ */
+export function generateAmortizationSchedule(
+  balance: number,
+  apr: number,
+  monthlyPayment: number,
+  remainingMonths: number
+): AmortizationRow[] {
+  const schedule: AmortizationRow[] = []
+  let remaining = Math.abs(balance)
+  const monthlyRate = apr / 100 / 12
+
+  for (let month = 1; month <= remainingMonths && remaining > 0.005; month++) {
+    const interest = Math.round(remaining * monthlyRate * 100) / 100
+
+    // Final payment: cap at remaining balance + interest to avoid overpaying
+    const payment = Math.min(monthlyPayment, remaining + interest)
+    const principal = Math.round((payment - interest) * 100) / 100
+
+    remaining = Math.round((remaining - principal) * 100) / 100
+
+    schedule.push({
+      month,
+      payment: Math.round(payment * 100) / 100,
+      principal,
+      interest,
+      remainingBalance: Math.max(remaining, 0),
+    })
+  }
+
+  return schedule
+}
+
+/**
+ * Calculates the impact of making extra monthly payments on a loan.
+ *
+ * Compares the total interest and payoff timeline with the extra payment
+ * against the baseline (no extra payment). Uses generateAmortizationSchedule
+ * internally with a high month cap (600 = 50 years) to find natural payoff.
+ *
+ * @param balance - Current outstanding balance
+ * @param apr - Annual percentage rate
+ * @param monthlyPayment - Base monthly payment (without extra)
+ * @param extraMonthly - Additional amount to pay each month
+ * @returns Months to payoff, interest saved, and new total interest
+ */
+export function calculateExtraPaymentImpact(
+  balance: number,
+  apr: number,
+  monthlyPayment: number,
+  extraMonthly: number
+): ExtraPaymentImpact {
+  const MAX_MONTHS = 600 // 50-year cap to prevent infinite loops
+
+  const baseSchedule = generateAmortizationSchedule(balance, apr, monthlyPayment, MAX_MONTHS)
+  const extraSchedule = generateAmortizationSchedule(balance, apr, monthlyPayment + extraMonthly, MAX_MONTHS)
+
+  const baseTotalInterest = baseSchedule.reduce((sum, row) => sum + row.interest, 0)
+  const newTotalInterest = extraSchedule.reduce((sum, row) => sum + row.interest, 0)
+
+  return {
+    newPayoffMonths: extraSchedule.length,
+    interestSaved: Math.round((baseTotalInterest - newTotalInterest) * 100) / 100,
+    newTotalInterest: Math.round(newTotalInterest * 100) / 100,
+  }
+}
+
+/**
+ * Calculates total remaining interest by summing interest from the amortization schedule.
+ *
+ * This is a pure computation — it does not query the database. For historical
+ * interest already paid, use calculateTotalInterestPaid() in loans.ts instead.
+ *
+ * @param balance - Current outstanding balance
+ * @param apr - Annual percentage rate
+ * @param monthlyPayment - Regular monthly payment amount
+ * @returns Total interest remaining over the life of the loan, rounded to cents
+ */
+export function calculateTotalInterestRemaining(
+  balance: number,
+  apr: number,
+  monthlyPayment: number
+): number {
+  const MAX_MONTHS = 600
+  const schedule = generateAmortizationSchedule(balance, apr, monthlyPayment, MAX_MONTHS)
+  const total = schedule.reduce((sum, row) => sum + row.interest, 0)
+  return Math.round(total * 100) / 100
+}
+
+// ── Drift Calculation ───────────────────────────────────────────────
+
 /** Compute the difference between a calculated and stored balance, rounded to cents. */
 export function computeDrift(stored: number, calculated: number): number {
   return Math.round((calculated - stored) * 100) / 100

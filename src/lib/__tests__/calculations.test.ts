@@ -6,6 +6,10 @@ import {
   computeDrift,
   computeNetWorth,
   computeUtilization,
+  calculatePaymentSplit,
+  generateAmortizationSchedule,
+  calculateExtraPaymentImpact,
+  calculateTotalInterestRemaining,
 } from "@/lib/calculations"
 
 // ── toNumber ────────────────────────────────────────────────────────
@@ -255,5 +259,166 @@ describe("computeUtilization", () => {
 
   it("returns 0 for zero balance and positive limit", () => {
     expect(computeUtilization(0, 1000)).toBe(0)
+  })
+})
+
+// ── calculatePaymentSplit ───────────────────────────────────────────
+
+describe("calculatePaymentSplit", () => {
+  it("splits a standard mortgage payment into principal and interest", () => {
+    // $200,000 at 6% APR → monthly interest = 200000 * 0.06/12 = $1,000
+    const result = calculatePaymentSplit(200000, 6, 1199.1)
+    expect(result.interest).toBe(1000)
+    expect(result.principal).toBe(199.1)
+  })
+
+  it("handles negative balance (loans stored as negative)", () => {
+    const result = calculatePaymentSplit(-200000, 6, 1199.1)
+    expect(result.interest).toBe(1000)
+    expect(result.principal).toBe(199.1)
+  })
+
+  it("caps principal at 0 when payment is less than interest", () => {
+    // Interest would be $1,000 but payment is only $500
+    const result = calculatePaymentSplit(200000, 6, 500)
+    expect(result.interest).toBe(500)
+    expect(result.principal).toBe(0)
+  })
+
+  it("handles zero balance", () => {
+    const result = calculatePaymentSplit(0, 6, 500)
+    expect(result.interest).toBe(0)
+    expect(result.principal).toBe(500)
+  })
+
+  it("handles zero APR (interest-free loan)", () => {
+    const result = calculatePaymentSplit(10000, 0, 500)
+    expect(result.interest).toBe(0)
+    expect(result.principal).toBe(500)
+  })
+
+  it("rounds to 2 decimal places", () => {
+    // $100,000 at 7.25% → monthly interest = 100000 * 0.0725/12 = 604.166...
+    const result = calculatePaymentSplit(100000, 7.25, 700)
+    expect(result.interest).toBe(604.17)
+    expect(result.principal).toBe(95.83)
+  })
+})
+
+// ── generateAmortizationSchedule ────────────────────────────────────
+
+describe("generateAmortizationSchedule", () => {
+  it("generates correct number of months for a short loan", () => {
+    // $1,000 at 0% with $500/month = 2 months
+    const schedule = generateAmortizationSchedule(1000, 0, 500, 12)
+    expect(schedule).toHaveLength(2)
+    expect(schedule[0].remainingBalance).toBe(500)
+    expect(schedule[1].remainingBalance).toBe(0)
+  })
+
+  it("caps at remainingMonths even if loan is not paid off", () => {
+    const schedule = generateAmortizationSchedule(100000, 6, 100, 3)
+    expect(schedule).toHaveLength(3)
+    expect(schedule[2].remainingBalance).toBeGreaterThan(0)
+  })
+
+  it("adjusts final payment to not overpay", () => {
+    // $1,200 at 0% with $500/month: month 1=$500, month 2=$500, month 3=$200
+    const schedule = generateAmortizationSchedule(1200, 0, 500, 12)
+    expect(schedule).toHaveLength(3)
+    expect(schedule[2].payment).toBe(200)
+    expect(schedule[2].remainingBalance).toBe(0)
+  })
+
+  it("handles negative balance (abs value used)", () => {
+    const schedule = generateAmortizationSchedule(-1000, 0, 500, 12)
+    expect(schedule).toHaveLength(2)
+  })
+
+  it("returns empty array for zero balance", () => {
+    const schedule = generateAmortizationSchedule(0, 6, 500, 12)
+    expect(schedule).toEqual([])
+  })
+
+  it("tracks interest accumulation on a realistic loan", () => {
+    // $100,000 at 6% with $599.55/month (30-year mortgage payment)
+    const schedule = generateAmortizationSchedule(100000, 6, 599.55, 360)
+    // First month interest should be $500
+    expect(schedule[0].interest).toBe(500)
+    expect(schedule[0].principal).toBe(99.55)
+    // Balance should decrease over time
+    expect(schedule[schedule.length - 1].remainingBalance).toBeLessThanOrEqual(1)
+  })
+
+  it("month numbers start at 1 and increment", () => {
+    const schedule = generateAmortizationSchedule(1000, 0, 500, 12)
+    expect(schedule[0].month).toBe(1)
+    expect(schedule[1].month).toBe(2)
+  })
+})
+
+// ── calculateExtraPaymentImpact ─────────────────────────────────────
+
+describe("calculateExtraPaymentImpact", () => {
+  it("shows fewer months and less interest with extra payments", () => {
+    const result = calculateExtraPaymentImpact(100000, 6, 599.55, 200)
+    // Extra $200/month should significantly reduce payoff time
+    expect(result.newPayoffMonths).toBeLessThan(360)
+    expect(result.interestSaved).toBeGreaterThan(0)
+    expect(result.newTotalInterest).toBeGreaterThan(0)
+  })
+
+  it("returns same as baseline when extra is 0", () => {
+    const result = calculateExtraPaymentImpact(100000, 6, 599.55, 0)
+    // With 0 extra, newPayoffMonths should be the same as baseline
+    const baseSchedule = generateAmortizationSchedule(100000, 6, 599.55, 600)
+    expect(result.newPayoffMonths).toBe(baseSchedule.length)
+    expect(result.interestSaved).toBe(0)
+  })
+
+  it("handles paying off immediately with large extra", () => {
+    // Extra payment larger than the balance
+    const result = calculateExtraPaymentImpact(1000, 6, 500, 10000)
+    expect(result.newPayoffMonths).toBe(1)
+  })
+
+  it("rounds interestSaved and newTotalInterest to cents", () => {
+    const result = calculateExtraPaymentImpact(100000, 7.25, 682.18, 100)
+    const savedDecimals = result.interestSaved.toString().split(".")[1]
+    const totalDecimals = result.newTotalInterest.toString().split(".")[1]
+    expect(!savedDecimals || savedDecimals.length <= 2).toBe(true)
+    expect(!totalDecimals || totalDecimals.length <= 2).toBe(true)
+  })
+})
+
+// ── calculateTotalInterestRemaining ─────────────────────────────────
+
+describe("calculateTotalInterestRemaining", () => {
+  it("calculates total remaining interest for a standard loan", () => {
+    // $100,000 at 6% with ~$599.55/month over 360 months
+    const result = calculateTotalInterestRemaining(100000, 6, 599.55)
+    // Total interest on a 30-yr 6% $100k loan is ~$115,838
+    expect(result).toBeGreaterThan(100000)
+    expect(result).toBeLessThan(130000)
+  })
+
+  it("returns 0 for zero balance", () => {
+    expect(calculateTotalInterestRemaining(0, 6, 500)).toBe(0)
+  })
+
+  it("returns 0 for zero APR", () => {
+    expect(calculateTotalInterestRemaining(10000, 0, 500)).toBe(0)
+  })
+
+  it("handles negative balance", () => {
+    const pos = calculateTotalInterestRemaining(100000, 6, 599.55)
+    const neg = calculateTotalInterestRemaining(-100000, 6, 599.55)
+    expect(pos).toBe(neg)
+  })
+
+  it("is rounded to cents", () => {
+    const result = calculateTotalInterestRemaining(100000, 7.25, 682.18)
+    const decimals = result.toString().split(".")[1]
+    expect(!decimals || decimals.length <= 2).toBe(true)
   })
 })

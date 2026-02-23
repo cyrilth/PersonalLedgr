@@ -47,6 +47,9 @@ vi.mock("@/db", () => {
       loan: {
         update: vi.fn(),
       },
+      interestLog: {
+        aggregate: vi.fn(),
+      },
       $transaction: vi.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
       _mockTx: mockTx,
     },
@@ -63,6 +66,7 @@ import {
   createLoan,
   updateLoan,
   deleteLoan,
+  calculateTotalInterestPaid,
 } from "../loans"
 
 // ── Typed mock accessors ──────────────────────────────────────────────────────
@@ -72,6 +76,7 @@ const mockAccountFindMany = vi.mocked(prisma.account.findMany)
 const mockAccountFindFirst = vi.mocked(prisma.account.findFirst)
 const mockAccountUpdate = vi.mocked(prisma.account.update)
 const mockLoanUpdate = vi.mocked(prisma.loan.update)
+const mockInterestLogAggregate = vi.mocked(prisma.interestLog.aggregate)
 const mock$Transaction = vi.mocked(prisma.$transaction)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTx = (prisma as any)._mockTx
@@ -492,5 +497,56 @@ describe("deleteLoan", () => {
         }),
       })
     )
+  })
+})
+
+// ── calculateTotalInterestPaid ────────────────────────────────────────────────
+
+describe("calculateTotalInterestPaid", () => {
+  it("throws Unauthorized when no session", async () => {
+    mockGetSession.mockResolvedValue(null as never)
+    await expect(calculateTotalInterestPaid("loan-1")).rejects.toThrow("Unauthorized")
+  })
+
+  it("throws when loan not found", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(calculateTotalInterestPaid("nonexistent")).rejects.toThrow("Loan not found")
+  })
+
+  it("returns sum of interest log entries for the loan account", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
+    // toNumber() uses Number() so the mock value must be coercible — plain number works
+    mockInterestLogAggregate.mockResolvedValue({
+      _sum: { amount: 15432.5 },
+    } as never)
+
+    const result = await calculateTotalInterestPaid("loan-1")
+
+    expect(result).toBe(15432.5)
+    expect(mockInterestLogAggregate).toHaveBeenCalledWith({
+      where: { accountId: "acc-loan-1" },
+      _sum: { amount: true },
+    })
+  })
+
+  it("returns 0 when no interest logs exist", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
+    mockInterestLogAggregate.mockResolvedValue({
+      _sum: { amount: null },
+    } as never)
+
+    const result = await calculateTotalInterestPaid("loan-1")
+    expect(result).toBe(0)
+  })
+
+  it("rounds to 2 decimal places", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
+    // Simulate floating point imprecision — Number() coerces this directly
+    mockInterestLogAggregate.mockResolvedValue({
+      _sum: { amount: 1234.5678 },
+    } as never)
+
+    const result = await calculateTotalInterestPaid("loan-1")
+    expect(result).toBe(1234.57)
   })
 })
