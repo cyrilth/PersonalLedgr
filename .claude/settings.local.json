@@ -23,7 +23,11 @@
       "Bash(pnpm list:*)",
       "Bash(grep:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm exec vitest:*)"
+      "Bash(pnpm exec vitest:*)",
+      "Bash(tail:*)",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_type",
+      "mcp__plugin_playwright_playwright__browser_select_option"
     ]
   }
 }

@@ -512,25 +512,25 @@
   - [x] `calculateTotalInterestRemaining(balance, apr, monthlyPayment)` — sum of interest in remaining schedule
 
 ### 4.3 Loan Pages
-- [ ] Create `src/components/loans/loan-card.tsx`:
+- [x] Create `src/components/loans/loan-card.tsx`:
   - Loan name, type icon, lender
   - Balance / original principal progress bar
   - APR display
   - Monthly payment amount
   - Estimated payoff date
-- [ ] Create `src/components/loans/loan-form.tsx` — add/edit loan dialog
-- [ ] Build `src/app/loans/page.tsx`:
+- [x] Create `src/components/loans/loan-form.tsx` — add/edit loan dialog
+- [x] Build `src/app/(app)/loans/page.tsx`:
   - Grid of loan cards
   - Summary bar: total debt, total monthly payments, weighted average APR
-- [ ] Create `src/components/loans/amortization-table.tsx`:
+- [x] Create `src/components/loans/amortization-table.tsx`:
   - Full schedule: month, payment, principal, interest, remaining balance
   - Highlight current month
   - Running totals for interest paid / principal paid
-- [ ] Create `src/components/loans/extra-payment-calc.tsx`:
+- [x] Create `src/components/loans/extra-payment-calc.tsx`:
   - Input: extra monthly amount
   - Output: months saved, interest saved, new payoff date
   - Comparison chart (with vs without extra payments)
-- [ ] Build `src/app/loans/[id]/page.tsx`:
+- [x] Build `src/app/(app)/loans/[id]/page.tsx`:
   - Loan header with key stats
   - Payment history (transactions for this loan account)
   - Amortization table
