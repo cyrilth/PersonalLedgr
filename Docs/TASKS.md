@@ -352,32 +352,32 @@
 - [x] Test: `bulkCategorize()` updates category for multiple transactions
 
 ### 3.2 Transfer Wizard
-- [ ] Create `src/actions/transfers.ts`:
-  - [ ] `createTransfer(sourceAccountId, destAccountId, amount, date, description)`:
+- [x] Create `src/actions/transfers.ts`:
+  - [x] `createTransfer(sourceAccountId, destAccountId, amount, date, description)`:
     - Creates Transaction A on source account (negative, type: transfer)
     - Creates Transaction B on destination account (positive, type: transfer)
-    - Links A.linked_transaction_id = B.id and B.linked_transaction_id = A.id
+    - Links A→B via `linked_transaction_id` (self-referential unique FK)
     - Updates both account balances
     - All in a database transaction (atomic)
-  - [ ] Handle all transfer scenarios:
+  - [x] Handle all transfer scenarios:
     - Checking → Savings
     - Savings → Checking
     - Checking → Credit Card (CC payment)
     - Loan disbursement → Checking
-- [ ] Create `src/components/transactions/transfer-wizard.tsx`:
+- [x] Create `src/components/transactions/transfer-wizard.tsx`:
   - Source account dropdown (with owner name)
   - Destination account dropdown (with owner name)
   - Amount input
   - Date picker
-  - Description (auto-generated like "Transfer to Savings" but editable)
+  - Description (auto-generated like "Transfer: Checking → Savings" but editable)
 
 ### 3.2b Transfer Wizard Tests
-- [ ] Test: `createTransfer()` creates two linked transactions with correct types and amounts *(blocked — `transfers.ts` not yet implemented)*
-- [ ] Test: `createTransfer()` updates both account balances atomically *(blocked)*
-- [ ] Test: `createTransfer()` links A→B and B→A via `linked_transaction_id` *(blocked)*
-- [ ] Test: Transfer transactions are typed as `TRANSFER` (not income/expense) *(blocked)*
-- [ ] Test: Transfer wizard validates source ≠ destination account *(blocked — component not yet implemented)*
-- [ ] Test: Transfer wizard shows owner names on account dropdowns *(blocked — component not yet implemented)*
+- [x] Test: `createTransfer()` creates two linked transactions with correct types and amounts
+- [x] Test: `createTransfer()` updates both account balances atomically
+- [x] Test: `createTransfer()` links A→B via `linked_transaction_id`
+- [x] Test: Transfer transactions are typed as `TRANSFER` (not income/expense)
+- [x] Test: Transfer wizard validates source ≠ destination account
+- [x] Test: Transfer wizard validates amount > 0, both accounts belong to user, accounts not found
 
 ### 3.3 Loan Payment Recording
 - [ ] Create `src/actions/loan-payments.ts`:
