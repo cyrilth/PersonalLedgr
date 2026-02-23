@@ -137,7 +137,7 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
         loan:
           type === "LOAN" || type === "MORTGAGE"
             ? {
-                loanType: loanType,
+                loanType: type === "MORTGAGE" ? "MORTGAGE" : loanType,
                 originalBalance: parseFloat(originalBalance) || 0,
                 interestRate: parseFloat(interestRate) || 0,
                 termMonths: parseInt(termMonths) || 0,
@@ -192,7 +192,16 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
 
           <div className="space-y-2">
             <Label htmlFor="type">Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as AccountType)} disabled={isEdit}>
+            <Select
+              value={type}
+              onValueChange={(v) => {
+                const next = v as AccountType
+                setType(next)
+                if (next === "MORTGAGE") setLoanType("MORTGAGE")
+                else if (next === "LOAN" && loanType === "MORTGAGE") setLoanType("PERSONAL")
+              }}
+              disabled={isEdit}
+            >
               <SelectTrigger id="type" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -290,23 +299,29 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
           {/* Loan fields */}
           {(type === "LOAN" || type === "MORTGAGE") && (
             <div className="space-y-3 rounded-lg border p-3">
-              <p className="text-sm font-medium">Loan Details</p>
+              <p className="text-sm font-medium">
+                {type === "MORTGAGE" ? "Mortgage Details" : "Loan Details"}
+              </p>
 
-              <div className="space-y-2">
-                <Label htmlFor="loanType">Loan Type</Label>
-                <Select value={loanType} onValueChange={(v) => setLoanType(v as LoanType)}>
-                  <SelectTrigger id="loanType" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(LOAN_TYPE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {type === "LOAN" && (
+                <div className="space-y-2">
+                  <Label htmlFor="loanType">Loan Type</Label>
+                  <Select value={loanType} onValueChange={(v) => setLoanType(v as LoanType)}>
+                    <SelectTrigger id="loanType" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LOAN_TYPE_LABELS)
+                        .filter(([value]) => value !== "MORTGAGE")
+                        .map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="origBalance">Original Balance</Label>
