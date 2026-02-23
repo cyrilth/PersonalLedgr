@@ -630,39 +630,38 @@
   - Copy budgets from previous month / set as default
 
 ### 5.3 CSV Import (Flexible 3-Pattern Support)
-- [ ] Create `src/actions/import.ts`:
-  - [ ] `parseCSV(fileContent)` — parse CSV string into rows, handle common encoding issues
-  - [ ] `detectAmountPattern(headers, sampleRows)` — auto-detect which of the 3 patterns:
+- [x] Create `src/actions/import.ts`:
+  - [x] `parseCSV(fileContent)` — parse CSV string into rows, handle common encoding issues
+  - [x] `detectAmountPattern(headers, sampleRows)` — auto-detect which of the 3 patterns:
     - Pattern 1: single signed amount column
     - Pattern 2: separate debit/credit columns
     - Pattern 3: amount + type indicator column
     - Return detected pattern + suggested column mappings
-  - [ ] `detectColumns(headers)` — auto-detect date, description, and amount columns by name heuristics
-  - [ ] `normalizeAmounts(rows, pattern, columnMapping)` — convert any pattern to signed amounts (negative = debit, positive = credit)
-  - [ ] `detectDuplicates(transactions, accountId)` — compare against existing:
+  - [x] `detectColumns(headers)` — auto-detect date, description, and amount columns by name heuristics
+  - [x] `normalizeAmounts(rows, pattern, columnMapping)` — convert any pattern to signed amounts (negative = debit, positive = credit)
+  - [x] `detectDuplicates(transactions, accountId)` — compare against existing:
     - Exact match: same date + same amount + same description → flag as duplicate
     - Fuzzy match: same date + same amount + similar description (Levenshtein < 3) → flag for review
     - No match: mark as new
-  - [ ] `importTransactions(transactions, accountId)` — bulk insert confirmed transactions + update account balance
-- [ ] Create `src/components/import/csv-uploader.tsx`:
+  - [x] `importTransactions(transactions, accountId)` — bulk insert confirmed transactions + update account balance
+- [x] Create `src/components/import/csv-uploader.tsx`:
   - Drag & drop or file picker for CSV
   - Preview first 5 rows in a table
   - Select target account from dropdown
-- [ ] Create `src/components/import/column-mapper.tsx`:
+- [x] Create `src/components/import/column-mapper.tsx`:
   - Auto-detected pattern shown with option to override
   - **Pattern 1 UI:** map date column, amount column, description column
   - **Pattern 2 UI:** map date column, debit column, credit column, description column
   - **Pattern 3 UI:** map date column, amount column, type indicator column, description column + specify debit/credit indicator values
   - Optional: category column mapping
   - Live preview of mapped + normalized data (5 rows)
-- [ ] Create `src/components/import/import-preview.tsx`:
+- [x] Create `src/components/import/import-preview.tsx`:
   - Full list of parsed + normalized transactions
   - Duplicate flags (exact match: red "Duplicate", fuzzy: yellow "Review", new: green "New")
   - Checkbox to include/exclude each row
-  - Auto-categorization suggestions based on description matching existing transactions
-  - Summary: X new, Y duplicates, Z for review
+  - [x] Summary: X new, Y duplicates, Z for review
   - Confirm import button
-- [ ] Build `src/app/import/page.tsx` — step wizard: Upload → Map Columns → Preview & Review → Confirm
+- [x] Build `src/app/import/page.tsx` — step wizard: Upload → Map Columns → Preview & Review → Confirm
 
 ---
 
