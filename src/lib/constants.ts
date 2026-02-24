@@ -76,6 +76,7 @@ export const LOAN_TYPES = {
   STUDENT: "STUDENT",
   PERSONAL: "PERSONAL",
   BNPL: "BNPL",
+  PAYDAY: "PAYDAY",
 } as const
 
 export type LoanType = (typeof LOAN_TYPES)[keyof typeof LOAN_TYPES]
@@ -177,6 +178,7 @@ export const LOAN_TYPE_LABELS: Record<LoanType, string> = {
   STUDENT: "Student",
   PERSONAL: "Personal",
   BNPL: "Buy Now Pay Later",
+  PAYDAY: "Payday Loan",
 }
 
 export const APR_RATE_TYPE_LABELS: Record<AprRateType, string> = {

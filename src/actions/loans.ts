@@ -65,6 +65,11 @@ export interface LoanSummary {
   nextPaymentDate: Date | null
   merchantName: string | null
   paymentAccountId: string | null
+  // Payday-specific fields
+  feePerHundred: number | null
+  termDays: number | null
+  dueDate: Date | null
+  lenderName: string | null
 }
 
 /** Full loan detail including payment history and interest accrual records. */
@@ -137,6 +142,10 @@ export async function getLoans(): Promise<LoanSummary[]> {
       nextPaymentDate: a.loan!.nextPaymentDate,
       merchantName: a.loan!.merchantName,
       paymentAccountId: a.loan!.paymentAccountId,
+      feePerHundred: a.loan!.feePerHundred ? toNumber(a.loan!.feePerHundred) : null,
+      termDays: a.loan!.termDays,
+      dueDate: a.loan!.dueDate,
+      lenderName: a.loan!.lenderName,
     }))
 }
 
@@ -215,6 +224,10 @@ export async function getLoan(id: string): Promise<LoanDetail> {
     nextPaymentDate: account.loan.nextPaymentDate,
     merchantName: account.loan.merchantName,
     paymentAccountId: account.loan.paymentAccountId,
+    feePerHundred: account.loan.feePerHundred ? toNumber(account.loan.feePerHundred) : null,
+    termDays: account.loan.termDays,
+    dueDate: account.loan.dueDate,
+    lenderName: account.loan.lenderName,
     paymentAccountName,
     transactions: account.transactions.map((t) => ({
       id: t.id,
@@ -250,7 +263,7 @@ export async function createLoan(data: {
   type: "LOAN" | "MORTGAGE"
   balance: number
   owner?: string
-  loanType: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL"
+  loanType: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL" | "PAYDAY"
   originalBalance: number
   interestRate: number
   termMonths: number
@@ -264,15 +277,27 @@ export async function createLoan(data: {
   nextPaymentDate?: string
   merchantName?: string
   paymentAccountId?: string
+  // Payday-specific
+  feePerHundred?: number
+  termDays?: number
+  lenderName?: string
 }) {
   const userId = await requireUserId()
 
   const isBNPL = data.loanType === "BNPL"
+  const isPayday = data.loanType === "PAYDAY"
 
   if (!data.name?.trim()) throw new Error("Loan name is required")
-  if (data.interestRate < 0) throw new Error("Interest rate must be non-negative")
+  if (!isPayday && data.interestRate < 0) throw new Error("Interest rate must be non-negative")
 
-  if (isBNPL) {
+  if (isPayday) {
+    if (!data.feePerHundred || data.feePerHundred < 0) {
+      throw new Error("Fee per $100 must be non-negative")
+    }
+    if (!data.termDays || data.termDays <= 0) {
+      throw new Error("Term in days must be positive")
+    }
+  } else if (isBNPL) {
     if (!data.totalInstallments || data.totalInstallments <= 0) {
       throw new Error("Total installments must be positive")
     }
@@ -282,6 +307,19 @@ export async function createLoan(data: {
   } else {
     if (data.termMonths <= 0) throw new Error("Term must be positive")
     if (data.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+  }
+
+  // Payday: calculate derived fields
+  let paydayDueDate: Date | null = null
+  let paydayTotalRepayment = 0
+  let paydayEquivalentAPR = 0
+  if (isPayday && data.feePerHundred && data.termDays) {
+    const startDt = new Date(data.startDate)
+    paydayDueDate = new Date(startDt)
+    paydayDueDate.setDate(paydayDueDate.getDate() + data.termDays)
+    const fee = Math.round(data.originalBalance * (data.feePerHundred / 100) * 100) / 100
+    paydayTotalRepayment = Math.round((data.originalBalance + fee) * 100) / 100
+    paydayEquivalentAPR = Math.round((data.feePerHundred / 100) * (365 / data.termDays) * 100 * 100) / 100
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -296,19 +334,24 @@ export async function createLoan(data: {
           create: {
             loanType: data.loanType,
             originalBalance: data.originalBalance,
-            interestRate: data.interestRate,
-            termMonths: data.termMonths,
+            interestRate: isPayday ? 0 : data.interestRate, // payday uses feePerHundred, not APR
+            termMonths: isPayday ? 1 : data.termMonths,
             startDate: new Date(data.startDate),
-            monthlyPayment: data.monthlyPayment,
-            extraPaymentAmount: data.extraPaymentAmount ?? 0,
-            paymentDueDay: data.paymentDueDay ?? null,
+            monthlyPayment: isPayday ? paydayTotalRepayment : data.monthlyPayment,
+            extraPaymentAmount: isPayday ? 0 : (data.extraPaymentAmount ?? 0),
+            paymentDueDay: isPayday ? null : (data.paymentDueDay ?? null),
             // BNPL-specific fields
-            totalInstallments: isBNPL ? data.totalInstallments : null,
+            totalInstallments: isBNPL ? data.totalInstallments : (isPayday ? 1 : null),
             completedInstallments: 0,
             installmentFrequency: isBNPL ? data.installmentFrequency : null,
-            nextPaymentDate: data.nextPaymentDate ? new Date(data.nextPaymentDate) : null,
+            nextPaymentDate: isPayday ? paydayDueDate : (data.nextPaymentDate ? new Date(data.nextPaymentDate) : null),
             merchantName: isBNPL ? (data.merchantName || null) : null,
-            paymentAccountId: isBNPL ? (data.paymentAccountId || null) : null,
+            paymentAccountId: (isBNPL || isPayday) ? (data.paymentAccountId || null) : null,
+            // Payday-specific fields
+            feePerHundred: isPayday ? data.feePerHundred : null,
+            termDays: isPayday ? data.termDays : null,
+            dueDate: isPayday ? paydayDueDate : null,
+            lenderName: isPayday ? (data.lenderName || null) : null,
           },
         },
       },
@@ -352,7 +395,7 @@ export async function updateLoan(
   data: {
     name?: string
     owner?: string
-    loanType?: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL"
+    loanType?: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL" | "PAYDAY"
     interestRate?: number
     termMonths?: number
     monthlyPayment?: number
@@ -364,6 +407,11 @@ export async function updateLoan(
     nextPaymentDate?: string | null
     merchantName?: string
     paymentAccountId?: string | null
+    // Payday-specific
+    feePerHundred?: number
+    termDays?: number
+    lenderName?: string
+    dueDate?: string | null
   }
 ) {
   const userId = await requireUserId()
@@ -401,6 +449,10 @@ export async function updateLoan(
   if (data.nextPaymentDate !== undefined) loanUpdate.nextPaymentDate = data.nextPaymentDate ? new Date(data.nextPaymentDate) : null
   if (data.merchantName !== undefined) loanUpdate.merchantName = data.merchantName || null
   if (data.paymentAccountId !== undefined) loanUpdate.paymentAccountId = data.paymentAccountId
+  if (data.feePerHundred !== undefined) loanUpdate.feePerHundred = data.feePerHundred
+  if (data.termDays !== undefined) loanUpdate.termDays = data.termDays
+  if (data.lenderName !== undefined) loanUpdate.lenderName = data.lenderName || null
+  if (data.dueDate !== undefined) loanUpdate.dueDate = data.dueDate ? new Date(data.dueDate) : null
 
   if (Object.keys(loanUpdate).length > 0) {
     await prisma.loan.update({

@@ -40,6 +40,7 @@ enum LoanType {
   STUDENT
   PERSONAL
   BNPL
+  PAYDAY
 }
 
 enum RecurringFrequency {
@@ -202,6 +203,12 @@ model Loan {
   nextPaymentDate        DateTime?           // next scheduled payment date
   merchantName           String?             // what was purchased (e.g., "PayPal - Nike Shoes")
   paymentAccountId       String?             // source account for auto-payments
+
+  // Payday-specific fields
+  feePerHundred    Decimal?  @db.Decimal(8, 2) // fee per $100 borrowed (e.g. 15.00)
+  termDays         Int?                         // loan term in days (e.g. 14)
+  dueDate          DateTime?                    // absolute due date (startDate + termDays)
+  lenderName       String?                      // payday lender name
 
   accountId String  @unique
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)

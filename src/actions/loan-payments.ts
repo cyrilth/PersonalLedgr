@@ -65,9 +65,109 @@ export async function recordLoanPayment(data: {
   if (!loanAccount.loan) throw new Error("Account does not have a loan record")
 
   const isBNPL = loanAccount.loan.loanType === "BNPL"
+  const isPayday = loanAccount.loan.loanType === "PAYDAY"
   const annualRate = toNumber(loanAccount.loan.interestRate)
   const paymentDate = new Date(data.date)
-  const description = data.description || (isBNPL ? "BNPL Payment" : "Loan Payment")
+  const description = data.description || (isPayday ? "Payday Loan Payment" : isBNPL ? "BNPL Payment" : "Loan Payment")
+
+  if (isPayday) {
+    // Payday loan — flat fee, single balloon payment
+    const feePerHundred = loanAccount.loan.feePerHundred ? toNumber(loanAccount.loan.feePerHundred) : 0
+    const originalPrincipal = toNumber(loanAccount.loan.originalBalance)
+    const fee = round2(originalPrincipal * (feePerHundred / 100))
+    // Split payment: fee goes to interest, remainder to principal
+    const interestAmount = Math.min(fee, data.amount)
+    const principalAmount = round2(data.amount - interestAmount)
+
+    const result = await prisma.$transaction(async (tx) => {
+      const outgoing = await tx.transaction.create({
+        data: {
+          date: paymentDate,
+          description,
+          amount: -data.amount,
+          type: "TRANSFER",
+          source: "MANUAL",
+          userId,
+          accountId: data.fromAccountId,
+        },
+      })
+
+      const principal = await tx.transaction.create({
+        data: {
+          date: paymentDate,
+          description,
+          amount: principalAmount,
+          type: "LOAN_PRINCIPAL",
+          source: "SYSTEM",
+          category: "Loan Payment",
+          userId,
+          accountId: data.loanAccountId,
+        },
+      })
+
+      const interest = await tx.transaction.create({
+        data: {
+          date: paymentDate,
+          description,
+          amount: -interestAmount,
+          type: "LOAN_INTEREST",
+          source: "SYSTEM",
+          category: "Loan Payment",
+          userId,
+          accountId: data.loanAccountId,
+        },
+      })
+
+      await tx.transaction.update({
+        where: { id: outgoing.id },
+        data: { linkedTransactionId: principal.id },
+      })
+
+      // Update balances
+      await tx.account.update({
+        where: { id: data.fromAccountId },
+        data: { balance: { decrement: data.amount } },
+      })
+      await tx.account.update({
+        where: { id: data.loanAccountId },
+        data: { balance: { increment: principalAmount } },
+      })
+
+      // Interest log
+      await tx.interestLog.create({
+        data: {
+          date: paymentDate,
+          amount: interestAmount,
+          type: "CHARGED",
+          userId,
+          accountId: data.loanAccountId,
+        },
+      })
+
+      // Check if loan is fully paid (balance reaches 0 or above)
+      const updatedAccount = await tx.account.findUnique({
+        where: { id: data.loanAccountId },
+        select: { balance: true },
+      })
+      if (updatedAccount && toNumber(updatedAccount.balance) >= 0) {
+        await tx.account.update({
+          where: { id: data.loanAccountId },
+          data: { isActive: false },
+        })
+      }
+
+      return { outgoing, principal, interest }
+    })
+
+    return {
+      outgoingId: result.outgoing.id,
+      principalId: result.principal.id,
+      interestId: result.interest.id,
+      principalAmount,
+      interestAmount,
+      totalAmount: -data.amount,
+    }
+  }
 
   if (isBNPL && annualRate === 0) {
     // BNPL with 0% interest — entire payment is a transfer (no interest split)

@@ -250,6 +250,19 @@ export function calculateTotalInterestRemaining(
   return Math.round(total * 100) / 100
 }
 
+// ── Payday Loan Calculations ────────────────────────────────────────
+
+/** Calculate the flat fee for a payday loan given principal and fee-per-$100. */
+export function calculatePaydayFee(principal: number, feePerHundred: number): number {
+  return Math.round(principal * (feePerHundred / 100) * 100) / 100
+}
+
+/** Calculate the equivalent APR for a payday loan for display purposes. */
+export function calculatePaydayAPR(feePerHundred: number, termDays: number): number {
+  if (termDays <= 0) return 0
+  return Math.round((feePerHundred / 100) * (365 / termDays) * 100 * 100) / 100
+}
+
 // ── Drift Calculation ───────────────────────────────────────────────
 
 /** Compute the difference between a calculated and stored balance, rounded to cents. */

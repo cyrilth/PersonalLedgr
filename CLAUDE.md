@@ -78,6 +78,7 @@ This principle drives the entire transaction type system and query logic:
 | `STUDENT` | Student loan |
 | `PERSONAL` | Personal loan |
 | `BNPL` | Buy Now Pay Later (PayPal Pay in 4, Afterpay, Klarna, etc.) |
+| `PAYDAY` | Payday loan (short-term, fee-based, single balloon payment) |
 
 ### BNPL (Buy Now Pay Later)
 
@@ -89,6 +90,18 @@ BNPL plans are modeled as a loan subtype with installment-based tracking:
 - **Auto-deactivation** — account marked inactive when all installments are paid
 - **Auto-payment cron** — daily job at 7 AM processes BNPL loans with a configured `paymentAccountId`
 - **Merchant tracking** — `merchantName` field for purchase identification (e.g., "PayPal - Nike Shoes")
+
+### Payday Loans
+
+Payday loans are modeled as a loan subtype with fee-based pricing:
+
+- **Fee-based pricing** — `feePerHundred` (e.g., $15 per $100 borrowed) instead of traditional APR
+- **Short-term** — `termDays` (7-30 days), with absolute `dueDate` calculated from `startDate + termDays`
+- **Single balloon payment** — entire principal + fee due at once (no installment schedule)
+- **Equivalent APR display** — calculated as `(feePerHundred / 100) * (365 / termDays) * 100` for transparency
+- **Auto-deactivation** — account marked inactive when balance reaches 0
+- **Auto-payment cron** — daily job at 7 AM processes payday loans with a configured `paymentAccountId`
+- **Lender tracking** — `lenderName` field for payday lender identification
 
 ## Recurring Frequencies
 
@@ -115,6 +128,7 @@ WEEKLY/BIWEEKLY bills use a `startDate` anchor instead of `dayOfMonth`. The cron
 9. **Mortgage/loan payment auto-split** — system calculates principal vs interest from amortization schedule
 10. **BNPL as loan subtype** — reuses Loan/Account infrastructure with installment-specific fields and auto-completion logic
 11. **Tithing tracker** — per-user `UserSettings` model with configurable percentage, extra monthly amount, and category name; dashboard widget shows month-by-month estimated vs actual tithing using `INCOME_TYPES` for income calculation
+12. **Payday loans as loan subtype** — fee-based pricing (`feePerHundred`), term in days, single balloon payment, auto-deactivation on payoff
 
 ## Project Structure
 
@@ -176,6 +190,7 @@ cron/
       apr-expiration.ts   # Daily expired APR rate cleanup
       recurring-bills.ts  # Daily recurring bill generation (supports WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUAL)
       bnpl-payments.ts    # Daily BNPL auto-payment processing
+      payday-payments.ts  # Daily payday loan auto-payment processing
       plaid-sync.ts       # Plaid sync every 6 hours (Phase 6)
 ```
 

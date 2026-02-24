@@ -30,7 +30,7 @@ import {
 } from "recharts"
 
 import { getLoan, calculateTotalInterestPaid, deleteLoan } from "@/actions/loans"
-import { calculateTotalInterestRemaining } from "@/lib/calculations"
+import { calculateTotalInterestRemaining, calculatePaydayFee, calculatePaydayAPR } from "@/lib/calculations"
 import { LoanForm } from "@/components/loans/loan-form"
 import { AmortizationTable } from "@/components/loans/amortization-table"
 import { ExtraPaymentCalc } from "@/components/loans/extra-payment-calc"
@@ -235,6 +235,18 @@ export default function LoanDetailPage() {
   const displayBalance = Math.abs(loan.balance)
   const totalInterest = interestPaid + interestRemaining
   const isBNPL = loan.loanType === "BNPL"
+  const isPayday = loan.loanType === "PAYDAY"
+
+  // Payday derived values
+  const paydayFee = isPayday && loan.feePerHundred
+    ? calculatePaydayFee(loan.originalBalance, loan.feePerHundred)
+    : 0
+  const paydayAPR = isPayday && loan.feePerHundred && loan.termDays
+    ? calculatePaydayAPR(loan.feePerHundred, loan.termDays)
+    : 0
+  const paydayDaysRemaining = isPayday && loan.dueDate
+    ? Math.ceil((new Date(loan.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : 0
 
   const pieData = [
     { name: "Interest Paid", value: interestPaid },
@@ -289,7 +301,64 @@ export default function LoanDetailPage() {
       {/* ── Header Stats Card ────────────────────────────────────── */}
       <Card>
         <CardContent className="p-6">
-          {isBNPL ? (
+          {isPayday ? (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-muted-foreground">Total Owed</dt>
+                <dd className="mt-1 text-2xl font-bold text-negative">
+                  {formatCurrency(displayBalance)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Amount Borrowed</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(loan.originalBalance)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Fee</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(paydayFee)}
+                  <span className="text-xs text-muted-foreground ml-1">
+                    (${loan.feePerHundred}/100)
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Due Date</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {loan.dueDate ? formatDate(loan.dueDate) : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Days Remaining</dt>
+                <dd className={cn(
+                  "mt-1 text-lg font-semibold",
+                  paydayDaysRemaining < 0 ? "text-destructive" : paydayDaysRemaining <= 3 ? "text-amber-500" : ""
+                )}>
+                  {paydayDaysRemaining < 0 ? "OVERDUE" : `${paydayDaysRemaining} days`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Equivalent APR</dt>
+                <dd className="mt-1 text-lg font-semibold text-destructive">
+                  {paydayAPR.toFixed(1)}%
+                </dd>
+              </div>
+              {loan.lenderName && (
+                <div>
+                  <dt className="text-muted-foreground">Lender</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.lenderName}</dd>
+                </div>
+              )}
+              {loan.paymentAccountName && (
+                <div>
+                  <dt className="text-muted-foreground">Payment Account</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.paymentAccountName}</dd>
+                </div>
+              )}
+            </dl>
+          ) : isBNPL ? (
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
               <div>
                 <dt className="text-muted-foreground">Remaining Balance</dt>
@@ -419,9 +488,9 @@ export default function LoanDetailPage() {
       )}
 
       {/* ── Two-Column Grid ──────────────────────────────────────── */}
-      <div className={cn("grid gap-6", !isBNPL && "lg:grid-cols-2")}>
-        {/* Left Column: Interest Chart + Amortization Table (hidden for BNPL) */}
-        {!isBNPL && (
+      <div className={cn("grid gap-6", !isBNPL && !isPayday && "lg:grid-cols-2")}>
+        {/* Left Column: Interest Chart + Amortization Table (hidden for BNPL and Payday) */}
+        {!isBNPL && !isPayday && (
         <div className="space-y-6">
           {/* ── Interest Summary Card ─────────────────────────────── */}
           <Card>
@@ -523,8 +592,8 @@ export default function LoanDetailPage() {
 
         {/* Right Column: Extra Payment Calc + Payment History */}
         <div className="space-y-6">
-          {/* ── Extra Payment Calculator (hidden for BNPL) ─────────── */}
-          {!isBNPL && (
+          {/* ── Extra Payment Calculator (hidden for BNPL and Payday) ── */}
+          {!isBNPL && !isPayday && (
           <ExtraPaymentCalc
             balance={loan.balance}
             apr={loan.interestRate}
@@ -619,6 +688,10 @@ export default function LoanDetailPage() {
                 nextPaymentDate: loan.nextPaymentDate,
                 merchantName: loan.merchantName,
                 paymentAccountId: loan.paymentAccountId,
+                feePerHundred: loan.feePerHundred,
+                termDays: loan.termDays,
+                dueDate: loan.dueDate,
+                lenderName: loan.lenderName,
               }
             : null
         }

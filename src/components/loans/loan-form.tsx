@@ -61,6 +61,11 @@ interface LoanEditData {
   nextPaymentDate?: Date | null
   merchantName?: string | null
   paymentAccountId?: string | null
+  // Payday-specific
+  feePerHundred?: number | null
+  termDays?: number | null
+  dueDate?: Date | null
+  lenderName?: string | null
 }
 
 interface LoanFormProps {
@@ -102,8 +107,13 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
   const [nextPaymentDate, setNextPaymentDate] = useState(toDateInputValue(new Date()))
   const [merchantName, setMerchantName] = useState("")
   const [paymentAccountId, setPaymentAccountId] = useState("")
+  // Payday-specific state
+  const [feePerHundred, setFeePerHundred] = useState("")
+  const [termDays, setTermDays] = useState("14")
+  const [lenderName, setLenderName] = useState("")
 
   const isBNPL = loanType === "BNPL"
+  const isPayday = loanType === "PAYDAY"
 
   /**
    * Resets form fields when the dialog opens or editData changes.
@@ -132,6 +142,10 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
         setNextPaymentDate(editData.nextPaymentDate ? toDateInputValue(editData.nextPaymentDate) : toDateInputValue(new Date()))
         setMerchantName(editData.merchantName ?? "")
         setPaymentAccountId(editData.paymentAccountId ?? "")
+        // Payday fields
+        setFeePerHundred(editData.feePerHundred?.toString() ?? "")
+        setTermDays(editData.termDays?.toString() ?? "14")
+        setLenderName(editData.lenderName ?? "")
       } else {
         setAccountName("")
         setAccountType("LOAN")
@@ -150,6 +164,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
         setNextPaymentDate(toDateInputValue(new Date()))
         setMerchantName("")
         setPaymentAccountId("")
+        setFeePerHundred("")
+        setTermDays("14")
+        setLenderName("")
       }
     }
   }, [open, editData])
@@ -164,7 +181,14 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
     if (!isEdit) {
       const parsed = parseFloat(value)
       if (!isNaN(parsed)) {
-        setBalance((-Math.abs(parsed)).toString())
+        if (isPayday) {
+          // Payday: balance = -(principal + fee)
+          const fee = parseFloat(feePerHundred) || 0
+          const totalFee = Math.abs(parsed) * (fee / 100)
+          setBalance((-(Math.abs(parsed) + totalFee)).toString())
+        } else {
+          setBalance((-Math.abs(parsed)).toString())
+        }
         // Auto-calc monthly payment for BNPL
         if (isBNPL) {
           const installments = parseInt(totalInstallments)
@@ -218,8 +242,38 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
             merchantName: merchantName.trim() || undefined,
             paymentAccountId: paymentAccountId || null,
           } : {}),
+          ...(isPayday ? {
+            feePerHundred: parseFloat(feePerHundred) || 0,
+            termDays: parseInt(termDays) || 14,
+            lenderName: lenderName.trim() || undefined,
+            paymentAccountId: paymentAccountId || null,
+          } : {}),
         })
         toast.success("Loan updated")
+      } else if (isPayday) {
+        const origBal = parseFloat(originalBalance) || 0
+        const feeRate = parseFloat(feePerHundred) || 0
+        const days = parseInt(termDays) || 14
+        const fee = origBal * (feeRate / 100)
+        const totalOwed = origBal + fee
+
+        await createLoan({
+          name: accountName.trim(),
+          type: "LOAN",
+          balance: -totalOwed,
+          owner: owner.trim() || undefined,
+          loanType: "PAYDAY",
+          originalBalance: origBal,
+          interestRate: 0, // will be calculated server-side as equivalent APR
+          termMonths: 1,
+          startDate: startDate,
+          monthlyPayment: totalOwed, // single balloon payment
+          feePerHundred: feeRate,
+          termDays: days,
+          lenderName: lenderName.trim() || undefined,
+          paymentAccountId: paymentAccountId || undefined,
+        })
+        toast.success("Payday loan created")
       } else if (isBNPL) {
         const origBal = parseFloat(originalBalance) || 0
         const installments = parseInt(totalInstallments) || 4
@@ -430,13 +484,103 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
             </div>
           )}
 
+          {/* Payday-specific fields */}
+          {isPayday && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-sm font-medium">Payday Loan Details</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="payday-fee">Fee per $100 Borrowed</Label>
+                <Input
+                  id="payday-fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={feePerHundred}
+                  onChange={(e) => {
+                    setFeePerHundred(e.target.value)
+                    // Recalculate balance when fee changes
+                    if (!isEdit) {
+                      const origBal = parseFloat(originalBalance) || 0
+                      const fee = parseFloat(e.target.value) || 0
+                      const totalFee = origBal * (fee / 100)
+                      setBalance((-(origBal + totalFee)).toString())
+                    }
+                  }}
+                  placeholder="e.g. 15.00"
+                />
+                <p className="text-muted-foreground text-xs">
+                  Flat fee charged per $100 borrowed
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payday-term">Term (days)</Label>
+                <Input
+                  id="payday-term"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={termDays}
+                  onChange={(e) => setTermDays(e.target.value)}
+                  placeholder="e.g. 14"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payday-lender">Lender Name (optional)</Label>
+                <Input
+                  id="payday-lender"
+                  value={lenderName}
+                  onChange={(e) => setLenderName(e.target.value)}
+                  placeholder="e.g. QuickCash"
+                />
+              </div>
+
+              {accounts.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="payday-payment-account">Payment Account (optional)</Label>
+                  <Select value={paymentAccountId} onValueChange={setPaymentAccountId}>
+                    <SelectTrigger id="payday-payment-account" className="w-full">
+                      <SelectValue placeholder="Select account for repayment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((acct) => (
+                        <SelectItem key={acct.id} value={acct.id}>
+                          {acct.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs">
+                    Account the repayment will be drawn from on the due date
+                  </p>
+                </div>
+              )}
+
+              {/* Auto-calculated summary */}
+              {parseFloat(originalBalance) > 0 && parseFloat(feePerHundred) > 0 && parseInt(termDays) > 0 && (
+                <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                  <p className="font-medium">Summary</p>
+                  <p className="text-muted-foreground">
+                    Fee: ${(parseFloat(originalBalance) * (parseFloat(feePerHundred) / 100)).toFixed(2)}
+                    {" | "}
+                    Total repayment: ${(parseFloat(originalBalance) + parseFloat(originalBalance) * (parseFloat(feePerHundred) / 100)).toFixed(2)}
+                    {" | "}
+                    Equivalent APR: {((parseFloat(feePerHundred) / 100) * (365 / parseInt(termDays)) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Financial Details */}
           <div className="space-y-3 rounded-lg border p-3">
             <p className="text-sm font-medium">Financial Details</p>
 
             <div className="space-y-2">
               <Label htmlFor="loan-orig-balance">
-                {isBNPL ? "Purchase Price" : "Original Balance"}
+                {isBNPL ? "Purchase Price" : isPayday ? "Amount Borrowed" : "Original Balance"}
               </Label>
               <Input
                 id="loan-orig-balance"
@@ -448,7 +592,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
               />
             </div>
 
-            {!isBNPL && (
+            {!isBNPL && !isPayday && (
               <div className="space-y-2">
                 <Label htmlFor="loan-balance">Current Balance</Label>
                 <Input
@@ -464,6 +608,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
               </div>
             )}
 
+            {!isPayday && (
             <div className="space-y-2">
               <Label htmlFor="loan-rate">Interest Rate / APR (%)</Label>
               <Input
@@ -480,8 +625,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
                 </p>
               )}
             </div>
+            )}
 
-            {!isBNPL && (
+            {!isBNPL && !isPayday && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="loan-term">Term (months)</Label>
