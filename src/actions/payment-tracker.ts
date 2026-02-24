@@ -50,6 +50,7 @@ export interface PaymentRecord {
   month: number
   year: number
   amount: number
+  paidAt?: Date               // BillPayment.paidAt (bills only)
 }
 
 // ── Server Actions ───────────────────────────────────────────────────
@@ -244,6 +245,7 @@ export async function getPaymentRecords(
       month: p.month,
       year: p.year,
       amount: toNumber(p.amount),
+      paidAt: p.paidAt,
     })
   }
 

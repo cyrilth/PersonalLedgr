@@ -311,7 +311,6 @@ describe("recordBillPayment", () => {
 
   beforeEach(() => {
     mockRecurringBillFindFirst.mockResolvedValue(makeRecurringBill() as never)
-    mockBillPaymentFindUnique.mockResolvedValue(null as never)
     mockTx.transaction.create.mockResolvedValue(makeTransaction() as never)
     mockTx.account.update.mockResolvedValue({} as never)
     mockTx.billPayment.create.mockResolvedValue({ id: "pay-new" } as never)
@@ -327,9 +326,12 @@ describe("recordBillPayment", () => {
     await expect(recordBillPayment(validData)).rejects.toThrow("Bill not found")
   })
 
-  it("throws 'Payment already recorded for this month' on duplicate", async () => {
-    mockBillPaymentFindUnique.mockResolvedValue(makeBillPayment() as never)
-    await expect(recordBillPayment(validData)).rejects.toThrow("Payment already recorded for this month")
+  it("allows multiple payments for the same bill/month/year", async () => {
+    const result1 = await recordBillPayment(validData)
+    expect(result1).toEqual({ billPaymentId: "pay-new", transactionId: "txn-1" })
+
+    const result2 = await recordBillPayment(validData)
+    expect(result2).toEqual({ billPaymentId: "pay-new", transactionId: "txn-1" })
   })
 
   it("creates an EXPENSE transaction inside $transaction", async () => {
@@ -449,18 +451,18 @@ describe("recordBillPayment", () => {
     )
   })
 
-  it("checks for duplicate using composite unique key", async () => {
+  it("does not check for duplicate bill/month/year before creating", async () => {
     await recordBillPayment(validData)
 
-    expect(mockBillPaymentFindUnique).toHaveBeenCalledWith({
-      where: {
-        recurringBillId_month_year: {
-          recurringBillId: "bill-1",
-          month: 2,
-          year: 2026,
-        },
-      },
-    })
+    // The findUnique for recurringBillId_month_year should NOT be called
+    // (the unique constraint was removed to allow multiple payments per month)
+    expect(mockBillPaymentFindUnique).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          recurringBillId_month_year: expect.anything(),
+        }),
+      })
+    )
   })
 })
 
@@ -496,18 +498,9 @@ describe("linkTransactionToBill", () => {
     await expect(linkTransactionToBill(validData)).rejects.toThrow("Transaction not found")
   })
 
-  it("throws 'Payment already recorded for this month' on duplicate month/year", async () => {
-    // First findUnique call returns existing payment for the bill/month/year
-    mockBillPaymentFindUnique.mockResolvedValueOnce(makeBillPayment() as never)
-    await expect(linkTransactionToBill(validData)).rejects.toThrow("Payment already recorded for this month")
-  })
-
   it("throws 'Transaction is already linked to a bill payment' if transaction already linked", async () => {
-    // First findUnique (month/year check) returns null
-    // Second findUnique (transactionId check) returns existing payment
-    mockBillPaymentFindUnique
-      .mockResolvedValueOnce(null as never)
-      .mockResolvedValueOnce(makeBillPayment() as never)
+    // findUnique (transactionId check) returns existing payment
+    mockBillPaymentFindUnique.mockResolvedValueOnce(makeBillPayment() as never)
     await expect(linkTransactionToBill(validData)).rejects.toThrow("Transaction is already linked to a bill payment")
   })
 

@@ -42,7 +42,9 @@
       "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test 2>&1)",
       "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test e2e/theme.spec.ts --workers=1 2>&1)",
       "mcp__ide__getDiagnostics",
-      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec prisma generate 2>&1)"
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec prisma generate 2>&1)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_hover"
     ]
   }
 }

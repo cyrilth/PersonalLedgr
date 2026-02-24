@@ -125,18 +125,6 @@ export async function recordBillPayment(data: {
   })
   if (!bill) throw new Error("Bill not found")
 
-  // Check for duplicate payment
-  const existing = await prisma.billPayment.findUnique({
-    where: {
-      recurringBillId_month_year: {
-        recurringBillId: data.recurringBillId,
-        month: data.month,
-        year: data.year,
-      },
-    },
-  })
-  if (existing) throw new Error("Payment already recorded for this month")
-
   const negativeAmount = -Math.abs(data.amount)
   const paymentDate = data.date ?? new Date()
 
@@ -202,18 +190,6 @@ export async function linkTransactionToBill(data: {
     where: { id: data.transactionId, userId },
   })
   if (!transaction) throw new Error("Transaction not found")
-
-  // Check for duplicate payment
-  const existing = await prisma.billPayment.findUnique({
-    where: {
-      recurringBillId_month_year: {
-        recurringBillId: data.recurringBillId,
-        month: data.month,
-        year: data.year,
-      },
-    },
-  })
-  if (existing) throw new Error("Payment already recorded for this month")
 
   // Check this transaction isn't already linked to another bill payment
   const alreadyLinked = await prisma.billPayment.findUnique({

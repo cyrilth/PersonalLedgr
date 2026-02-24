@@ -336,28 +336,15 @@ export async function confirmVariableBill(transactionId: string, actualAmount: n
       const month = txDate.getMonth() + 1
       const year = txDate.getFullYear()
 
-      // Only create if no payment record exists yet for this month
-      const existing = await tx.billPayment.findUnique({
-        where: {
-          recurringBillId_month_year: {
-            recurringBillId: bill.id,
-            month,
-            year,
-          },
+      await tx.billPayment.create({
+        data: {
+          month,
+          year,
+          amount: Math.abs(actualAmount),
+          recurringBillId: bill.id,
+          transactionId,
         },
       })
-
-      if (!existing) {
-        await tx.billPayment.create({
-          data: {
-            month,
-            year,
-            amount: Math.abs(actualAmount),
-            recurringBillId: bill.id,
-            transactionId,
-          },
-        })
-      }
     }
   })
 

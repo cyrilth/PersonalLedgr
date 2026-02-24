@@ -18,6 +18,7 @@ import {
   Clock,
   Minus,
   Trash2,
+  Plus,
   Receipt,
   HandCoins,
   CreditCard,
@@ -254,7 +255,10 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
 
   // Delete payment confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{
-    paymentId: string
+    payments: { id: string; amount: number; paidAt?: Date }[]
+    obligation: PaymentObligation
+    month: number
+    year: number
     name: string
     monthLabel: string
   } | null>(null)
@@ -304,12 +308,19 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
       // Only bills support delete from the grid
       if (ob.type === "bill") {
         const obPayments = payments[ob.id] || []
-        const payment = obPayments.find(
+        const matchingPayments = obPayments.filter(
           (p) => p.month === monthYear.month && p.year === monthYear.year
         )
-        if (payment) {
+        if (matchingPayments.length > 0) {
           setDeleteTarget({
-            paymentId: payment.id,
+            payments: matchingPayments.map((p) => ({
+              id: p.id,
+              amount: p.amount,
+              paidAt: p.paidAt,
+            })),
+            obligation: ob,
+            month: monthYear.month,
+            year: monthYear.year,
             name: ob.name,
             monthLabel: `${MONTH_ABBR[monthYear.month - 1]} ${monthYear.year}`,
           })
@@ -329,12 +340,19 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
     }
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteTarget) return
+  async function handleDeletePayment(paymentId: string) {
     try {
-      await deleteBillPayment(deleteTarget.paymentId)
+      await deleteBillPayment(paymentId)
       toast.success("Payment record removed")
-      setDeleteTarget(null)
+      // If this was the last payment in the list, close the dialog
+      if (deleteTarget && deleteTarget.payments.length <= 1) {
+        setDeleteTarget(null)
+      } else if (deleteTarget) {
+        setDeleteTarget({
+          ...deleteTarget,
+          payments: deleteTarget.payments.filter((p) => p.id !== paymentId),
+        })
+      }
       fetchPayments()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to remove payment"
@@ -363,9 +381,10 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
         <div className="flex flex-1 gap-1">
           {months.map((my) => {
             const state = getCellState(ob, my, obPayments, now)
-            const payment = state === "paid"
-              ? obPayments.find((p) => p.month === my.month && p.year === my.year)
-              : null
+            const monthPayments = state === "paid"
+              ? obPayments.filter((p) => p.month === my.month && p.year === my.year)
+              : []
+            const totalAmount = monthPayments.reduce((sum, p) => sum + p.amount, 0)
 
             return (
               <Tooltip key={`${my.year}-${my.month}`}>
@@ -380,9 +399,9 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
                     onClick={() => handleCellClick(ob, my, state)}
                     disabled={state === "na"}
                   >
-                    {state === "paid" && payment ? (
+                    {state === "paid" && monthPayments.length > 0 ? (
                       <span className="text-[11px] font-medium leading-tight">
-                        {formatCurrency(payment.amount)}
+                        {formatCurrency(totalAmount)}
                       </span>
                     ) : (
                       <CellIcon state={state} />
@@ -394,8 +413,16 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
                   <p className="text-xs">
                     {MONTH_ABBR[my.month - 1]} {my.year} — {cellLabel(state)}
                   </p>
-                  {payment && (
-                    <p className="text-xs">{formatCurrency(payment.amount)} paid</p>
+                  {monthPayments.length === 1 && (
+                    <p className="text-xs">{formatCurrency(monthPayments[0].amount)} paid</p>
+                  )}
+                  {monthPayments.length > 1 && (
+                    <>
+                      <p className="text-xs font-medium">{formatCurrency(totalAmount)} total ({monthPayments.length} payments)</p>
+                      {monthPayments.map((p) => (
+                        <p key={p.id} className="text-xs">{formatCurrency(p.amount)}</p>
+                      ))}
+                    </>
                   )}
                   {state !== "na" && state !== "paid" && ob.type === "bill" && (
                     <p className="text-xs text-muted-foreground">Click to record or link payment</p>
@@ -407,7 +434,7 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
                     <p className="text-xs text-muted-foreground">Click to go to account</p>
                   )}
                   {state === "paid" && ob.type === "bill" && (
-                    <p className="text-xs text-muted-foreground">Click to remove payment</p>
+                    <p className="text-xs text-muted-foreground">Click to manage payments</p>
                   )}
                 </TooltipContent>
               </Tooltip>
@@ -555,24 +582,56 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Payment Record</AlertDialogTitle>
+            <AlertDialogTitle>Manage Payments</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove the payment record for &quot;{deleteTarget?.name}&quot;
-              ({deleteTarget?.monthLabel})? If the transaction was auto-created
-              by the ledger, it will be deleted and the balance reversed.
-              Imported or manual transactions will be preserved.
+              {deleteTarget?.payments.length === 1
+                ? `Payment for "${deleteTarget?.name}" (${deleteTarget?.monthLabel}).`
+                : `${deleteTarget?.payments.length} payments for "${deleteTarget?.name}" (${deleteTarget?.monthLabel}).`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <div className="space-y-2 px-6 pb-4">
+            {deleteTarget?.payments.map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded border p-2">
+                <div className="text-sm">
+                  <span className="font-medium">{formatCurrency(p.amount)}</span>
+                  {p.paidAt && (
+                    <span className="text-muted-foreground ml-2">
+                      {new Date(p.paidAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeletePayment(p.id)}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <div className="flex justify-between pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (deleteTarget) {
+                    const ob = deleteTarget.obligation
+                    const month = deleteTarget.month
+                    const year = deleteTarget.year
+                    setDeleteTarget(null)
+                    setPaymentDialog({ obligation: ob, month, year })
+                  }
+                }}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add Payment
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </TooltipProvider>

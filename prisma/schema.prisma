@@ -309,7 +309,7 @@ model BillPayment {
   transactionId   String?       @unique
   transaction     Transaction?  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  @@unique([recurringBillId, month, year])
+  @@index([recurringBillId, month, year])
   @@index([recurringBillId])
   @@index([year, month])
 }
