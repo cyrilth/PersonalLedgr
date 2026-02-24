@@ -7,7 +7,7 @@
  * Uses the chart color palette from CSS custom properties for theme-aware colors.
  */
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
+import { PieChart, Pie, Cell, Tooltip, type TooltipProps } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
 
@@ -19,6 +19,18 @@ interface CategoryData {
 interface SpendingBreakdownProps {
   data: CategoryData[]
   monthLabel: string
+}
+
+/** Custom tooltip rendered as themed HTML so text is always readable. */
+function PieTooltip({ active, payload }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null
+  const { name, value } = payload[0]
+  return (
+    <div className="rounded-lg border bg-card px-3 py-1.5 text-sm text-card-foreground shadow-md">
+      <span className="font-medium">{name}</span>
+      <span className="ml-2">{formatCurrency(value ?? 0)}</span>
+    </div>
+  )
 }
 
 // Cycle through chart palette colors for pie segments
@@ -49,7 +61,7 @@ export function SpendingBreakdown({ data, monthLabel }: SpendingBreakdownProps) 
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           Spending Breakdown — {monthLabel}
@@ -58,9 +70,8 @@ export function SpendingBreakdown({ data, monthLabel }: SpendingBreakdownProps) 
       <CardContent>
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           {/* Donut chart */}
-          <div className="h-[200px] w-[200px] flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+          <div className="flex-shrink-0">
+              <PieChart width={200} height={200}>
                 <Pie
                   data={data}
                   cx="50%"
@@ -80,30 +91,24 @@ export function SpendingBreakdown({ data, monthLabel }: SpendingBreakdownProps) 
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  content={<PieTooltip />}
+                  wrapperStyle={{ zIndex: 10 }}
                 />
               </PieChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Legend with amounts */}
-          <div className="flex-1 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             {data.map((item, index) => (
-              <div key={item.category} className="flex items-center justify-between gap-2 text-sm">
-                <div className="flex items-center gap-2">
+              <div key={item.category} className="flex min-w-0 items-center justify-between gap-2 text-sm">
+                <div className="flex min-w-0 items-center gap-2">
                   <div
                     className="h-3 w-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
                   <span className="truncate">{item.category}</span>
                 </div>
-                <div className="flex items-center gap-2 text-right">
+                <div className="flex flex-shrink-0 items-center gap-2 text-right">
                   <span className="font-medium">{formatCurrency(item.amount)}</span>
                   <span className="text-xs text-muted-foreground w-10">
                     {total > 0 ? `${Math.round((item.amount / total) * 100)}%` : "—"}
@@ -113,7 +118,7 @@ export function SpendingBreakdown({ data, monthLabel }: SpendingBreakdownProps) 
             ))}
             <div className="border-t pt-2 flex items-center justify-between text-sm font-semibold">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span className="flex-shrink-0">{formatCurrency(total)}</span>
             </div>
           </div>
         </div>

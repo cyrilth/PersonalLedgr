@@ -23,14 +23,14 @@ export function NetWorthCard({ netWorth, assets, liabilities, change }: NetWorth
   const isNegative = change < 0
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           Net Worth
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-3xl font-bold">{formatCurrency(netWorth)}</span>
           {/* Trend indicator */}
           <span
