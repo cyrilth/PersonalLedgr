@@ -62,6 +62,39 @@ it("throws Unauthorized when no session", async () => {
 })
 ```
 
+## Cron Job Mock Pattern (no auth — just db)
+Cron jobs import from `../db` (relative, not `@/db`). Mock path must match.
+```typescript
+vi.mock("../../db", () => {
+  const txClient = {
+    interestLog: { create: vi.fn(), findMany: vi.fn() },
+    transaction: { create: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
+    account: { update: vi.fn() },
+    recurringBill: { update: vi.fn() },
+    aprRate: { update: vi.fn(), findFirst: vi.fn() },
+    creditCardDetails: { update: vi.fn() },
+  }
+  return {
+    prisma: {
+      account: { findMany: vi.fn() },
+      transaction: { findMany: vi.fn(), aggregate: vi.fn() },
+      aprRate: { findMany: vi.fn() },
+      creditCardDetails: { findMany: vi.fn() },
+      recurringBill: { findMany: vi.fn() },
+      $transaction: vi.fn((fn: (tx: typeof txClient) => unknown) => fn(txClient)),
+      _txClient: txClient,
+    },
+  }
+})
+import { prisma } from "../../db"
+const txClient = (prisma as any)._txClient
+```
+
+## vi.setSystemTime timezone pitfall
+When a job calls `new Date()` then `setHours(0,0,0,0)` (local time), always use a local-time
+string without the `Z` suffix — e.g. `new Date("2025-01-31T12:00:00")` not `"...T00:00:00.000Z"`.
+A UTC midnight date can roll back one day in UTC+ timezones after setHours(0,0,0,0).
+
 ## Asserting $transaction inner calls
 The `_txClient` trick lets you spy on what happens inside `prisma.$transaction(async (tx) => ...)`:
 ```typescript

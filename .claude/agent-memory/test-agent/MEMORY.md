@@ -20,4 +20,26 @@ Key points:
 ## Project Test File Location
 - Tests live in `__tests__/` subdirectories next to the source file
 - Naming: `*.test.ts` for logic, `*.test.tsx` for components
-- E2E: `e2e/` at project root (Playwright, not yet written)
+- E2E: `e2e/` at project root — 10 spec files written, see [e2e-notes.md](e2e-notes.md)
+- Cron job tests: `cron/src/jobs/__tests__/` — vitest.config.ts now includes `cron/src/**/*.test.ts`
+- vitest.config.ts include: `["src/**/*.test.ts", "src/**/*.test.tsx", "cron/src/**/*.test.ts"]`
+
+## jsdom Component Test Patterns
+See [jsdom-patterns.md](jsdom-patterns.md) for full details.
+
+Key points:
+- Use `// @vitest-environment jsdom` directive at top of each `.test.tsx` file
+- `src/test/setup.ts` imports `@testing-library/jest-dom/vitest`, runs `cleanup()` in `afterEach`, and polyfills `ResizeObserver` and `PointerEvent`
+- Mock `recharts` with simple div wrappers to avoid SVG issues in jsdom
+- Mock `sonner` toast: `vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))`
+- `getByLabelText` fails when label has child `<span>` for asterisk — use `getByText(/label text/)` or `document.getElementById("input-id")` instead
+- Tailwind JIT modifier classes like `[&>div]:bg-emerald-500` cannot be queried with `querySelector` — check `container.innerHTML` for the string instead
+- `getByRole("button", { name: /select all/i })` matches "Deselect All" too — use exact name strings to disambiguate
+
+## E2E Key Facts
+- Playwright config: `playwright.config.ts`, baseURL = http://localhost:3000, testDir = `./e2e`
+- Demo credentials: demo@personalledgr.local / testpassword123
+- Disclaimer localStorage key: `personalledgr-disclaimer-accepted`
+- Use `acceptDisclaimer(page)` helper after `login(page)` in beforeEach
+- Transfer Wizard opens from Add Transaction dialog > Transfer tab > "Open Transfer Wizard" button
+- Loan Payment Form opens from Add Transaction dialog > Loan Payment tab > "Open Loan Payment Form" button
