@@ -110,8 +110,9 @@ export async function getRecurringBills(): Promise<RecurringBillSummary[]> {
 export async function createRecurringBill(data: {
   name: string
   amount: number
-  frequency: "MONTHLY" | "QUARTERLY" | "ANNUAL"
-  dayOfMonth: number
+  frequency: "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUAL"
+  dayOfMonth?: number
+  startDate?: string
   isVariableAmount?: boolean
   category?: string
   accountId: string
@@ -120,14 +121,38 @@ export async function createRecurringBill(data: {
 
   if (!data.name?.trim()) throw new Error("Bill name is required")
   if (data.amount <= 0) throw new Error("Amount must be positive")
-  if (data.dayOfMonth < 1 || data.dayOfMonth > 31) throw new Error("Day of month must be between 1 and 31")
   if (!data.accountId) throw new Error("Account is required")
 
-  // Calculate initial nextDueDate: this month's dayOfMonth if not yet passed, else next month
-  const now = new Date()
-  let nextDue = new Date(now.getFullYear(), now.getMonth(), data.dayOfMonth)
-  if (nextDue <= now) {
-    nextDue = new Date(now.getFullYear(), now.getMonth() + 1, data.dayOfMonth)
+  const isSubMonthly = data.frequency === "WEEKLY" || data.frequency === "BIWEEKLY"
+
+  let nextDue: Date
+  let dayOfMonth: number
+
+  if (isSubMonthly) {
+    // WEEKLY/BIWEEKLY: use startDate as the anchor, dayOfMonth is not meaningful
+    if (!data.startDate) throw new Error("Start date is required for weekly/biweekly bills")
+    const start = new Date(data.startDate)
+    start.setHours(0, 0, 0, 0)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    // If start date is in the past, advance to the next occurrence
+    nextDue = new Date(start)
+    const intervalDays = data.frequency === "WEEKLY" ? 7 : 14
+    while (nextDue <= now) {
+      nextDue.setDate(nextDue.getDate() + intervalDays)
+    }
+    dayOfMonth = nextDue.getDate() // store for compatibility, but not used for scheduling
+  } else {
+    // MONTHLY/QUARTERLY/ANNUAL: use dayOfMonth
+    if (!data.dayOfMonth || data.dayOfMonth < 1 || data.dayOfMonth > 31) {
+      throw new Error("Day of month must be between 1 and 31")
+    }
+    dayOfMonth = data.dayOfMonth
+    const now = new Date()
+    nextDue = new Date(now.getFullYear(), now.getMonth(), dayOfMonth)
+    if (nextDue <= now) {
+      nextDue = new Date(now.getFullYear(), now.getMonth() + 1, dayOfMonth)
+    }
   }
 
   const bill = await prisma.recurringBill.create({
@@ -135,7 +160,7 @@ export async function createRecurringBill(data: {
       name: data.name.trim(),
       amount: data.amount,
       frequency: data.frequency,
-      dayOfMonth: data.dayOfMonth,
+      dayOfMonth,
       isVariableAmount: data.isVariableAmount ?? false,
       category: data.category || null,
       nextDueDate: nextDue,
@@ -161,8 +186,9 @@ export async function updateRecurringBill(
   data: {
     name?: string
     amount?: number
-    frequency?: "MONTHLY" | "QUARTERLY" | "ANNUAL"
+    frequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUAL"
     dayOfMonth?: number
+    startDate?: string
     isVariableAmount?: boolean
     category?: string
     accountId?: string
@@ -184,8 +210,23 @@ export async function updateRecurringBill(
   if (data.category !== undefined) update.category = data.category || null
   if (data.accountId !== undefined) update.accountId = data.accountId
 
-  // If dayOfMonth changed, recalculate nextDueDate
-  if (data.dayOfMonth !== undefined) {
+  const effectiveFrequency = data.frequency ?? bill.frequency
+  const isSubMonthly = effectiveFrequency === "WEEKLY" || effectiveFrequency === "BIWEEKLY"
+
+  // Recalculate nextDueDate when frequency or anchor changes
+  if (isSubMonthly && data.startDate) {
+    const start = new Date(data.startDate)
+    start.setHours(0, 0, 0, 0)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const nextDue = new Date(start)
+    const intervalDays = effectiveFrequency === "WEEKLY" ? 7 : 14
+    while (nextDue <= now) {
+      nextDue.setDate(nextDue.getDate() + intervalDays)
+    }
+    update.nextDueDate = nextDue
+    update.dayOfMonth = nextDue.getDate()
+  } else if (!isSubMonthly && data.dayOfMonth !== undefined) {
     const now = new Date()
     let nextDue = new Date(now.getFullYear(), now.getMonth(), data.dayOfMonth)
     if (nextDue <= now) {

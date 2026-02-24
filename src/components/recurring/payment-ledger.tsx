@@ -79,6 +79,32 @@ function isBillDueInMonth(
 ): boolean {
   if (bill.frequency === "MONTHLY") return true
 
+  // For WEEKLY/BIWEEKLY, calculate actual due dates within the month
+  if (bill.frequency === "WEEKLY" || bill.frequency === "BIWEEKLY") {
+    const intervalDays = bill.frequency === "WEEKLY" ? 7 : 14
+    const nextDue = new Date(bill.nextDueDate)
+    nextDue.setHours(0, 0, 0, 0)
+
+    // Walk backwards from nextDueDate to find the anchor, then forward
+    // to check if any occurrence falls in the target month
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd = new Date(year, month, 0) // last day of month
+
+    // Find first occurrence on or before monthStart by walking backwards
+    let cursor = new Date(nextDue)
+    while (cursor > monthEnd) {
+      cursor.setDate(cursor.getDate() - intervalDays)
+    }
+    // Now walk forward to find any occurrence in [monthStart, monthEnd]
+    while (cursor <= monthEnd) {
+      if (cursor >= monthStart && cursor <= monthEnd) {
+        return true
+      }
+      cursor.setDate(cursor.getDate() + intervalDays)
+    }
+    return false
+  }
+
   // For quarterly/annual, check if this month aligns with the bill's pattern.
   // Use nextDueDate to determine the recurrence pattern.
   const nextDue = new Date(bill.nextDueDate)

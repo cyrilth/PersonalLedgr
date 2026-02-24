@@ -96,6 +96,8 @@ WHERE type IN ('expense', 'loan_interest', 'interest_charged')
 14. **Variable recurring bills** — all recurring bill amounts are editable. `is_variable_amount` flag indicates estimated vs fixed amounts; estimated bills prompt user to confirm/edit actual amount when generated
 15. **Flexible CSV import** — column mapper supports negative numbers, separate debit/credit columns, and credit/debit indicator column patterns
 16. **Global year picker** — header-level year selector (context + localStorage persistence) scopes all pages to a calendar year. Pages consume via `useYear()` hook and pass the year to server actions as a parameter
+17. **BNPL as loan subtype** — Buy Now Pay Later plans (PayPal Pay in 4, Afterpay, Klarna) modeled as `LoanType.BNPL` with installment-based tracking (`totalInstallments`/`completedInstallments`), flexible frequency (WEEKLY/BIWEEKLY/MONTHLY), 0% interest fast path, auto-deactivation on completion, and optional auto-payment via cron
+18. **Weekly/biweekly recurring bills** — `RecurringFrequency` extended with WEEKLY and BIWEEKLY options using start-date anchoring instead of day-of-month
 
 ## Pages
 
@@ -108,7 +110,7 @@ WHERE type IN ('expense', 'loan_interest', 'interest_charged')
 | `/accounts` | All accounts with balances, utilization, and owner names |
 | `/accounts/[id]` | Account detail — transaction history, balance chart, interest, recalculate button |
 | `/loans` | Loans overview — progress bars, payoff projections |
-| `/loans/[id]` | Loan detail — amortization table, extra payment calculator |
+| `/loans/[id]` | Loan detail — amortization table, extra payment calculator; BNPL: installment timeline, merchant info |
 | `/recurring` | Recurring bills management with due dates, editable amounts, variable bill flag |
 | `/budgets` | Category budgets vs actual spending |
 | `/import` | CSV import with flexible column mapping (3 patterns) and duplicate detection |
@@ -129,3 +131,4 @@ A header-level year selector allows users to scope all views to a specific calen
 | 5 | Recurring Bills, Budgets & CSV Import | Week 9-10 |
 | 6 | Bank Connectivity — Plaid/SimpleFIN auto-sync | Week 11-12 |
 | 7 | Settings & Polish — theme toggle, seed wipe, keyboard shortcuts, responsive | Week 13 |
+| 8 | BNPL & Recurring Enhancements — BNPL loan subtype, weekly/biweekly recurring bills, BNPL auto-payment cron | - |

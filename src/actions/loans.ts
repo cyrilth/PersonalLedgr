@@ -58,10 +58,18 @@ export interface LoanSummary {
   paymentDueDay: number | null
   owner: string | null
   isActive: boolean
+  // BNPL-specific fields
+  totalInstallments: number | null
+  completedInstallments: number
+  installmentFrequency: string | null
+  nextPaymentDate: Date | null
+  merchantName: string | null
+  paymentAccountId: string | null
 }
 
 /** Full loan detail including payment history and interest accrual records. */
 export interface LoanDetail extends LoanSummary {
+  paymentAccountName: string | null
   transactions: {
     id: string
     date: Date
@@ -123,6 +131,12 @@ export async function getLoans(): Promise<LoanSummary[]> {
       paymentDueDay: a.loan!.paymentDueDay,
       owner: a.owner,
       isActive: a.isActive,
+      totalInstallments: a.loan!.totalInstallments,
+      completedInstallments: a.loan!.completedInstallments,
+      installmentFrequency: a.loan!.installmentFrequency,
+      nextPaymentDate: a.loan!.nextPaymentDate,
+      merchantName: a.loan!.merchantName,
+      paymentAccountId: a.loan!.paymentAccountId,
     }))
 }
 
@@ -170,6 +184,16 @@ export async function getLoan(id: string): Promise<LoanDetail> {
 
   if (!account || !account.loan) throw new Error("Loan not found")
 
+  // Look up payment account name if BNPL has a paymentAccountId
+  let paymentAccountName: string | null = null
+  if (account.loan.paymentAccountId) {
+    const paymentAccount = await prisma.account.findUnique({
+      where: { id: account.loan.paymentAccountId },
+      select: { name: true },
+    })
+    paymentAccountName = paymentAccount?.name ?? null
+  }
+
   return {
     id: account.loan.id,
     accountId: account.id,
@@ -185,6 +209,13 @@ export async function getLoan(id: string): Promise<LoanDetail> {
     paymentDueDay: account.loan.paymentDueDay,
     owner: account.owner,
     isActive: account.isActive,
+    totalInstallments: account.loan.totalInstallments,
+    completedInstallments: account.loan.completedInstallments,
+    installmentFrequency: account.loan.installmentFrequency,
+    nextPaymentDate: account.loan.nextPaymentDate,
+    merchantName: account.loan.merchantName,
+    paymentAccountId: account.loan.paymentAccountId,
+    paymentAccountName,
     transactions: account.transactions.map((t) => ({
       id: t.id,
       date: t.date,
@@ -219,7 +250,7 @@ export async function createLoan(data: {
   type: "LOAN" | "MORTGAGE"
   balance: number
   owner?: string
-  loanType: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL"
+  loanType: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL"
   originalBalance: number
   interestRate: number
   termMonths: number
@@ -227,13 +258,31 @@ export async function createLoan(data: {
   monthlyPayment: number
   extraPaymentAmount?: number
   paymentDueDay?: number
+  // BNPL-specific
+  totalInstallments?: number
+  installmentFrequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY"
+  nextPaymentDate?: string
+  merchantName?: string
+  paymentAccountId?: string
 }) {
   const userId = await requireUserId()
 
+  const isBNPL = data.loanType === "BNPL"
+
   if (!data.name?.trim()) throw new Error("Loan name is required")
   if (data.interestRate < 0) throw new Error("Interest rate must be non-negative")
-  if (data.termMonths <= 0) throw new Error("Term must be positive")
-  if (data.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+
+  if (isBNPL) {
+    if (!data.totalInstallments || data.totalInstallments <= 0) {
+      throw new Error("Total installments must be positive")
+    }
+    if (!data.installmentFrequency) {
+      throw new Error("Installment frequency is required for BNPL")
+    }
+  } else {
+    if (data.termMonths <= 0) throw new Error("Term must be positive")
+    if (data.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const account = await tx.account.create({
@@ -253,6 +302,13 @@ export async function createLoan(data: {
             monthlyPayment: data.monthlyPayment,
             extraPaymentAmount: data.extraPaymentAmount ?? 0,
             paymentDueDay: data.paymentDueDay ?? null,
+            // BNPL-specific fields
+            totalInstallments: isBNPL ? data.totalInstallments : null,
+            completedInstallments: 0,
+            installmentFrequency: isBNPL ? data.installmentFrequency : null,
+            nextPaymentDate: data.nextPaymentDate ? new Date(data.nextPaymentDate) : null,
+            merchantName: isBNPL ? (data.merchantName || null) : null,
+            paymentAccountId: isBNPL ? (data.paymentAccountId || null) : null,
           },
         },
       },
@@ -296,12 +352,18 @@ export async function updateLoan(
   data: {
     name?: string
     owner?: string
-    loanType?: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL"
+    loanType?: "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL" | "BNPL"
     interestRate?: number
     termMonths?: number
     monthlyPayment?: number
     extraPaymentAmount?: number
     paymentDueDay?: number | null
+    // BNPL-specific
+    totalInstallments?: number
+    installmentFrequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY"
+    nextPaymentDate?: string | null
+    merchantName?: string
+    paymentAccountId?: string | null
   }
 ) {
   const userId = await requireUserId()
@@ -334,6 +396,11 @@ export async function updateLoan(
   if (data.monthlyPayment !== undefined) loanUpdate.monthlyPayment = data.monthlyPayment
   if (data.extraPaymentAmount !== undefined) loanUpdate.extraPaymentAmount = data.extraPaymentAmount
   if (data.paymentDueDay !== undefined) loanUpdate.paymentDueDay = data.paymentDueDay
+  if (data.totalInstallments !== undefined) loanUpdate.totalInstallments = data.totalInstallments
+  if (data.installmentFrequency !== undefined) loanUpdate.installmentFrequency = data.installmentFrequency
+  if (data.nextPaymentDate !== undefined) loanUpdate.nextPaymentDate = data.nextPaymentDate ? new Date(data.nextPaymentDate) : null
+  if (data.merchantName !== undefined) loanUpdate.merchantName = data.merchantName || null
+  if (data.paymentAccountId !== undefined) loanUpdate.paymentAccountId = data.paymentAccountId
 
   if (Object.keys(loanUpdate).length > 0) {
     await prisma.loan.update({

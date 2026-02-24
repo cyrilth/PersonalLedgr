@@ -12,7 +12,7 @@
 "use client"
 
 import Link from "next/link"
-import { Home, Car, GraduationCap, HandCoins, Calendar, Percent } from "lucide-react"
+import { Home, Car, GraduationCap, HandCoins, ShoppingBag, Calendar, Percent } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -34,6 +34,12 @@ interface LoanCardProps {
   monthlyPayment: number
   extraPaymentAmount: number
   owner: string | null
+  // BNPL-specific
+  totalInstallments?: number | null
+  completedInstallments?: number
+  installmentFrequency?: string | null
+  nextPaymentDate?: Date | null
+  merchantName?: string | null
 }
 
 // ── Icon Map ───────────────────────────────────────────────────────────
@@ -44,6 +50,7 @@ const LOAN_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>>
   AUTO: Car,
   STUDENT: GraduationCap,
   PERSONAL: HandCoins,
+  BNPL: ShoppingBag,
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -86,18 +93,31 @@ export function LoanCard({
   interestRate,
   monthlyPayment,
   owner,
+  totalInstallments,
+  completedInstallments = 0,
+  installmentFrequency,
+  nextPaymentDate,
+  merchantName,
 }: LoanCardProps) {
+  const isBNPL = loanType === "BNPL"
   const Icon = LOAN_ICON_MAP[loanType] || HandCoins
   const displayBalance = Math.abs(balance)
-  const progress = getPayoffProgress(balance, originalBalance)
-  const payoffDate = estimatePayoffDate(balance, monthlyPayment)
   const typeLabel = LOAN_TYPE_LABELS[loanType as keyof typeof LOAN_TYPE_LABELS] ?? loanType
+
+  // BNPL uses installment-based progress; traditional loans use balance-based
+  const progress = isBNPL && totalInstallments
+    ? (completedInstallments / totalInstallments) * 100
+    : getPayoffProgress(balance, originalBalance)
+
+  const payoffDate = isBNPL ? null : estimatePayoffDate(balance, monthlyPayment)
+
+  const freqLabel = installmentFrequency === "WEEKLY" ? "wk" : installmentFrequency === "BIWEEKLY" ? "2wk" : "mo"
 
   return (
     <Link href={`/loans/${id}`}>
       <Card className={cn("transition-colors hover:bg-muted/50")}>
         <CardContent className="p-4">
-          {/* Header: icon, name, owner, balance */}
+          {/* Header: icon, name, owner/merchant, balance */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-muted p-2">
@@ -107,7 +127,8 @@ export function LoanCard({
                 <p className="text-sm font-medium">{accountName}</p>
                 <p className="text-xs text-muted-foreground">
                   {typeLabel}
-                  {owner ? ` · ${owner}` : ""}
+                  {isBNPL && merchantName ? ` · ${merchantName}` : ""}
+                  {!isBNPL && owner ? ` · ${owner}` : ""}
                 </p>
               </div>
             </div>
@@ -116,13 +137,17 @@ export function LoanCard({
             </p>
           </div>
 
-          {/* Payoff progress bar */}
+          {/* Progress bar */}
           <div className="mt-3 space-y-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                {formatCurrency(originalBalance - displayBalance)} paid of{" "}
-                {formatCurrency(originalBalance)}
-              </span>
+              {isBNPL && totalInstallments ? (
+                <span>{completedInstallments} of {totalInstallments} paid</span>
+              ) : (
+                <span>
+                  {formatCurrency(originalBalance - displayBalance)} paid of{" "}
+                  {formatCurrency(originalBalance)}
+                </span>
+              )}
               <span className="text-emerald-600 dark:text-emerald-400">
                 {progress.toFixed(0)}%
               </span>
@@ -133,20 +158,40 @@ export function LoanCard({
             />
           </div>
 
-          {/* Detail row: APR, monthly payment, payoff date */}
+          {/* Detail row */}
           <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Percent className="h-3 w-3" />
-              {interestRate.toFixed(2)}% APR
-            </span>
-            <span>
-              {formatCurrency(monthlyPayment)}/mo
-            </span>
-            {payoffDate && (
-              <span className="flex items-center gap-1 ml-auto">
-                <Calendar className="h-3 w-3" />
-                {formatDate(payoffDate)}
-              </span>
+            {isBNPL ? (
+              <>
+                <span>{formatCurrency(monthlyPayment)}/{freqLabel}</span>
+                {interestRate > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Percent className="h-3 w-3" />
+                    {interestRate.toFixed(2)}%
+                  </span>
+                )}
+                {nextPaymentDate && (
+                  <span className="flex items-center gap-1 ml-auto">
+                    <Calendar className="h-3 w-3" />
+                    Next: {formatDate(nextPaymentDate)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1">
+                  <Percent className="h-3 w-3" />
+                  {interestRate.toFixed(2)}% APR
+                </span>
+                <span>
+                  {formatCurrency(monthlyPayment)}/mo
+                </span>
+                {payoffDate && (
+                  <span className="flex items-center gap-1 ml-auto">
+                    <Calendar className="h-3 w-3" />
+                    {formatDate(payoffDate)}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </CardContent>

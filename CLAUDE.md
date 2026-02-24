@@ -69,6 +69,39 @@ This principle drives the entire transaction type system and query logic:
 | `interest_earned` | No | Yes |
 | `interest_charged` | Yes | No |
 
+## Loan Types
+
+| Type | Description |
+|---|---|
+| `MORTGAGE` | Home mortgage, account type = MORTGAGE |
+| `AUTO` | Auto loan |
+| `STUDENT` | Student loan |
+| `PERSONAL` | Personal loan |
+| `BNPL` | Buy Now Pay Later (PayPal Pay in 4, Afterpay, Klarna, etc.) |
+
+### BNPL (Buy Now Pay Later)
+
+BNPL plans are modeled as a loan subtype with installment-based tracking:
+
+- **Installment-based progress** — tracked via `totalInstallments` / `completedInstallments` instead of balance-based payoff
+- **Flexible frequency** — supports WEEKLY, BIWEEKLY, or MONTHLY installment schedules
+- **0% interest fast path** — when APR is 0%, payments are pure TRANSFER (no interest split)
+- **Auto-deactivation** — account marked inactive when all installments are paid
+- **Auto-payment cron** — daily job at 7 AM processes BNPL loans with a configured `paymentAccountId`
+- **Merchant tracking** — `merchantName` field for purchase identification (e.g., "PayPal - Nike Shoes")
+
+## Recurring Frequencies
+
+| Frequency | Scheduling | Anchor |
+|---|---|---|
+| `WEEKLY` | Every 7 days | Start date |
+| `BIWEEKLY` | Every 14 days | Start date |
+| `MONTHLY` | Same day each month | Day of month (1-31) |
+| `QUARTERLY` | Every 3 months | Day of month |
+| `ANNUAL` | Every 12 months | Day of month |
+
+WEEKLY/BIWEEKLY bills use a `startDate` anchor instead of `dayOfMonth`. The cron job and payment ledger calculate actual due dates from this anchor.
+
 ## Key Design Decisions
 
 1. **No separate backend** — Next.js API routes and server actions handle all server logic
@@ -80,6 +113,7 @@ This principle drives the entire transaction type system and query logic:
 7. **Variable recurring bills** — `is_variable_amount` flag; estimated bills prompt for confirmation when generated
 8. **Transaction source tracking** — every transaction tagged as `manual`, `import`, `plaid`, `recurring`, or `system`
 9. **Mortgage/loan payment auto-split** — system calculates principal vs interest from amortization schedule
+10. **BNPL as loan subtype** — reuses Loan/Account infrastructure with installment-specific fields and auto-completion logic
 
 ## Project Structure
 
@@ -139,7 +173,8 @@ cron/
       interest-savings.ts # Monthly savings interest
       statement-close.ts  # Daily CC statement cycle processing
       apr-expiration.ts   # Daily expired APR rate cleanup
-      recurring-bills.ts  # Daily recurring bill generation
+      recurring-bills.ts  # Daily recurring bill generation (supports WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/ANNUAL)
+      bnpl-payments.ts    # Daily BNPL auto-payment processing
       plaid-sync.ts       # Plaid sync every 6 hours (Phase 6)
 ```
 

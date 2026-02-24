@@ -99,6 +99,16 @@ function advanceByOneOccurrence(
   const month = from.getMonth() // 0-based
 
   switch (frequency) {
+    case "WEEKLY": {
+      const next = new Date(from)
+      next.setDate(next.getDate() + 7)
+      return toMidnight(next)
+    }
+    case "BIWEEKLY": {
+      const next = new Date(from)
+      next.setDate(next.getDate() + 14)
+      return toMidnight(next)
+    }
     case "MONTHLY":
       return toMidnight(new Date(year, month + 1, day))
     case "QUARTERLY":

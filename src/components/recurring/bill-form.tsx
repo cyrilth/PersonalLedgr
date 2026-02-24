@@ -70,10 +70,13 @@ export function BillForm({
   const [amount, setAmount] = useState("")
   const [frequency, setFrequency] = useState<RecurringFrequency>("MONTHLY")
   const [dayOfMonth, setDayOfMonth] = useState("")
+  const [startDate, setStartDate] = useState("")
   const [isVariableAmount, setIsVariableAmount] = useState(false)
   const [category, setCategory] = useState("")
   const [accountId, setAccountId] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const isSubMonthly = frequency === "WEEKLY" || frequency === "BIWEEKLY"
 
   /**
    * Resets form fields when the dialog opens or editData changes.
@@ -87,6 +90,7 @@ export function BillForm({
         setAmount(editData.amount.toString())
         setFrequency(editData.frequency as RecurringFrequency)
         setDayOfMonth(editData.dayOfMonth.toString())
+        setStartDate("")
         setIsVariableAmount(editData.isVariableAmount)
         setCategory(editData.category ?? "")
         setAccountId(editData.accountId)
@@ -95,6 +99,7 @@ export function BillForm({
         setAmount("")
         setFrequency("MONTHLY")
         setDayOfMonth("")
+        setStartDate("")
         setIsVariableAmount(false)
         setCategory("")
         setAccountId("")
@@ -117,16 +122,25 @@ export function BillForm({
       return
     }
 
-    const parsedDay = parseInt(dayOfMonth)
-    if (isNaN(parsedDay) || parsedDay < 1 || parsedDay > 31) {
-      toast.error("Day of month must be between 1 and 31")
-      return
+    if (isSubMonthly) {
+      if (!startDate) {
+        toast.error("Start date is required for weekly/biweekly bills")
+        return
+      }
+    } else {
+      const parsedDay = parseInt(dayOfMonth)
+      if (isNaN(parsedDay) || parsedDay < 1 || parsedDay > 31) {
+        toast.error("Day of month must be between 1 and 31")
+        return
+      }
     }
 
     if (!accountId) {
       toast.error("Payment account is required")
       return
     }
+
+    const parsedDay = parseInt(dayOfMonth)
 
     setSaving(true)
     try {
@@ -135,7 +149,9 @@ export function BillForm({
           name: name.trim(),
           amount: parsedAmount,
           frequency,
-          dayOfMonth: parsedDay,
+          ...(isSubMonthly
+            ? { startDate }
+            : { dayOfMonth: parsedDay }),
           isVariableAmount,
           category: category.trim() || undefined,
           accountId,
@@ -146,7 +162,9 @@ export function BillForm({
           name: name.trim(),
           amount: parsedAmount,
           frequency,
-          dayOfMonth: parsedDay,
+          ...(isSubMonthly
+            ? { startDate }
+            : { dayOfMonth: parsedDay }),
           isVariableAmount,
           category: category.trim() || undefined,
           accountId,
@@ -229,19 +247,37 @@ export function BillForm({
             </Select>
           </div>
 
-          {/* Day of Month */}
-          <div className="space-y-2">
-            <Label htmlFor="bill-day">Day of Month</Label>
-            <Input
-              id="bill-day"
-              type="number"
-              min="1"
-              max="31"
-              value={dayOfMonth}
-              onChange={(e) => setDayOfMonth(e.target.value)}
-              placeholder="e.g. 15"
-            />
-          </div>
+          {/* Day of Month — shown for MONTHLY/QUARTERLY/ANNUAL */}
+          {!isSubMonthly && (
+            <div className="space-y-2">
+              <Label htmlFor="bill-day">Day of Month</Label>
+              <Input
+                id="bill-day"
+                type="number"
+                min="1"
+                max="31"
+                value={dayOfMonth}
+                onChange={(e) => setDayOfMonth(e.target.value)}
+                placeholder="e.g. 15"
+              />
+            </div>
+          )}
+
+          {/* Start Date — shown for WEEKLY/BIWEEKLY */}
+          {isSubMonthly && (
+            <div className="space-y-2">
+              <Label htmlFor="bill-start-date">Start Date</Label>
+              <Input
+                id="bill-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                First payment date — subsequent dates are calculated from this
+              </p>
+            </div>
+          )}
 
           {/* Variable Amount Toggle */}
           <div className="flex items-center justify-between rounded-lg border p-3">

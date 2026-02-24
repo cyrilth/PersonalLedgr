@@ -20,7 +20,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, Pencil, Trash2, ShoppingBag } from "lucide-react"
 import {
   PieChart,
   Pie,
@@ -234,6 +234,7 @@ export default function LoanDetailPage() {
 
   const displayBalance = Math.abs(loan.balance)
   const totalInterest = interestPaid + interestRemaining
+  const isBNPL = loan.loanType === "BNPL"
 
   const pieData = [
     { name: "Interest Paid", value: interestPaid },
@@ -288,50 +289,139 @@ export default function LoanDetailPage() {
       {/* ── Header Stats Card ────────────────────────────────────── */}
       <Card>
         <CardContent className="p-6">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-muted-foreground">Current Balance</dt>
-              <dd className="mt-1 text-2xl font-bold text-negative">
-                {formatCurrency(displayBalance)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Original Balance</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatCurrency(loan.originalBalance)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Interest Rate (APR)</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {loan.interestRate}%
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Monthly Payment</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatCurrency(loan.monthlyPayment)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Term</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatTerm(loan.termMonths)}
-              </dd>
-            </div>
-            {loan.owner && (
+          {isBNPL ? (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
               <div>
-                <dt className="text-muted-foreground">Owner</dt>
-                <dd className="mt-1 text-lg font-semibold">{loan.owner}</dd>
+                <dt className="text-muted-foreground">Remaining Balance</dt>
+                <dd className="mt-1 text-2xl font-bold text-negative">
+                  {formatCurrency(displayBalance)}
+                </dd>
               </div>
-            )}
-          </dl>
+              <div>
+                <dt className="text-muted-foreground">Purchase Price</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(loan.originalBalance)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Installment Amount</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(loan.monthlyPayment)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Progress</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {loan.completedInstallments} of {loan.totalInstallments} paid
+                </dd>
+              </div>
+              {loan.nextPaymentDate && (
+                <div>
+                  <dt className="text-muted-foreground">Next Payment</dt>
+                  <dd className="mt-1 text-lg font-semibold">
+                    {formatDate(loan.nextPaymentDate)}
+                  </dd>
+                </div>
+              )}
+              {loan.merchantName && (
+                <div>
+                  <dt className="text-muted-foreground">Merchant</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.merchantName}</dd>
+                </div>
+              )}
+              {loan.interestRate > 0 && (
+                <div>
+                  <dt className="text-muted-foreground">Interest Rate</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.interestRate}%</dd>
+                </div>
+              )}
+              {loan.paymentAccountName && (
+                <div>
+                  <dt className="text-muted-foreground">Payment Account</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.paymentAccountName}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-muted-foreground">Current Balance</dt>
+                <dd className="mt-1 text-2xl font-bold text-negative">
+                  {formatCurrency(displayBalance)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Original Balance</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(loan.originalBalance)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Interest Rate (APR)</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {loan.interestRate}%
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Monthly Payment</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatCurrency(loan.monthlyPayment)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Term</dt>
+                <dd className="mt-1 text-lg font-semibold">
+                  {formatTerm(loan.termMonths)}
+                </dd>
+              </div>
+              {loan.owner && (
+                <div>
+                  <dt className="text-muted-foreground">Owner</dt>
+                  <dd className="mt-1 text-lg font-semibold">{loan.owner}</dd>
+                </div>
+              )}
+            </dl>
+          )}
         </CardContent>
       </Card>
 
+      {/* ── BNPL Installment Timeline ──────────────────────────── */}
+      {isBNPL && loan.totalInstallments && (
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm font-medium text-muted-foreground mb-4">
+              Installment Timeline
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              {Array.from({ length: loan.totalInstallments }, (_, i) => {
+                const isCompleted = i < loan.completedInstallments
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <div
+                      className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium border-2",
+                        isCompleted
+                          ? "bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                          : "bg-muted/50 border-muted-foreground/20 text-muted-foreground"
+                      )}
+                    >
+                      {i + 1}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {isCompleted ? "Paid" : i === loan.completedInstallments ? "Next" : ""}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Two-Column Grid ──────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column: Interest Chart + Amortization Table */}
+      <div className={cn("grid gap-6", !isBNPL && "lg:grid-cols-2")}>
+        {/* Left Column: Interest Chart + Amortization Table (hidden for BNPL) */}
+        {!isBNPL && (
         <div className="space-y-6">
           {/* ── Interest Summary Card ─────────────────────────────── */}
           <Card>
@@ -429,16 +519,19 @@ export default function LoanDetailPage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Right Column: Extra Payment Calc + Payment History */}
         <div className="space-y-6">
-          {/* ── Extra Payment Calculator ──────────────────────────── */}
+          {/* ── Extra Payment Calculator (hidden for BNPL) ─────────── */}
+          {!isBNPL && (
           <ExtraPaymentCalc
             balance={loan.balance}
             apr={loan.interestRate}
             monthlyPayment={loan.monthlyPayment}
             termMonths={loan.termMonths}
           />
+          )}
 
           {/* ── Payment History ───────────────────────────────────── */}
           <Card>
@@ -520,6 +613,12 @@ export default function LoanDetailPage() {
                 extraPaymentAmount: loan.extraPaymentAmount,
                 paymentDueDay: loan.paymentDueDay,
                 owner: loan.owner,
+                totalInstallments: loan.totalInstallments,
+                completedInstallments: loan.completedInstallments,
+                installmentFrequency: loan.installmentFrequency,
+                nextPaymentDate: loan.nextPaymentDate,
+                merchantName: loan.merchantName,
+                paymentAccountId: loan.paymentAccountId,
               }
             : null
         }

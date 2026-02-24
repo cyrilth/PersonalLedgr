@@ -122,13 +122,18 @@ export async function getPaymentObligations(): Promise<PaymentObligation[]> {
   for (const a of loanAccounts) {
     if (!a.loan) continue
     const startDate = new Date(a.loan.startDate)
+    const isBNPL = a.loan.loanType === "BNPL"
     obligations.push({
       id: `loan-${a.id}`,
-      name: a.name,
+      name: isBNPL && a.loan.merchantName
+        ? `${a.name} — ${a.loan.merchantName}`
+        : a.name,
       type: "loan",
       expectedAmount: toNumber(a.loan.monthlyPayment),
-      dueDay: a.loan.paymentDueDay,
-      frequency: "MONTHLY",
+      dueDay: isBNPL && a.loan.nextPaymentDate
+        ? new Date(a.loan.nextPaymentDate).getDate()
+        : a.loan.paymentDueDay,
+      frequency: a.loan.installmentFrequency ?? "MONTHLY",
       accountId: a.id,
       startMonth: startDate.getMonth() + 1,
       startYear: startDate.getFullYear(),

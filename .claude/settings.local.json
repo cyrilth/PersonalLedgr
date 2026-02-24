@@ -44,7 +44,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec prisma generate 2>&1)",
       "mcp__plugin_playwright_playwright__browser_resize",
-      "mcp__plugin_playwright_playwright__browser_hover"
+      "mcp__plugin_playwright_playwright__browser_hover",
+      "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate dev --name add-bnpl-support 2>&1)"
     ]
   }
 }

@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoanCard } from "@/components/loans/loan-card"
 import { LoanForm } from "@/components/loans/loan-form"
 import { getLoans, type LoanSummary } from "@/actions/loans"
+import { getAccountsFlat } from "@/actions/accounts"
 import { formatCurrency } from "@/lib/utils"
 
 // ── Skeleton ──────────────────────────────────────────────────────────
@@ -131,14 +132,21 @@ function LoanSummaryBar({ loans }: { loans: LoanSummary[] }) {
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<LoanSummary[] | null>(null)
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
 
   const fetchLoans = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getLoans()
+      const [data, accts] = await Promise.all([getLoans(), getAccountsFlat()])
       setLoans(data)
+      // Filter to checking/savings accounts for BNPL payment account selection
+      setAccounts(
+        accts
+          .filter((a) => a.type === "CHECKING" || a.type === "SAVINGS")
+          .map((a) => ({ id: a.id, name: a.name }))
+      )
     } catch (err) {
       console.error("Failed to load loans:", err)
       toast.error("Failed to load loans")
@@ -194,6 +202,7 @@ export default function LoansPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         onSuccess={fetchLoans}
+        accounts={accounts}
       />
     </div>
   )

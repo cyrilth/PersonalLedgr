@@ -904,3 +904,36 @@
 - [x] Document how to restore from backup *(Docs/GUIDES.md)*
 - [x] Document Plaid setup steps for Phase 6 *(Docs/GUIDES.md — placeholder for future release)*
 - [x] Document CSV import patterns supported *(Docs/GUIDES.md)*
+
+## Phase 8: BNPL & Recurring Enhancements
+
+### 8.1 Schema Changes
+- [x] Add `BNPL` to `LoanType` enum in Prisma schema
+- [x] Add `WEEKLY` and `BIWEEKLY` to `RecurringFrequency` enum
+- [x] Add BNPL fields to `Loan` model: `totalInstallments`, `completedInstallments`, `installmentFrequency`, `nextPaymentDate`, `merchantName`, `paymentAccountId`
+- [x] Add `BNPL` and frequency values to `src/lib/constants.ts` with display labels
+- [x] Generate and apply Prisma migration `add_bnpl_support`
+
+### 8.2 Recurring Bills — WEEKLY/BIWEEKLY Support
+- [x] Update `cron/src/jobs/recurring-bills.ts` — `advanceByOneOccurrence()` handles WEEKLY (+7 days) and BIWEEKLY (+14 days)
+- [x] Update `src/actions/recurring.ts` — `createRecurringBill()` and `updateRecurringBill()` accept WEEKLY/BIWEEKLY with `startDate` anchor
+- [x] Update `src/components/recurring/bill-form.tsx` — conditionally show `startDate` picker for WEEKLY/BIWEEKLY, `dayOfMonth` for others
+- [x] Update `src/components/recurring/payment-ledger.tsx` — `isBillDueInMonth()` calculates actual due dates for sub-monthly frequencies
+
+### 8.3 BNPL Loan CRUD
+- [x] Update `src/actions/loans.ts` — `LoanSummary`/`LoanDetail` include BNPL fields; `createLoan()` validates BNPL; `updateLoan()` accepts BNPL fields
+- [x] Update `src/components/loans/loan-form.tsx` — BNPL form shows merchant name, installment count, frequency, first payment date, payment account; auto-calculates installment amount
+- [x] Update `src/components/loans/loan-card.tsx` — BNPL cards show ShoppingBag icon, merchant name, installment progress, next payment date
+
+### 8.4 BNPL Payment Recording
+- [x] Update `src/actions/loan-payments.ts` — BNPL 0% interest creates pure TRANSFER (no interest split); increments `completedInstallments`, advances `nextPaymentDate`, auto-deactivates when fully paid
+
+### 8.5 BNPL Auto-Payment Cron
+- [x] Create `cron/src/jobs/bnpl-payments.ts` — daily 7 AM job auto-pays BNPL loans with configured `paymentAccountId`
+- [x] Register job in `cron/src/index.ts`
+
+### 8.6 Loan Detail Page Updates
+- [x] Update `src/app/(app)/loans/[id]/page.tsx` — BNPL loans show installment timeline, BNPL-specific stats, hide amortization table and extra payment calculator
+
+### 8.7 Payment Tracker Integration
+- [x] Update `src/actions/payment-tracker.ts` — BNPL loans use `installmentFrequency` instead of hardcoded MONTHLY, include merchant name in obligation name

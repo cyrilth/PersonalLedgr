@@ -118,9 +118,11 @@ All imported transactions are tagged with the source `Import` so you can filter 
    - **Amount** -- the expected payment amount
    - **Account** -- which account the payment comes from
    - **Category** -- the transaction category
-   - **Frequency** -- Monthly, Quarterly, or Annually
+   - **Frequency** -- Weekly, Biweekly, Monthly, Quarterly, or Annually
    - **Next Due Date** -- when the next occurrence should be generated
    - **Variable amount** -- toggle this on if the amount changes each period (e.g., utility bills)
+
+> **Note:** For weekly and biweekly bills, you set a **Start Date** instead of a day of month. The system calculates future due dates from this anchor date.
 
 ### How It Works
 
@@ -128,6 +130,58 @@ All imported transactions are tagged with the source `Import` so you can filter 
 - **Fixed amount bills** are generated automatically as transactions.
 - **Variable amount bills** are generated as estimated transactions and flagged for your confirmation. You can review and adjust the amount before finalizing.
 - After a bill is generated, the next due date advances automatically based on the frequency.
+
+---
+
+## Buy Now Pay Later (BNPL)
+
+### What Is BNPL?
+
+PersonalLedgr supports tracking Buy Now Pay Later plans like PayPal Pay in 4, Afterpay, Klarna, and similar installment services. BNPL plans are modeled as a special loan type with installment-based tracking.
+
+### Creating a BNPL Plan
+
+1. Navigate to **Loans** in the sidebar.
+2. Click **Add Loan**.
+3. Set the **Account Type** to **Loan** and **Loan Type** to **Buy Now Pay Later**.
+4. Fill in the BNPL details:
+   - **Account Name** -- a label for this plan (e.g., "PayPal Pay in 4")
+   - **Merchant / Description** -- what you purchased (e.g., "Nike Shoes")
+   - **Purchase Price** -- the total amount
+   - **Number of Installments** -- how many payments (typically 4)
+   - **Payment Frequency** -- Weekly, Biweekly, or Monthly
+   - **First Payment Date** -- when the first installment is due
+   - **Interest Rate** -- typically 0% for most BNPL plans
+   - **Payment Account** -- which checking/savings account payments come from (optional, enables auto-payment)
+5. The installment amount is auto-calculated from the purchase price divided by the number of installments.
+6. Click **Create Loan**.
+
+### Tracking Payments
+
+- Record payments from the loan detail page using the standard loan payment flow.
+- Each payment increments the installment counter and advances the next payment date.
+- The loan card on the loans page shows installment progress (e.g., "2 of 4 paid") with a visual progress bar.
+- The loan detail page shows an installment timeline with filled/unfilled circles for each payment.
+
+### Auto-Payment
+
+If you set a **Payment Account** when creating the BNPL plan, the system can automatically generate payments:
+
+- A daily cron job (7 AM) checks for BNPL loans with a due payment date.
+- It auto-creates the transfer transaction from the source account.
+- The installment counter increments and the next payment date advances.
+- When all installments are paid, the BNPL account is automatically deactivated.
+
+### BNPL vs Traditional Loans
+
+| Feature | BNPL | Traditional Loan |
+|---|---|---|
+| Progress tracking | Installment count | Balance-based |
+| Interest | Typically 0% | APR-based |
+| Term | Short (weeks/months) | Long (months/years) |
+| Amortization table | Hidden | Shown |
+| Extra payment calculator | Hidden | Shown |
+| Auto-deactivation | When all installments paid | Manual |
 
 ---
 

@@ -17,6 +17,7 @@ import { runStatementClose } from "./jobs/statement-close.js"
 import { runAprExpiration } from "./jobs/apr-expiration.js"
 import { runSavingsInterest } from "./jobs/interest-savings.js"
 import { runRecurringBills } from "./jobs/recurring-bills.js"
+import { runBnplPayments } from "./jobs/bnpl-payments.js"
 
 /**
  * Bootstraps the cron container: connects to the database, registers all
@@ -89,6 +90,16 @@ async function main() {
   })
   console.log("[cron] Registered: recurring-bills (daily 6 AM)")
 
+  // Daily at 7 AM — BNPL auto-payments
+  cron.schedule("0 7 * * *", async () => {
+    try {
+      await runBnplPayments()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runBnplPayments:", err)
+    }
+  })
+  console.log("[cron] Registered: bnpl-payments (daily 7 AM)")
+
   // Jobs still to be registered (Phase 6):
   // - plaid-sync.ts       (Plaid sync every 6 hours — Phase 6)
 
@@ -102,6 +113,7 @@ async function main() {
     await runAprExpiration()
     await runSavingsInterest()
     await runRecurringBills()
+    await runBnplPayments()
     console.log("[cron] All jobs completed.")
     await prisma.$disconnect()
     process.exit(0)

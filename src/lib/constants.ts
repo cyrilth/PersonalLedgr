@@ -75,6 +75,7 @@ export const LOAN_TYPES = {
   AUTO: "AUTO",
   STUDENT: "STUDENT",
   PERSONAL: "PERSONAL",
+  BNPL: "BNPL",
 } as const
 
 export type LoanType = (typeof LOAN_TYPES)[keyof typeof LOAN_TYPES]
@@ -82,6 +83,8 @@ export type LoanType = (typeof LOAN_TYPES)[keyof typeof LOAN_TYPES]
 // ── Recurring Frequencies ───────────────────────────────────────────
 
 export const RECURRING_FREQUENCIES = {
+  WEEKLY: "WEEKLY",
+  BIWEEKLY: "BIWEEKLY",
   MONTHLY: "MONTHLY",
   QUARTERLY: "QUARTERLY",
   ANNUAL: "ANNUAL",
@@ -173,6 +176,7 @@ export const LOAN_TYPE_LABELS: Record<LoanType, string> = {
   AUTO: "Auto",
   STUDENT: "Student",
   PERSONAL: "Personal",
+  BNPL: "Buy Now Pay Later",
 }
 
 export const APR_RATE_TYPE_LABELS: Record<AprRateType, string> = {
@@ -193,6 +197,8 @@ export const TRANSACTION_SOURCE_LABELS: Record<TransactionSource, string> = {
 }
 
 export const RECURRING_FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
+  WEEKLY: "Weekly",
+  BIWEEKLY: "Biweekly",
   MONTHLY: "Monthly",
   QUARTERLY: "Quarterly",
   ANNUAL: "Annually",

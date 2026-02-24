@@ -64,25 +64,114 @@ export async function recordLoanPayment(data: {
   if (!loanAccount) throw new Error("Loan account not found")
   if (!loanAccount.loan) throw new Error("Account does not have a loan record")
 
-  // Calculate interest/principal split
-  const loanBalance = Math.abs(toNumber(loanAccount.balance))
+  const isBNPL = loanAccount.loan.loanType === "BNPL"
   const annualRate = toNumber(loanAccount.loan.interestRate)
+  const paymentDate = new Date(data.date)
+  const description = data.description || (isBNPL ? "BNPL Payment" : "Loan Payment")
+
+  if (isBNPL && annualRate === 0) {
+    // BNPL with 0% interest — entire payment is a transfer (no interest split)
+    const result = await prisma.$transaction(async (tx) => {
+      // Outgoing from source account
+      const outgoing = await tx.transaction.create({
+        data: {
+          date: paymentDate,
+          description,
+          amount: -data.amount,
+          type: "TRANSFER",
+          source: "MANUAL",
+          userId,
+          accountId: data.fromAccountId,
+        },
+      })
+
+      // Incoming on BNPL account (principal only, moves balance toward zero)
+      const principal = await tx.transaction.create({
+        data: {
+          date: paymentDate,
+          description,
+          amount: data.amount,
+          type: "LOAN_PRINCIPAL",
+          source: "SYSTEM",
+          category: "Loan Payment",
+          userId,
+          accountId: data.loanAccountId,
+        },
+      })
+
+      // Link outgoing → principal
+      await tx.transaction.update({
+        where: { id: outgoing.id },
+        data: { linkedTransactionId: principal.id },
+      })
+
+      // Update balances
+      await tx.account.update({
+        where: { id: data.fromAccountId },
+        data: { balance: { decrement: data.amount } },
+      })
+      await tx.account.update({
+        where: { id: data.loanAccountId },
+        data: { balance: { increment: data.amount } },
+      })
+
+      // Advance BNPL tracking
+      const newCompleted = loanAccount.loan!.completedInstallments + 1
+      const totalInstallments = loanAccount.loan!.totalInstallments ?? 0
+      let newNextPaymentDate = loanAccount.loan!.nextPaymentDate
+
+      if (newNextPaymentDate && loanAccount.loan!.installmentFrequency) {
+        const next = new Date(newNextPaymentDate)
+        const freq = loanAccount.loan!.installmentFrequency
+        if (freq === "WEEKLY") next.setDate(next.getDate() + 7)
+        else if (freq === "BIWEEKLY") next.setDate(next.getDate() + 14)
+        else next.setMonth(next.getMonth() + 1)
+        newNextPaymentDate = next
+      }
+
+      await tx.loan.update({
+        where: { id: loanAccount.loan!.id },
+        data: {
+          completedInstallments: newCompleted,
+          nextPaymentDate: newNextPaymentDate,
+        },
+      })
+
+      // Auto-deactivate when fully paid
+      if (newCompleted >= totalInstallments && totalInstallments > 0) {
+        await tx.account.update({
+          where: { id: data.loanAccountId },
+          data: { isActive: false },
+        })
+      }
+
+      return { outgoing, principal }
+    })
+
+    return {
+      outgoingId: result.outgoing.id,
+      principalId: result.principal.id,
+      interestId: null,
+      principalAmount: data.amount,
+      interestAmount: 0,
+      totalAmount: -data.amount,
+    }
+  }
+
+  // Standard loan payment (or BNPL with interest) — existing logic
+  const loanBalance = Math.abs(toNumber(loanAccount.balance))
   const monthlyInterest = round2(loanBalance * annualRate / 12)
 
   let interestAmount: number
   let principalAmount: number
 
   if (data.amount <= monthlyInterest) {
-    // Payment doesn't cover full interest — all goes to interest
     interestAmount = round2(data.amount)
     principalAmount = 0
   } else {
     interestAmount = monthlyInterest
     principalAmount = round2(data.amount - interestAmount)
   }
-
-  const paymentDate = new Date(data.date)
-  const description = data.description || "Loan Payment"
 
   const result = await prisma.$transaction(async (tx) => {
     // Transaction A: TRANSFER on source account (outgoing)
@@ -154,6 +243,37 @@ export async function recordLoanPayment(data: {
         accountId: data.loanAccountId,
       },
     })
+
+    // If BNPL with interest, also advance installment tracking
+    if (isBNPL) {
+      const newCompleted = loanAccount.loan!.completedInstallments + 1
+      const totalInstallments = loanAccount.loan!.totalInstallments ?? 0
+      let newNextPaymentDate = loanAccount.loan!.nextPaymentDate
+
+      if (newNextPaymentDate && loanAccount.loan!.installmentFrequency) {
+        const next = new Date(newNextPaymentDate)
+        const freq = loanAccount.loan!.installmentFrequency
+        if (freq === "WEEKLY") next.setDate(next.getDate() + 7)
+        else if (freq === "BIWEEKLY") next.setDate(next.getDate() + 14)
+        else next.setMonth(next.getMonth() + 1)
+        newNextPaymentDate = next
+      }
+
+      await tx.loan.update({
+        where: { id: loanAccount.loan!.id },
+        data: {
+          completedInstallments: newCompleted,
+          nextPaymentDate: newNextPaymentDate,
+        },
+      })
+
+      if (newCompleted >= totalInstallments && totalInstallments > 0) {
+        await tx.account.update({
+          where: { id: data.loanAccountId },
+          data: { isActive: false },
+        })
+      }
+    }
 
     return { outgoing, principal, interest }
   })
