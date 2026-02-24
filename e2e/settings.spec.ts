@@ -9,38 +9,35 @@ test.describe("Settings", () => {
   })
 
   test("settings page loads with heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible()
+    // The h1 appears both in the sticky banner and the page content
+    await expect(page.getByRole("main").getByRole("heading", { name: "Settings" })).toBeVisible()
   })
 
   test("Account & Profile section is visible with link to profile", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /account.*profile/i })
-    ).toBeVisible()
+    // Section titles are plain text nodes inside generic divs, not heading roles
+    await expect(page.getByText("Account & Profile")).toBeVisible()
     await expect(page.getByRole("link", { name: /go to profile/i })).toBeVisible()
   })
 
   test("Appearance section shows theme toggle", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /appearance/i })
-    ).toBeVisible()
-    // The ThemeToggle is a ghost-variant icon button with sr-only text "Toggle theme"
-    await expect(page.getByRole("button", { name: /toggle theme/i })).toBeVisible()
+    await expect(page.getByText("Appearance")).toBeVisible()
+    // The settings section has its own Toggle theme button; scope to settings section
+    // to avoid matching the sidebar toggle (strict mode)
+    await expect(page.locator("#theme").getByRole("button", { name: /toggle theme/i })).toBeVisible()
   })
 
   test("Appearance section shows current theme label", async ({ page }) => {
-    // The text "light mode" or "dark mode" is shown next to the toggle
+    // The text "light mode" or "dark mode" appears as a <span> next to the toggle
     await expect(
-      page.getByText(/light mode|dark mode|system mode/i)
+      page.locator("span").filter({ hasText: /^(light|dark|system) mode$/ }).first()
     ).toBeVisible()
   })
 
   test("Categories section shows built-in categories", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /categories/i })).toBeVisible()
-    await expect(page.getByText(/built-in categories/i)).toBeVisible()
-    // At least one category badge should be present
-    await expect(page.getByRole("heading", { name: /categories/i })
-      .locator("..") // parent card
-    ).toBeVisible()
+    // "Categories" appears in multiple elements; check the Built-in Categories heading specifically
+    await expect(page.getByRole("heading", { name: "Built-in Categories" })).toBeVisible()
+    // At least one category badge (Housing) should be present
+    await expect(page.getByText("Housing")).toBeVisible()
   })
 
   test("Categories section has an input to add a new custom category", async ({ page }) => {
@@ -58,15 +55,12 @@ test.describe("Settings", () => {
   })
 
   test("Disclaimer section renders the disclaimer text", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /disclaimer/i })).toBeVisible()
-    // DisclaimerContent renders substantial text; check for the word "disclaimer" in body
-    await expect(page.locator("#disclaimer")).toBeVisible()
+    // DisclaimerContent renders substantial text; check for a known heading within it
+    await expect(page.getByRole("heading", { name: /no financial advice/i })).toBeVisible()
   })
 
   test("Recalculate Balances section has a Check Balances button", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /recalculate balances/i })
-    ).toBeVisible()
+    await expect(page.getByText("Recalculate Balances")).toBeVisible()
     await expect(
       page.getByRole("button", { name: /check balances/i })
     ).toBeVisible()
@@ -75,7 +69,7 @@ test.describe("Settings", () => {
   test("Seed Data section has Load Demo Data and Wipe All Data buttons", async ({
     page,
   }) => {
-    await expect(page.getByRole("heading", { name: /seed data/i })).toBeVisible()
+    await expect(page.getByText("Seed Data")).toBeVisible()
     await expect(
       page.getByRole("button", { name: /load demo data/i })
     ).toBeVisible()
@@ -85,7 +79,7 @@ test.describe("Settings", () => {
   })
 
   test("Data Export section has Export JSON and Export CSV buttons", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /data export/i })).toBeVisible()
+    await expect(page.getByText("Data Export")).toBeVisible()
     await expect(page.getByRole("button", { name: /export json/i })).toBeVisible()
     await expect(page.getByRole("button", { name: /export csv/i })).toBeVisible()
   })

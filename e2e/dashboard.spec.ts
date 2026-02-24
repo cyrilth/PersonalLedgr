@@ -21,34 +21,27 @@ test.describe("Dashboard", () => {
   })
 
   test("income vs expense chart card is visible", async ({ page }) => {
-    // The IncomeExpenseChart renders a card with this heading
-    await expect(
-      page.getByRole("heading", { name: /income.*expense|income vs expense/i })
-    ).toBeVisible()
+    // The IncomeExpenseChart renders a card title as a generic element (not a heading)
+    await expect(page.getByText("Income vs Expenses")).toBeVisible()
   })
 
   test("recent transactions section is visible", async ({ page }) => {
-    // RecentTransactions renders a heading
-    await expect(
-      page.getByRole("heading", { name: /recent transactions/i })
-    ).toBeVisible()
+    // RecentTransactions renders a text label (not a heading role)
+    await expect(page.getByText("Recent Transactions")).toBeVisible()
   })
 
   test("upcoming bills widget is visible", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /upcoming bills/i })
-    ).toBeVisible()
+    await expect(page.getByText("Upcoming Bills")).toBeVisible()
   })
 
   test("credit utilization widget is visible", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /credit utilization/i })
-    ).toBeVisible()
+    await expect(page.getByText("Credit Utilization")).toBeVisible()
   })
 
   test("sidebar navigation links are present", async ({ page }) => {
-    await expect(page.getByRole("link", { name: /transactions/i })).toBeVisible()
-    await expect(page.getByRole("link", { name: /budgets/i })).toBeVisible()
-    await expect(page.getByRole("link", { name: /recurring/i })).toBeVisible()
+    const nav = page.getByRole("navigation")
+    await expect(nav.getByRole("link", { name: /transactions/i })).toBeVisible()
+    await expect(nav.getByRole("link", { name: /budgets/i })).toBeVisible()
+    await expect(nav.getByRole("link", { name: /recurring/i })).toBeVisible()
   })
 })

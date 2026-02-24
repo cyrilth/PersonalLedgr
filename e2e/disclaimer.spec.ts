@@ -88,8 +88,14 @@ test.describe("Disclaimer modal", () => {
   })
 
   test("modal does not reappear after acceptance and page reload", async ({ page }) => {
+    // Use a session flag so addInitScript only removes the key on the FIRST navigation.
+    // Without this guard, addInitScript re-fires on page.reload() and wipes the
+    // accepted state that the user just set.
     await page.addInitScript((key) => {
-      localStorage.removeItem(key)
+      if (!sessionStorage.getItem("__pl_test_disclaimer_cleared__")) {
+        sessionStorage.setItem("__pl_test_disclaimer_cleared__", "1")
+        localStorage.removeItem(key)
+      }
     }, STORAGE_KEY)
 
     await page.goto("/login")

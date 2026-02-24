@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react"
-import { Link2 } from "lucide-react"
+import { Link2, MoreHorizontal, Trash2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -19,6 +19,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -50,6 +57,7 @@ interface TransactionTableProps {
   onSelectChange: (ids: Set<string>) => void
   onCategoryChange: (id: string, category: string) => void
   categories?: string[]
+  onDelete?: (id: string, description: string) => void
 }
 
 export function TransactionTable({
@@ -58,6 +66,7 @@ export function TransactionTable({
   onSelectChange,
   onCategoryChange,
   categories = [],
+  onDelete,
 }: TransactionTableProps) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
 
@@ -110,6 +119,7 @@ export function TransactionTable({
             <TableHead className="w-32">Account</TableHead>
             <TableHead className="w-32">Type</TableHead>
             <TableHead className="w-10" />
+            {onDelete && <TableHead className="w-10" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -188,6 +198,27 @@ export function TransactionTable({
                   </span>
                 )}
               </TableCell>
+              {onDelete && (
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDelete(t.id, t.description)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

@@ -9,7 +9,8 @@ test.describe("Loan Payment", () => {
 
   test("loans page loads and shows summary metrics", async ({ page }) => {
     await page.goto("/loans")
-    await expect(page.getByRole("heading", { name: "Loans" })).toBeVisible()
+    // The h1 appears both in the sticky banner and the page content — scope to main
+    await expect(page.getByRole("main").getByRole("heading", { name: "Loans" })).toBeVisible()
     // With seeded data, summary metrics should appear
     await expect(page.getByText(/total debt/i)).toBeVisible({ timeout: 10_000 })
   })
@@ -118,7 +119,8 @@ test.describe("Loan Payment", () => {
     await expect(
       loanDialog.getByText(/payment breakdown/i)
     ).toBeVisible({ timeout: 5_000 })
-    await expect(loanDialog.getByText(/principal/i)).toBeVisible()
-    await expect(loanDialog.getByText(/interest/i)).toBeVisible()
+    // Use exact text match to avoid strict mode violation with /principal/i
+    await expect(loanDialog.getByText("Principal", { exact: true })).toBeVisible()
+    await expect(loanDialog.getByText("Interest", { exact: true })).toBeVisible()
   })
 })

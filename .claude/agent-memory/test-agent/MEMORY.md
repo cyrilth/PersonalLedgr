@@ -40,6 +40,10 @@ Key points:
 - Playwright config: `playwright.config.ts`, baseURL = http://localhost:3000, testDir = `./e2e`
 - Demo credentials: demo@personalledgr.local / testpassword123
 - Disclaimer localStorage key: `personalledgr-disclaimer-accepted`
+- Theme localStorage key: `personalledgr-theme` (NOT "theme" — next-themes uses custom storageKey)
 - Use `acceptDisclaimer(page)` helper after `login(page)` in beforeEach
 - Transfer Wizard opens from Add Transaction dialog > Transfer tab > "Open Transfer Wizard" button
 - Loan Payment Form opens from Add Transaction dialog > Loan Payment tab > "Open Loan Payment Form" button
+- Global setup: `e2e/global-setup.ts` logs in once, saves storageState to `e2e/.auth/user.json`
+- All tests reuse the saved auth session — login() in helpers.ts just navigates to "/" now
+- See [e2e-notes.md](e2e-notes.md) for full details and common strict mode pitfalls

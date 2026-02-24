@@ -31,6 +31,7 @@ import {
   type DetectedColumns,
   type ImportRow,
   type NormalizedTransaction,
+  type ReconcileMatch,
 } from "@/actions/import"
 import { normalizeAmounts } from "@/actions/import"
 import { CSVUploader } from "@/components/import/csv-uploader"
@@ -200,6 +201,24 @@ export default function ImportPage() {
     setImportRows((prev) => prev.map((row) => ({ ...row, selected: false })))
   }
 
+  function handleDismissReconcile(index: number) {
+    setImportRows((prev) =>
+      prev.map((row) =>
+        row.index === index
+          ? { ...row, status: "new" as ImportRow["status"], reconcileMatch: undefined }
+          : row
+      )
+    )
+  }
+
+  function handleSelectCandidate(index: number, candidate: ReconcileMatch) {
+    setImportRows((prev) =>
+      prev.map((row) =>
+        row.index === index ? { ...row, reconcileMatch: candidate } : row
+      )
+    )
+  }
+
   async function handleImport() {
     const selected = importRows.filter((r) => r.selected)
     if (selected.length === 0) {
@@ -207,10 +226,18 @@ export default function ImportPage() {
       return
     }
 
+    // Validate no two reconcile rows use the same target transaction
+    const reconcileSelected = selected.filter((r) => r.status === "reconcile" && r.reconcileMatch)
+    const reconcileTxIds = reconcileSelected.map((r) => r.reconcileMatch!.transactionId)
+    if (new Set(reconcileTxIds).size !== reconcileTxIds.length) {
+      toast.error("Two or more rows are matched to the same payment. Please resolve before importing.")
+      return
+    }
+
     setImporting(true)
     try {
       const newRows = selected.filter((r) => r.status !== "reconcile")
-      const reconcileRows = selected.filter((r) => r.status === "reconcile" && r.reconcileMatch)
+      const reconcileRows = reconcileSelected
 
       const hasReconcile = reconcileRows.length > 0
 
@@ -353,6 +380,8 @@ export default function ImportPage() {
               onRowToggle={handleRowToggle}
               onSelectAll={handleSelectAll}
               onDeselectAll={handleDeselectAll}
+              onDismissReconcile={handleDismissReconcile}
+              onSelectCandidate={handleSelectCandidate}
               onImport={handleImport}
               onBack={() => setStep(1)}
               importing={importing}

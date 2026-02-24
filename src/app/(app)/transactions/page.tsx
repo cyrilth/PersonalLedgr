@@ -14,7 +14,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
-import { Plus } from "lucide-react"
+import { Plus, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -23,11 +23,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { TransactionFilterBar, EMPTY_FILTERS } from "@/components/transactions/transaction-filters"
 import type { TransactionFilters } from "@/components/transactions/transaction-filters"
 import { TransactionTable } from "@/components/transactions/transaction-table"
 import { TransactionForm } from "@/components/transactions/transaction-form"
-import { getTransactions, updateTransaction, bulkCategorize } from "@/actions/transactions"
+import { getTransactions, updateTransaction, bulkCategorize, deleteTransaction, getTransactionDeleteInfo } from "@/actions/transactions"
 import { getAccountsFlat } from "@/actions/accounts"
 import { getCategoryNames } from "@/actions/categories"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -52,6 +62,10 @@ export default function TransactionsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [bulkCategory, setBulkCategory] = useState("")
   const [categories, setCategories] = useState<string[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; description: string } | null>(null)
+  const [deleteInfo, setDeleteInfo] = useState<Awaited<ReturnType<typeof getTransactionDeleteInfo>> | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -152,6 +166,45 @@ export default function TransactionsPage() {
     fetchAccounts()
   }
 
+  async function handleDeleteRequest(id: string, description: string) {
+    setDeleteTarget({ id, description })
+    setDeleteInfo(null)
+    setDeleteLoading(true)
+    try {
+      const info = await getTransactionDeleteInfo(id)
+      setDeleteInfo(info)
+    } catch {
+      toast.error("Failed to load transaction details")
+      setDeleteTarget(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const result = await deleteTransaction(deleteTarget.id)
+      if (result.warnings.length > 0) {
+        const w = result.warnings[0]
+        toast.success("Transaction deleted", {
+          description: `Bill payment for "${w.billName}" (${w.month}/${w.year}) was also removed.`,
+        })
+      } else {
+        toast.success("Transaction deleted")
+      }
+      setDeleteTarget(null)
+      setDeleteInfo(null)
+      fetchTransactions()
+      fetchAccounts()
+    } catch {
+      toast.error("Failed to delete transaction")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // Derive loan accounts from the flat list
   const loanAccounts = accounts
     .filter((a) => (a.type === "LOAN" || a.type === "MORTGAGE") && a.loan)
@@ -241,6 +294,7 @@ export default function TransactionsPage() {
           onSelectChange={setSelectedIds}
           onCategoryChange={handleCategoryChange}
           categories={categories}
+          onDelete={handleDeleteRequest}
         />
       )}
 
@@ -278,6 +332,58 @@ export default function TransactionsPage() {
         loanAccounts={loanAccounts}
         categories={categories}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteInfo(null) } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Are you sure you want to delete &quot;{deleteTarget?.description}&quot;? This cannot be undone.
+                </p>
+                {deleteLoading && (
+                  <p className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking for linked records...
+                  </p>
+                )}
+                {deleteInfo?.hasLinkedTransfer && (
+                  <p className="text-yellow-600 dark:text-yellow-500">
+                    This is part of a transfer pair. The linked transaction in {deleteInfo.linkedAccountName} will also be deleted.
+                  </p>
+                )}
+                {deleteInfo?.hasBillPayment && deleteInfo.billPaymentInfo && (
+                  <p className="text-yellow-600 dark:text-yellow-500">
+                    This transaction is linked to the bill &quot;{deleteInfo.billPaymentInfo.billName}&quot; for {deleteInfo.billPaymentInfo.month}/{deleteInfo.billPaymentInfo.year}. Deleting it will remove the payment record, and the bill will show as unpaid.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading || deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

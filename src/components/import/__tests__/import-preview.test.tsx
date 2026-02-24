@@ -39,6 +39,8 @@ const defaultProps = {
   onRowToggle: vi.fn(),
   onSelectAll: vi.fn(),
   onDeselectAll: vi.fn(),
+  onDismissReconcile: vi.fn(),
+  onSelectCandidate: vi.fn(),
   onImport: vi.fn(),
   onBack: vi.fn(),
   importing: false,

@@ -24,6 +24,46 @@
 - Transfers/Loan Payment Wizards are opened via the Add Transaction dialog tabs, not via a direct URL
 - The transfer description is auto-generated as "Transfer: AccountA → AccountB"
 
+## Auth / Global Setup (IMPORTANT)
+
+- Better Auth has **rate limiting** on sign-in — multiple simultaneous logins trigger "Too many requests"
+- Solution: `e2e/global-setup.ts` logs in ONCE, saves `storageState` to `e2e/.auth/user.json`
+- `playwright.config.ts` sets `use: { storageState: "e2e/.auth/user.json" }` globally
+- `login()` in `helpers.ts` now just navigates to "/" and trusts the injected session
+- The disclaimer localStorage key is set in globalSetup AND in `login()` via `addInitScript` (belt+suspenders)
+- `e2e/.auth/` directory must exist (add to .gitignore or keep `user.json` placeholder)
+- Disclaimer tests use `page.addInitScript` to REMOVE the key — use a sessionStorage flag guard so `addInitScript` only fires once (not on reload), else reload re-clears the accepted state
+
+## Strict Mode Violations (Common Patterns)
+
+The app renders many pages with TWO h1 headings (one in the sticky banner, one in main content).
+Fix: Always scope heading assertions to `page.getByRole("main")`:
+```ts
+await expect(page.getByRole("main").getByRole("heading", { name: "Budgets" })).toBeVisible()
+```
+
+Settings section titles (Account & Profile, Appearance, Categories, etc.) are NOT heading roles —
+they are plain text inside generic divs. Use `page.getByText(...)` instead of `getByRole("heading")`.
+
+Dashboard widget labels (Net Worth, Income vs Expenses, Recent Transactions, Upcoming Bills,
+Credit Utilization) are also NOT heading roles — use `page.getByText(...)`.
+
+The sticky banner contains a year combobox. When on the import page, `page.getByRole("combobox").first()`
+picks up the year combobox, NOT the account selector. Always scope to `page.getByRole("main")`:
+```ts
+await page.getByRole("main").getByRole("combobox").first().click()
+```
+
+The "Toggle theme" button appears TWICE on the settings page (sidebar + settings section).
+Scope to the specific section to avoid strict mode:
+```ts
+await page.getByRole("complementary").getByRole("button", { name: /toggle theme/i }) // sidebar
+await page.locator("#theme").getByRole("button", { name: /toggle theme/i })           // settings section
+```
+
+`getByText(/previous month/i)` matches both the "Previous month" nav arrow AND "Copy from Previous Month"
+button on the Budgets page. Use `{ name: "Previous month", exact: true }`.
+
 ## Running
 
 ```bash

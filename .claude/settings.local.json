@@ -35,7 +35,12 @@
       "Bash(netstat:*)",
       "Bash(tasklist:*)",
       "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate status 2>&1)",
-      "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate deploy 2>&1)"
+      "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate deploy 2>&1)",
+      "Bash(cat:*)",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "Bash(cd:*)",
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test 2>&1)",
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test e2e/theme.spec.ts --workers=1 2>&1)"
     ]
   }
 }

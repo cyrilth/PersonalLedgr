@@ -280,6 +280,48 @@ export async function updateTransaction(
 }
 
 /**
+ * Returns information about what side effects deleting a transaction would have.
+ *
+ * Useful for showing warnings before confirming deletion — e.g. if the
+ * transaction is linked to a transfer partner or reconciled with a bill payment.
+ */
+export async function getTransactionDeleteInfo(id: string): Promise<{
+  hasLinkedTransfer: boolean
+  linkedAccountName?: string
+  hasBillPayment: boolean
+  billPaymentInfo?: { billName: string; month: number; year: number }
+}> {
+  const userId = await requireUserId()
+
+  const txn = await prisma.transaction.findFirst({
+    where: { id, userId },
+    include: {
+      linkedTransaction: { include: { account: { select: { name: true } } } },
+      linkedBy: { include: { account: { select: { name: true } } } },
+      billPayment: {
+        include: { recurringBill: { select: { name: true } } },
+      },
+    },
+  })
+  if (!txn) throw new Error("Transaction not found")
+
+  const linkedPartner = txn.linkedTransaction ?? txn.linkedBy ?? null
+
+  return {
+    hasLinkedTransfer: !!linkedPartner,
+    linkedAccountName: linkedPartner?.account.name,
+    hasBillPayment: !!txn.billPayment,
+    billPaymentInfo: txn.billPayment
+      ? {
+          billName: txn.billPayment.recurringBill.name,
+          month: txn.billPayment.month,
+          year: txn.billPayment.year,
+        }
+      : undefined,
+  }
+}
+
+/**
  * Deletes a transaction and reverses its balance impact atomically.
  *
  * For transfer pairs (linked via linkedTransactionId): both sides are deleted
@@ -289,15 +331,34 @@ export async function updateTransaction(
  * The self-referential relation has two sides — `linkedTransaction` (this record
  * holds the FK) and `linkedBy` (the other record points to this one). We check
  * both to find the partner regardless of which side is being deleted.
+ *
+ * Returns warnings when side effects occur (e.g. a BillPayment record was
+ * cascade-deleted), so the UI can inform the user.
  */
 export async function deleteTransaction(id: string) {
   const userId = await requireUserId()
 
   const existing = await prisma.transaction.findFirst({
     where: { id, userId },
-    include: { linkedTransaction: true, linkedBy: true },
+    include: {
+      linkedTransaction: true,
+      linkedBy: true,
+      billPayment: {
+        include: { recurringBill: { select: { name: true } } },
+      },
+    },
   })
   if (!existing) throw new Error("Transaction not found")
+
+  // Capture bill payment info before deletion (cascade will remove it)
+  const billPaymentInfo = existing.billPayment
+    ? {
+        type: "bill_payment_removed" as const,
+        billName: existing.billPayment.recurringBill.name,
+        month: existing.billPayment.month,
+        year: existing.billPayment.year,
+      }
+    : null
 
   // Determine linked partner (either side of the self-referential relation)
   const linkedPartner = existing.linkedTransaction ?? existing.linkedBy ?? null
@@ -341,7 +402,10 @@ export async function deleteTransaction(id: string) {
     }
   })
 
-  return { success: true }
+  return {
+    success: true,
+    warnings: billPaymentInfo ? [billPaymentInfo] : [],
+  }
 }
 
 /**

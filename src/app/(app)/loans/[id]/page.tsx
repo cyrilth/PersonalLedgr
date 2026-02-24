@@ -518,6 +518,7 @@ export default function LoanDetailPage() {
                 startDate: loan.startDate,
                 monthlyPayment: loan.monthlyPayment,
                 extraPaymentAmount: loan.extraPaymentAmount,
+                paymentDueDay: loan.paymentDueDay,
                 owner: loan.owner,
               }
             : null

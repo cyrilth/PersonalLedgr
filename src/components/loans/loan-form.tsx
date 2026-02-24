@@ -52,6 +52,7 @@ interface LoanEditData {
   startDate: Date
   monthlyPayment: number
   extraPaymentAmount: number
+  paymentDueDay: number | null
   owner: string | null
 }
 
@@ -84,6 +85,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
   const [startDate, setStartDate] = useState(toDateInputValue(new Date()))
   const [monthlyPayment, setMonthlyPayment] = useState("")
   const [extraPayment, setExtraPayment] = useState("0")
+  const [paymentDueDay, setPaymentDueDay] = useState("")
   const [owner, setOwner] = useState("")
   const [saving, setSaving] = useState(false)
 
@@ -104,6 +106,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
         setStartDate(toDateInputValue(editData.startDate))
         setMonthlyPayment(editData.monthlyPayment.toString())
         setExtraPayment(editData.extraPaymentAmount.toString())
+        setPaymentDueDay(editData.paymentDueDay?.toString() ?? "")
         setOwner(editData.owner ?? "")
         // Infer account type from loan type
         setAccountType(editData.loanType === "MORTGAGE" ? "MORTGAGE" : "LOAN")
@@ -118,6 +121,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
         setStartDate(toDateInputValue(new Date()))
         setMonthlyPayment("")
         setExtraPayment("0")
+        setPaymentDueDay("")
         setOwner("")
       }
     }
@@ -160,6 +164,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
           termMonths: parseInt(termMonths) || 0,
           monthlyPayment: parseFloat(monthlyPayment) || 0,
           extraPaymentAmount: parseFloat(extraPayment) || 0,
+          paymentDueDay: paymentDueDay ? parseInt(paymentDueDay) : null,
         })
         toast.success("Loan updated")
       } else {
@@ -176,6 +181,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
           startDate: startDate,
           monthlyPayment: parseFloat(monthlyPayment) || 0,
           extraPaymentAmount: parseFloat(extraPayment) || 0,
+          paymentDueDay: paymentDueDay ? parseInt(paymentDueDay) : undefined,
         })
         toast.success("Loan created")
       }
@@ -352,6 +358,22 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData }: LoanFormPr
                 onChange={(e) => setExtraPayment(e.target.value)}
                 placeholder="0"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="loan-due-day">Payment Due Day (optional)</Label>
+              <Input
+                id="loan-due-day"
+                type="number"
+                min="1"
+                max="31"
+                value={paymentDueDay}
+                onChange={(e) => setPaymentDueDay(e.target.value)}
+                placeholder="e.g. 15"
+              />
+              <p className="text-muted-foreground text-xs">
+                Day of month the payment is due (1-31)
+              </p>
             </div>
           </div>
 

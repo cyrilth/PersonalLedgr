@@ -82,31 +82,29 @@ export function PaymentDialog({
   const [loadingTxns, setLoadingTxns] = useState(false)
   const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null)
 
-  // Reset state when dialog opens
+  // Reset state and eagerly fetch matching transactions when dialog opens.
+  // If matches exist, auto-switch to "Link Existing" mode so users who
+  // imported CSVs first see their transactions immediately (edge case #2).
   useEffect(() => {
     if (open && bill) {
-      setMode("new")
       setAmount(bill.amount.toFixed(2))
       setAccountId(bill.accountId)
       setSelectedTxnId(null)
       setMatchingTxns([])
-    }
-  }, [open, bill])
-
-  // Load matching transactions when switching to link mode
-  useEffect(() => {
-    if (mode === "link" && bill && open) {
       setLoadingTxns(true)
-      setSelectedTxnId(null)
+
       getMatchingTransactions(bill.id, month, year)
-        .then(setMatchingTxns)
+        .then((txns) => {
+          setMatchingTxns(txns)
+          setMode(txns.length > 0 ? "link" : "new")
+        })
         .catch(() => {
-          toast.error("Failed to load transactions")
           setMatchingTxns([])
+          setMode("new")
         })
         .finally(() => setLoadingTxns(false))
     }
-  }, [mode, bill, month, year, open])
+  }, [open, bill, month, year])
 
   async function handleNewPayment(e: React.FormEvent) {
     e.preventDefault()

@@ -79,8 +79,10 @@ export type DuplicateStatus = "new" | "duplicate" | "review" | "reconcile"
 /** Info about a bill payment that can be reconciled with an imported transaction. */
 export interface ReconcileMatch {
   transactionId: string
-  billPaymentId: string
-  billName: string
+  billPaymentId?: string       // only for bills
+  billName: string             // display name (bill name, loan name, or CC name)
+  type: "bill" | "loan" | "credit_card"
+  linkedTransactionId?: string // for loans/CCs: the other side of the transfer
 }
 
 /** A transaction row with its duplicate detection result. */
@@ -93,6 +95,7 @@ export interface ImportRow {
   status: DuplicateStatus
   matchDescription?: string
   reconcileMatch?: ReconcileMatch
+  reconcileCandidates?: ReconcileMatch[]
   selected: boolean
 }
 
@@ -551,20 +554,31 @@ export async function detectDuplicates(
         select: {
           id: true,
           recurringBill: {
-            select: { name: true },
+            select: { name: true, isVariableAmount: true },
           },
         },
       },
     },
   })
 
-  // Build lookup: absolute cents → array of { transactionId, date, billPaymentId, billName }
+  // Build lookup: absolute cents → array of reconciliation candidates
   const reconcileLookup = new Map<number, {
+    transactionId: string
+    date: Date
+    billPaymentId?: string
+    billName: string
+    type: "bill" | "loan" | "credit_card"
+    linkedTransactionId?: string
+  }[]>()
+
+  // Separate array for variable-amount bill candidates (fuzzy matching fallback)
+  const variableBillCandidates: {
+    cents: number
     transactionId: string
     date: Date
     billPaymentId: string
     billName: string
-  }[]>()
+  }[] = []
 
   for (const t of recurringWithBillPayments) {
     if (!t.billPayment) continue
@@ -575,11 +589,89 @@ export async function detectDuplicates(
       date: new Date(t.date),
       billPaymentId: t.billPayment.id,
       billName: t.billPayment.recurringBill.name,
+      type: "bill",
     })
     reconcileLookup.set(cents, entries)
+
+    // Also add to variable candidates for fuzzy matching fallback
+    if (t.billPayment.recurringBill.isVariableAmount) {
+      variableBillCandidates.push({
+        cents,
+        transactionId: t.id,
+        date: new Date(t.date),
+        billPaymentId: t.billPayment.id,
+        billName: t.billPayment.recurringBill.name,
+      })
+    }
   }
 
-  // Track which RECURRING transactions have already been matched
+  // ── Loan & CC payment reconciliation pass ────────────────────────
+  // Find non-IMPORT TRANSFER transactions on this account that are linked to
+  // transactions on loan or CC accounts. These represent manually-entered or
+  // system-created transfers that should be reconciled with imported rows.
+  //
+  // Loan transfers: linked to LOAN_PRINCIPAL on a LOAN/MORTGAGE account
+  // CC transfers: linked to TRANSFER on a CREDIT_CARD account
+  const linkedTransfers = await prisma.transaction.findMany({
+    where: {
+      accountId,
+      type: "TRANSFER",
+      source: { not: "IMPORT" },
+      linkedTransactionId: { not: null },
+    },
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      linkedTransactionId: true,
+      linkedTransaction: {
+        select: {
+          type: true,
+          account: { select: { name: true, type: true } },
+        },
+      },
+    },
+  })
+
+  for (const t of linkedTransfers) {
+    if (!t.linkedTransaction) continue
+    const linkedAcctType = t.linkedTransaction.account.type
+    const linkedTxType = t.linkedTransaction.type
+
+    // Loan payment: linked to LOAN_PRINCIPAL on a LOAN/MORTGAGE account
+    if (
+      (linkedAcctType === "LOAN" || linkedAcctType === "MORTGAGE") &&
+      linkedTxType === "LOAN_PRINCIPAL"
+    ) {
+      const cents = Math.round(Math.abs(Number(t.amount)) * 100)
+      const entries = reconcileLookup.get(cents) || []
+      entries.push({
+        transactionId: t.id,
+        date: new Date(t.date),
+        billName: t.linkedTransaction.account.name,
+        type: "loan",
+        linkedTransactionId: t.linkedTransactionId!,
+      })
+      reconcileLookup.set(cents, entries)
+      continue
+    }
+
+    // CC payment: linked to TRANSFER on a CREDIT_CARD account
+    if (linkedAcctType === "CREDIT_CARD" && linkedTxType === "TRANSFER") {
+      const cents = Math.round(Math.abs(Number(t.amount)) * 100)
+      const entries = reconcileLookup.get(cents) || []
+      entries.push({
+        transactionId: t.id,
+        date: new Date(t.date),
+        billName: t.linkedTransaction.account.name,
+        type: "credit_card",
+        linkedTransactionId: t.linkedTransactionId!,
+      })
+      reconcileLookup.set(cents, entries)
+    }
+  }
+
+  // Track which transactions have already been matched
   const matchedRecurringIds = new Set<string>()
 
   const rows = transactions.map((t, index) => {
@@ -608,26 +700,55 @@ export async function detectDuplicates(
 
     // Reconciliation pass: only for expense rows still marked "new"
     let reconcileMatch: ReconcileMatch | undefined
+    let reconcileCandidates: ReconcileMatch[] | undefined
     if (status === "new" && t.amount < 0) {
       const cents = Math.round(Math.abs(t.amount) * 100)
       const candidates = reconcileLookup.get(cents) || []
       const importDate = new Date(t.date + "T00:00:00")
 
+      const available: ReconcileMatch[] = []
       for (const candidate of candidates) {
         if (matchedRecurringIds.has(candidate.transactionId)) continue
         const sameMonth =
           importDate.getFullYear() === candidate.date.getFullYear() &&
           importDate.getMonth() === candidate.date.getMonth()
         if (sameMonth) {
-          status = "reconcile"
-          reconcileMatch = {
+          available.push({
             transactionId: candidate.transactionId,
             billPaymentId: candidate.billPaymentId,
             billName: candidate.billName,
-          }
-          matchedRecurringIds.add(candidate.transactionId)
-          break
+            type: candidate.type,
+            linkedTransactionId: candidate.linkedTransactionId,
+          })
         }
+      }
+
+      // Fuzzy matching fallback: if no exact-cents match, check variable-amount bills
+      // within ±20% of the estimated amount in the same month
+      if (available.length === 0) {
+        for (const candidate of variableBillCandidates) {
+          if (matchedRecurringIds.has(candidate.transactionId)) continue
+          const sameMonth =
+            importDate.getFullYear() === candidate.date.getFullYear() &&
+            importDate.getMonth() === candidate.date.getMonth()
+          if (!sameMonth) continue
+          const ratio = cents / candidate.cents
+          if (ratio >= 0.8 && ratio <= 1.2) {
+            available.push({
+              transactionId: candidate.transactionId,
+              billPaymentId: candidate.billPaymentId,
+              billName: candidate.billName,
+              type: "bill",
+            })
+          }
+        }
+      }
+
+      if (available.length > 0) {
+        status = "reconcile"
+        reconcileCandidates = available
+        reconcileMatch = available[0]
+        matchedRecurringIds.add(available[0].transactionId)
       }
     }
 
@@ -640,6 +761,7 @@ export async function detectDuplicates(
       status,
       matchDescription,
       reconcileMatch,
+      reconcileCandidates,
       selected: status === "new" || status === "reconcile",
     }
   })
@@ -737,10 +859,32 @@ export async function importAndReconcile(
   })
   if (!account) throw new Error("Account not found")
 
-  // Only new (non-reconciled) transactions change the balance.
-  // Reconciled items: delete RECURRING (-amount) + create IMPORT (+amount) = net zero.
+  // New transactions always change the balance.
+  // Reconciled items may also change the balance when a variable-amount bill's
+  // actual imported amount differs from the estimated RECURRING transaction amount.
   const netAmount = newTransactions.reduce((sum, t) => sum + t.amount, 0)
-  const roundedNet = Math.round(netAmount * 100) / 100
+
+  // Pre-fetch old RECURRING transaction amounts for reconciled bill items
+  // so we can calculate the balance delta (imported amount - old amount).
+  const billReconcileIds = reconcileItems
+    .filter((item) => item.reconcileMatch.type === "bill")
+    .map((item) => item.reconcileMatch.transactionId)
+
+  let reconcileDelta = 0
+  if (billReconcileIds.length > 0) {
+    const oldTransactions = await prisma.transaction.findMany({
+      where: { id: { in: billReconcileIds } },
+      select: { id: true, amount: true },
+    })
+    const oldAmountMap = new Map(oldTransactions.map((t) => [t.id, Number(t.amount)]))
+    for (const item of reconcileItems) {
+      if (item.reconcileMatch.type !== "bill") continue
+      const oldAmount = oldAmountMap.get(item.reconcileMatch.transactionId) ?? 0
+      reconcileDelta += item.transaction.amount - oldAmount
+    }
+  }
+
+  const roundedNet = Math.round((netAmount + reconcileDelta) * 100) / 100
 
   const result = await prisma.$transaction(async (tx) => {
     // Bulk-create new (non-reconcile) transactions
@@ -764,30 +908,73 @@ export async function importAndReconcile(
       const t = item.transaction
       const match = item.reconcileMatch
 
-      // Create the new IMPORT transaction
-      const newTx = await tx.transaction.create({
-        data: {
-          date: new Date(t.date + "T00:00:00"),
-          description: t.description,
-          amount: t.amount,
-          type: t.amount < 0 ? "EXPENSE" : "INCOME",
-          category: t.category || null,
-          source: "IMPORT",
-          userId,
-          accountId,
-        },
-      })
+      if (match.type === "bill") {
+        // Bill reconciliation: create IMPORT tx, re-point BillPayment, delete old RECURRING tx
+        const newTx = await tx.transaction.create({
+          data: {
+            date: new Date(t.date + "T00:00:00"),
+            description: t.description,
+            amount: t.amount,
+            type: t.amount < 0 ? "EXPENSE" : "INCOME",
+            category: t.category || null,
+            source: "IMPORT",
+            userId,
+            accountId,
+          },
+        })
 
-      // Re-point the BillPayment to the new IMPORT transaction
-      await tx.billPayment.update({
-        where: { id: match.billPaymentId },
-        data: { transactionId: newTx.id },
-      })
+        if (match.billPaymentId) {
+          await tx.billPayment.update({
+            where: { id: match.billPaymentId },
+            data: { transactionId: newTx.id },
+          })
+        }
 
-      // Delete the old RECURRING transaction
-      await tx.transaction.delete({
-        where: { id: match.transactionId },
-      })
+        await tx.transaction.delete({
+          where: { id: match.transactionId },
+        })
+      } else {
+        // Loan/CC reconciliation: replace old transfer with IMPORT tx, re-link the other side.
+        // Both loan and CC reconciliations follow the same pattern — there's a TRANSFER on
+        // the import account linked to a transaction on the loan/CC account.
+        // Net balance effect is zero (delete old -amount, create new -amount).
+
+        // 1. Unlink the other side first (avoids unique constraint on linkedTransactionId)
+        if (match.linkedTransactionId) {
+          await tx.transaction.update({
+            where: { id: match.linkedTransactionId },
+            data: { linkedTransactionId: null },
+          })
+        }
+
+        // 2. Delete the old manual/system transfer on the import account
+        await tx.transaction.delete({
+          where: { id: match.transactionId },
+        })
+
+        // 3. Create the new IMPORT transaction with the link
+        const newTx = await tx.transaction.create({
+          data: {
+            date: new Date(t.date + "T00:00:00"),
+            description: t.description,
+            amount: t.amount,
+            type: "TRANSFER",
+            category: t.category || null,
+            source: "IMPORT",
+            userId,
+            accountId,
+            linkedTransactionId: match.linkedTransactionId || null,
+          },
+        })
+
+        // 4. Update the linked transaction to point back to the new IMPORT transaction
+        if (match.linkedTransactionId) {
+          await tx.transaction.update({
+            where: { id: match.linkedTransactionId },
+            data: { linkedTransactionId: newTx.id },
+          })
+        }
+      }
     }
 
     // Update account balance (only net of new transactions)

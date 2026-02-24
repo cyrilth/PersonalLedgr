@@ -35,7 +35,6 @@ import {
 import { BillCard } from "@/components/recurring/bill-card"
 import { BillForm } from "@/components/recurring/bill-form"
 import { BillsCalendar } from "@/components/recurring/bills-calendar"
-import { PaymentLedger } from "@/components/recurring/payment-ledger"
 import {
   getRecurringBills,
   deleteRecurringBill,
@@ -286,11 +285,10 @@ export default function RecurringBillsPage() {
         <>
           <BillSummaryBar bills={bills} />
 
-          <Tabs defaultValue="ledger">
+          <Tabs defaultValue="bills">
             <TabsList>
               <TabsTrigger value="bills">Bills</TabsTrigger>
               <TabsTrigger value="calendar">Calendar</TabsTrigger>
-              <TabsTrigger value="ledger">Ledger</TabsTrigger>
             </TabsList>
 
             {/* Bills tab: grid grouped by payment account */}
@@ -329,10 +327,6 @@ export default function RecurringBillsPage() {
               </Card>
             </TabsContent>
 
-            {/* Ledger tab: payment tracking grid */}
-            <TabsContent value="ledger">
-              <PaymentLedger bills={bills} accounts={accounts} />
-            </TabsContent>
           </Tabs>
         </>
       )}

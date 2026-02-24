@@ -21,6 +21,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  X,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,14 +35,23 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { formatCurrency, formatDate, cn } from "@/lib/utils"
-import type { ImportRow } from "@/actions/import"
+import type { ImportRow, ReconcileMatch } from "@/actions/import"
 
 interface ImportPreviewProps {
   rows: ImportRow[]
   onRowToggle: (index: number) => void
   onSelectAll: () => void
   onDeselectAll: () => void
+  onDismissReconcile: (index: number) => void
+  onSelectCandidate: (index: number, candidate: ReconcileMatch) => void
   onImport: () => void
   onBack: () => void
   importing: boolean
@@ -51,7 +61,17 @@ interface ImportPreviewProps {
  * Renders a status badge for a given duplicate detection result.
  * Includes the matching description text for duplicate/review rows.
  */
-function StatusBadge({ row }: { row: ImportRow }) {
+function StatusBadge({
+  row,
+  usedTransactionIds,
+  onDismiss,
+  onSelectCandidate,
+}: {
+  row: ImportRow
+  usedTransactionIds: Set<string>
+  onDismiss: () => void
+  onSelectCandidate: (candidate: ReconcileMatch) => void
+}) {
   switch (row.status) {
     case "new":
       return (
@@ -94,23 +114,65 @@ function StatusBadge({ row }: { row: ImportRow }) {
           )}
         </div>
       )
-    case "reconcile":
+    case "reconcile": {
+      const candidates = row.reconcileCandidates || []
+      const hasMultiple = candidates.length > 1
       return (
         <div className="flex flex-col gap-1">
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            <ArrowLeftRight className="mr-1 h-3 w-3" />
-            Reconcile
-          </Badge>
-          {row.reconcileMatch && (
+          <div className="flex items-center gap-1">
+            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              <ArrowLeftRight className="mr-1 h-3 w-3" />
+              Reconcile
+            </Badge>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Dismiss match — import as new transaction"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          {hasMultiple ? (
+            <Select
+              value={row.reconcileMatch?.transactionId ?? ""}
+              onValueChange={(txId) => {
+                const picked = candidates.find((c) => c.transactionId === txId)
+                if (picked) onSelectCandidate(picked)
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {candidates.map((c) => {
+                  const inUse =
+                    usedTransactionIds.has(c.transactionId) &&
+                    c.transactionId !== row.reconcileMatch?.transactionId
+                  return (
+                    <SelectItem
+                      key={c.transactionId}
+                      value={c.transactionId}
+                      disabled={inUse}
+                    >
+                      {c.billName}
+                      {inUse ? " (in use)" : ""}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          ) : row.reconcileMatch ? (
             <span
               className="text-xs text-muted-foreground truncate max-w-[200px]"
               title={`Replaces: ${row.reconcileMatch.billName}`}
             >
               Replaces: {row.reconcileMatch.billName}
             </span>
-          )}
+          ) : null}
         </div>
       )
+    }
   }
 }
 
@@ -123,10 +185,18 @@ export function ImportPreview({
   onRowToggle,
   onSelectAll,
   onDeselectAll,
+  onDismissReconcile,
+  onSelectCandidate,
   onImport,
   onBack,
   importing,
 }: ImportPreviewProps) {
+  const usedTransactionIds = new Set(
+    rows
+      .filter((r) => r.status === "reconcile" && r.reconcileMatch)
+      .map((r) => r.reconcileMatch!.transactionId)
+  )
+
   const newCount = rows.filter((r) => r.status === "new").length
   const duplicateCount = rows.filter((r) => r.status === "duplicate").length
   const reviewCount = rows.filter((r) => r.status === "review").length
@@ -236,7 +306,12 @@ export function ImportPreview({
                   )}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge row={row} />
+                  <StatusBadge
+                    row={row}
+                    usedTransactionIds={usedTransactionIds}
+                    onDismiss={() => onDismissReconcile(row.index)}
+                    onSelectCandidate={(candidate) => onSelectCandidate(row.index, candidate)}
+                  />
                 </TableCell>
               </TableRow>
             ))}

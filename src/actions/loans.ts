@@ -55,6 +55,7 @@ export interface LoanSummary {
   startDate: Date
   monthlyPayment: number
   extraPaymentAmount: number
+  paymentDueDay: number | null
   owner: string | null
   isActive: boolean
 }
@@ -119,6 +120,7 @@ export async function getLoans(): Promise<LoanSummary[]> {
       startDate: a.loan!.startDate,
       monthlyPayment: toNumber(a.loan!.monthlyPayment),
       extraPaymentAmount: toNumber(a.loan!.extraPaymentAmount),
+      paymentDueDay: a.loan!.paymentDueDay,
       owner: a.owner,
       isActive: a.isActive,
     }))
@@ -180,6 +182,7 @@ export async function getLoan(id: string): Promise<LoanDetail> {
     startDate: account.loan.startDate,
     monthlyPayment: toNumber(account.loan.monthlyPayment),
     extraPaymentAmount: toNumber(account.loan.extraPaymentAmount),
+    paymentDueDay: account.loan.paymentDueDay,
     owner: account.owner,
     isActive: account.isActive,
     transactions: account.transactions.map((t) => ({
@@ -223,6 +226,7 @@ export async function createLoan(data: {
   startDate: string
   monthlyPayment: number
   extraPaymentAmount?: number
+  paymentDueDay?: number
 }) {
   const userId = await requireUserId()
 
@@ -248,6 +252,7 @@ export async function createLoan(data: {
             startDate: new Date(data.startDate),
             monthlyPayment: data.monthlyPayment,
             extraPaymentAmount: data.extraPaymentAmount ?? 0,
+            paymentDueDay: data.paymentDueDay ?? null,
           },
         },
       },
@@ -296,6 +301,7 @@ export async function updateLoan(
     termMonths?: number
     monthlyPayment?: number
     extraPaymentAmount?: number
+    paymentDueDay?: number | null
   }
 ) {
   const userId = await requireUserId()
@@ -327,6 +333,7 @@ export async function updateLoan(
   if (data.termMonths !== undefined) loanUpdate.termMonths = data.termMonths
   if (data.monthlyPayment !== undefined) loanUpdate.monthlyPayment = data.monthlyPayment
   if (data.extraPaymentAmount !== undefined) loanUpdate.extraPaymentAmount = data.extraPaymentAmount
+  if (data.paymentDueDay !== undefined) loanUpdate.paymentDueDay = data.paymentDueDay
 
   if (Object.keys(loanUpdate).length > 0) {
     await prisma.loan.update({

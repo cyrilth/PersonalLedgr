@@ -9,7 +9,8 @@ test.describe("Transactions", () => {
   })
 
   test("transactions page loads with table and filters", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Transactions" })).toBeVisible()
+    // The h1 appears in both the sticky banner and the page content — scope to main
+    await expect(page.getByRole("main").getByRole("heading", { name: "Transactions" })).toBeVisible()
     await expect(page.getByRole("button", { name: /add transaction/i })).toBeVisible()
   })
 
@@ -93,14 +94,9 @@ test.describe("Transactions", () => {
   })
 
   test("filter bar allows filtering by account", async ({ page }) => {
-    // The filter bar contains an Account selector
-    // Verify the filter control exists without actually testing backend filtering
-    const filterBar = page.locator("[data-testid='filter-bar']").or(
-      page.locator("form").filter({ has: page.getByText(/account|filter/i) })
-    )
-    // The filter area should contain an account dropdown or search input
+    // The filter bar has a description search input — verify it is present
     await expect(
-      page.getByRole("combobox").first().or(page.getByPlaceholder(/search/i))
+      page.getByPlaceholder(/search description/i)
     ).toBeVisible()
   })
 })
