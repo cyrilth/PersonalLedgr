@@ -539,24 +539,18 @@ export async function detectDuplicates(
   }
 
   // ── Bill payment reconciliation pass ──────────────────────────────
-  // Find RECURRING-source transactions on this account that have a linked BillPayment.
-  // These are candidates for reconciliation with imported expense rows.
-  const recurringWithBillPayments = await prisma.transaction.findMany({
+  // Find transactions on this account that have a linked BillPayment.
+  // This includes RECURRING-source transactions as well as MANUAL transactions
+  // that were linked to a bill via "link existing transaction".
+  // All are candidates for reconciliation with imported expense rows.
+  const transactionsWithBillPayments = await prisma.transaction.findMany({
     where: {
       accountId,
-      source: "RECURRING",
+      source: { not: "IMPORT" },
     },
-    select: {
-      id: true,
-      date: true,
-      amount: true,
+    include: {
       billPayment: {
-        select: {
-          id: true,
-          recurringBill: {
-            select: { name: true, isVariableAmount: true },
-          },
-        },
+        include: { recurringBill: { select: { name: true, isVariableAmount: true } } },
       },
     },
   })
@@ -580,7 +574,7 @@ export async function detectDuplicates(
     billName: string
   }[] = []
 
-  for (const t of recurringWithBillPayments) {
+  for (const t of transactionsWithBillPayments) {
     if (!t.billPayment) continue
     const cents = Math.round(Math.abs(Number(t.amount)) * 100)
     const entries = reconcileLookup.get(cents) || []
