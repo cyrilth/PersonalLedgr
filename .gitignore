@@ -443,3 +443,5 @@ yarn-debug.log*
 .vercel
 
 /src/generated/prisma
+
+playwright-screenshots/

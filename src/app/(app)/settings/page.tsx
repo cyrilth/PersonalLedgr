@@ -1,14 +1,15 @@
 "use client"
 
 /**
- * Settings page with 7 Card sections:
+ * Settings page with 8 Card sections:
  * A. Account & Profile — link to /profile
  * B. Appearance — theme toggle
  * C. Categories — manage built-in + custom categories
  * D. Disclaimer — full disclaimer text
- * E. Recalculate — check/apply balance drift corrections
- * F. Seed Data — load demo data / wipe all data
- * G. Data Export — JSON + CSV download
+ * E. Tithing — enable/configure tithing tracking
+ * F. Recalculate — check/apply balance drift corrections
+ * G. Seed Data — load demo data / wipe all data
+ * H. Data Export — JSON + CSV download
  */
 
 import { useEffect, useState, useCallback } from "react"
@@ -20,6 +21,7 @@ import {
   Palette,
   Tag,
   FileWarning,
+  Heart,
   Calculator,
   Database,
   Download,
@@ -33,6 +35,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -69,6 +73,11 @@ import {
   confirmRecalculateAll,
 } from "@/actions/accounts"
 import { exportAllDataJSON, exportTransactionsCSV } from "@/actions/export"
+import {
+  getTithingSettings,
+  updateTithingSettings,
+  type TithingSettings,
+} from "@/actions/settings"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -114,6 +123,16 @@ export default function SettingsPage() {
   const [exportJsonLoading, setExportJsonLoading] = useState(false)
   const [exportCsvLoading, setExportCsvLoading] = useState(false)
 
+  // -- Tithing state --
+  const [tithingSettings, setTithingSettings] = useState<TithingSettings>({
+    tithingEnabled: false,
+    tithingPercentage: 10,
+    tithingExtraMonthly: 0,
+    tithingCategory: "Tithe",
+  })
+  const [tithingLoading, setTithingLoading] = useState(false)
+  const [tithingSaving, setTithingSaving] = useState(false)
+
   // ── Categories ────────────────────────────────────────────────────
 
   const fetchCategories = useCallback(async () => {
@@ -128,6 +147,36 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchCategories()
   }, [fetchCategories])
+
+  // ── Tithing ─────────────────────────────────────────────────────────
+
+  const fetchTithingSettings = useCallback(async () => {
+    setTithingLoading(true)
+    try {
+      const data = await getTithingSettings()
+      setTithingSettings(data)
+    } catch {
+      toast.error("Failed to load tithing settings")
+    } finally {
+      setTithingLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTithingSettings()
+  }, [fetchTithingSettings])
+
+  async function handleSaveTithingSettings() {
+    setTithingSaving(true)
+    try {
+      await updateTithingSettings(tithingSettings)
+      toast.success("Tithing settings saved")
+    } catch {
+      toast.error("Failed to save tithing settings")
+    } finally {
+      setTithingSaving(false)
+    }
+  }
 
   async function handleCreateCategory() {
     if (!newCategoryName.trim()) return
@@ -494,7 +543,110 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* E. Recalculate */}
+      {/* E. Tithing */}
+      <Card id="tithing">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Heart className="h-5 w-5" />
+            Tithing
+          </CardTitle>
+          <CardDescription>
+            Track estimated vs actual tithing based on your income.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="tithing-enabled"
+              checked={tithingSettings.tithingEnabled}
+              onCheckedChange={(checked) =>
+                setTithingSettings((s) => ({ ...s, tithingEnabled: checked }))
+              }
+              disabled={tithingLoading}
+            />
+            <Label htmlFor="tithing-enabled">Enable Tithing Tracking</Label>
+          </div>
+
+          {tithingSettings.tithingEnabled && (
+            <>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tithing-pct">Percentage (%)</Label>
+                  <Input
+                    id="tithing-pct"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={tithingSettings.tithingPercentage}
+                    onChange={(e) =>
+                      setTithingSettings((s) => ({
+                        ...s,
+                        tithingPercentage: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tithing-extra">Extra Monthly ($)</Label>
+                  <Input
+                    id="tithing-extra"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={tithingSettings.tithingExtraMonthly}
+                    onChange={(e) =>
+                      setTithingSettings((s) => ({
+                        ...s,
+                        tithingExtraMonthly: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tithing-cat">Category Name</Label>
+                  <Input
+                    id="tithing-cat"
+                    type="text"
+                    value={tithingSettings.tithingCategory}
+                    onChange={(e) =>
+                      setTithingSettings((s) => ({
+                        ...s,
+                        tithingCategory: e.target.value,
+                      }))
+                    }
+                    className="h-9"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleSaveTithingSettings}
+                disabled={tithingSaving}
+                variant="outline"
+              >
+                {tithingSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </>
+          )}
+
+          {!tithingSettings.tithingEnabled && !tithingLoading && (
+            <Button
+              onClick={handleSaveTithingSettings}
+              disabled={tithingSaving}
+              variant="outline"
+              size="sm"
+            >
+              {tithingSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* F. Recalculate Balances */}
       <Card id="recalculate">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -557,7 +709,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* F. Seed Data */}
+      {/* G. Seed Data */}
       <Card id="seed-data">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -624,7 +776,7 @@ export default function SettingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* G. Data Export */}
+      {/* H. Data Export */}
       <Card id="data-export">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

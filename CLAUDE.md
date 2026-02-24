@@ -114,6 +114,7 @@ WEEKLY/BIWEEKLY bills use a `startDate` anchor instead of `dayOfMonth`. The cron
 8. **Transaction source tracking** — every transaction tagged as `manual`, `import`, `plaid`, `recurring`, or `system`
 9. **Mortgage/loan payment auto-split** — system calculates principal vs interest from amortization schedule
 10. **BNPL as loan subtype** — reuses Loan/Account infrastructure with installment-specific fields and auto-completion logic
+11. **Tithing tracker** — per-user `UserSettings` model with configurable percentage, extra monthly amount, and category name; dashboard widget shows month-by-month estimated vs actual tithing using `INCOME_TYPES` for income calculation
 
 ## Project Structure
 
@@ -137,7 +138,7 @@ src/
       import/
       settings/
       profile/              # User profile management (name, avatar, password)
-  actions/                # Server actions (dashboard, accounts, transactions, profile, etc.)
+  actions/                # Server actions (dashboard, accounts, transactions, settings, profile, etc.)
   lib/
     auth.ts               # Better Auth server configuration
     auth-client.ts        # Better Auth client (signIn, signUp, signOut, useSession)

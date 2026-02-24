@@ -18,6 +18,7 @@ import { SpendingBreakdown } from "@/components/dashboard/spending-breakdown"
 import { CreditUtilization } from "@/components/dashboard/credit-utilization"
 import { UpcomingBills } from "@/components/dashboard/upcoming-bills"
 import { RecentTransactions } from "@/components/dashboard/recent-transactions"
+import { TithingCard, type TithingMonth } from "@/components/dashboard/tithing-card"
 import {
   getNetWorth,
   getMonthlyIncomeExpense,
@@ -25,6 +26,7 @@ import {
   getCreditUtilization,
   getUpcomingBills,
   getRecentTransactions,
+  getTithingData,
 } from "@/actions/dashboard"
 
 /** Shape of all dashboard data, null while loading. */
@@ -35,6 +37,7 @@ interface DashboardData {
   creditUtilization: Awaited<ReturnType<typeof getCreditUtilization>>
   upcomingBills: Awaited<ReturnType<typeof getUpcomingBills>>
   recentTransactions: Awaited<ReturnType<typeof getRecentTransactions>>
+  tithingData: { months: TithingMonth[]; ytdEstimated: number; ytdActual: number } | null
 }
 
 /** Skeleton placeholder for a card widget. */
@@ -88,6 +91,7 @@ export default function DashboardPage() {
         creditUtilization,
         upcomingBills,
         recentTransactions,
+        tithingData,
       ] = await Promise.all([
         getNetWorth(year),
         getMonthlyIncomeExpense(year),
@@ -95,6 +99,9 @@ export default function DashboardPage() {
         getCreditUtilization(),
         getUpcomingBills(7),
         getRecentTransactions(10),
+        // getTithingData checks tithingEnabled internally and returns null if disabled.
+        // Catch independently so tithing errors never break the rest of the dashboard.
+        getTithingData(year).catch(() => null),
       ])
 
       setData({
@@ -104,6 +111,7 @@ export default function DashboardPage() {
         creditUtilization,
         upcomingBills,
         recentTransactions,
+        tithingData,
       })
     } catch (err) {
       console.error("Failed to load dashboard data:", err)
@@ -156,6 +164,15 @@ export default function DashboardPage() {
 
       {/* Row 3: Recent Transactions (full width) */}
       <RecentTransactions transactions={data.recentTransactions} />
+
+      {/* Row 4: Tithing (full width, only when enabled) */}
+      {data.tithingData && (
+        <TithingCard
+          months={data.tithingData.months}
+          ytdEstimated={data.tithingData.ytdEstimated}
+          ytdActual={data.tithingData.ytdActual}
+        />
+      )}
     </div>
   )
 }

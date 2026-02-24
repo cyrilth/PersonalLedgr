@@ -45,7 +45,11 @@
       "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec prisma generate 2>&1)",
       "mcp__plugin_playwright_playwright__browser_resize",
       "mcp__plugin_playwright_playwright__browser_hover",
-      "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate dev --name add-bnpl-support 2>&1)"
+      "Bash(cd D:/sources/personal_repos/PersonalLedgr && pnpm exec prisma migrate dev --name add-bnpl-support 2>&1)",
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test e2e/tithing.spec.ts --reporter=line 2>&1)",
+      "Bash(docker ps:*)",
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test e2e/settings.spec.ts e2e/dashboard.spec.ts --reporter=line 2>&1)",
+      "Bash(cd /d/sources/personal_repos/PersonalLedgr && pnpm exec playwright test e2e/tithing.spec.ts e2e/dashboard.spec.ts e2e/settings.spec.ts --reporter=line 2>&1)"
     ]
   }
 }

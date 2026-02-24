@@ -5,6 +5,7 @@ import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
 import { SPENDING_TYPES, INCOME_TYPES } from "@/lib/constants"
 import { computeNetWorth, computeUtilization } from "@/lib/calculations"
+import { getTithingSettings } from "@/actions/settings"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -301,6 +302,102 @@ export async function getRecentTransactions(count: number = 10) {
     category: t.category,
     account: t.account,
   }))
+}
+
+/**
+ * Returns month-by-month tithing data for the given year.
+ *
+ * For each month, computes:
+ * - estimated = (monthlyIncome * percentage/100) + extraMonthly
+ * - actual = sum of spending transactions matching the tithe category
+ *
+ * Returns null if tithing is not enabled.
+ */
+export async function getTithingData(year: number) {
+  const userId = await requireUserId()
+  const settings = await getTithingSettings()
+
+  if (!settings.tithingEnabled) return null
+
+  const startDate = new Date(year, 0, 1)
+  const endDate = new Date(year + 1, 0, 1)
+
+  // Fetch income transactions for the year
+  const incomeTransactions = await prisma.transaction.findMany({
+    where: {
+      userId,
+      date: { gte: startDate, lt: endDate },
+      type: {
+        in: INCOME_TYPES as Array<
+          "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
+        >,
+      },
+      account: { isActive: true },
+    },
+    select: { date: true, amount: true },
+  })
+
+  // Fetch actual tithe payments (spending transactions matching the category)
+  const titheTransactions = await prisma.transaction.findMany({
+    where: {
+      userId,
+      date: { gte: startDate, lt: endDate },
+      category: settings.tithingCategory,
+      type: {
+        in: SPENDING_TYPES as Array<
+          "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
+        >,
+      },
+      account: { isActive: true },
+    },
+    select: { date: true, amount: true },
+  })
+
+  // Pre-populate all 12 months
+  const months: Record<string, { month: string; income: number; estimated: number; actual: number }> = {}
+  for (let m = 0; m < 12; m++) {
+    const key = `${year}-${String(m + 1).padStart(2, "0")}`
+    months[key] = { month: key, income: 0, estimated: 0, actual: 0 }
+  }
+
+  // Bucket income by month
+  for (const t of incomeTransactions) {
+    const d = new Date(t.date)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    if (months[key]) {
+      months[key].income += Math.abs(toNumber(t.amount))
+    }
+  }
+
+  // Bucket actual tithe payments by month
+  for (const t of titheTransactions) {
+    const d = new Date(t.date)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    if (months[key]) {
+      months[key].actual += Math.abs(toNumber(t.amount))
+    }
+  }
+
+  // Compute estimated tithe for each month
+  const percentage = settings.tithingPercentage
+  const extra = settings.tithingExtraMonthly
+  let ytdEstimated = 0
+  let ytdActual = 0
+
+  const monthArray = Object.values(months)
+  for (const m of monthArray) {
+    m.estimated = Math.round(((m.income * percentage) / 100 + extra) * 100) / 100
+    m.actual = Math.round(m.actual * 100) / 100
+    ytdEstimated += m.estimated
+    ytdActual += m.actual
+  }
+
+  return {
+    months: monthArray,
+    ytdEstimated: Math.round(ytdEstimated * 100) / 100,
+    ytdActual: Math.round(ytdActual * 100) / 100,
+    settings,
+  }
 }
 
 /**
