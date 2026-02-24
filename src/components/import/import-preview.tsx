@@ -15,6 +15,7 @@
 
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Upload,
   Loader2,
   CheckCircle,
@@ -93,6 +94,23 @@ function StatusBadge({ row }: { row: ImportRow }) {
           )}
         </div>
       )
+    case "reconcile":
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            <ArrowLeftRight className="mr-1 h-3 w-3" />
+            Reconcile
+          </Badge>
+          {row.reconcileMatch && (
+            <span
+              className="text-xs text-muted-foreground truncate max-w-[200px]"
+              title={`Replaces: ${row.reconcileMatch.billName}`}
+            >
+              Replaces: {row.reconcileMatch.billName}
+            </span>
+          )}
+        </div>
+      )
   }
 }
 
@@ -112,6 +130,7 @@ export function ImportPreview({
   const newCount = rows.filter((r) => r.status === "new").length
   const duplicateCount = rows.filter((r) => r.status === "duplicate").length
   const reviewCount = rows.filter((r) => r.status === "review").length
+  const reconcileCount = rows.filter((r) => r.status === "reconcile").length
   const selectedCount = rows.filter((r) => r.selected).length
 
   return (
@@ -137,6 +156,14 @@ export function ImportPreview({
               {reviewCount} Review
             </Badge>
           </div>
+          {reconcileCount > 0 && (
+            <div className="flex items-center gap-2">
+              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <ArrowLeftRight className="mr-1 h-3 w-3" />
+                {reconcileCount} Reconcile
+              </Badge>
+            </div>
+          )}
           <div className="ml-auto text-sm text-muted-foreground">
             {selectedCount} of {rows.length} selected for import
           </div>

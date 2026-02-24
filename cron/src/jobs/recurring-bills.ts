@@ -235,12 +235,14 @@ export async function runRecurringBills(): Promise<void> {
               accountId: bill.accountId,
             },
           })
+          // BillPayment for variable bills is created when user confirms the amount
         } else {
-          // ── Fixed amount: create transaction AND update balance ───────────────
+          // ── Fixed amount: create transaction, update balance, record payment ──
 
-          await tx.transaction.create({
+          const dueDate = new Date(bill.nextDueDate)
+          const createdTx = await tx.transaction.create({
             data: {
-              date: new Date(bill.nextDueDate),
+              date: dueDate,
               description: bill.name,
               amount: negativeAmount.toString(),
               type: "EXPENSE",
@@ -257,6 +259,17 @@ export async function runRecurringBills(): Promise<void> {
               balance: {
                 decrement: amountDecimal.abs().toString(),
               },
+            },
+          })
+
+          // Create BillPayment record for the payment ledger
+          await tx.billPayment.create({
+            data: {
+              month: dueDate.getMonth() + 1,
+              year: dueDate.getFullYear(),
+              amount: amountDecimal.abs().toString(),
+              recurringBillId: bill.id,
+              transactionId: createdTx.id,
             },
           })
         }

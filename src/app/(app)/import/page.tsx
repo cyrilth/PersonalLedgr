@@ -25,6 +25,7 @@ import {
   detectColumns,
   detectDuplicates,
   importTransactions,
+  importAndReconcile,
   type CSVRow,
   type ColumnMapping,
   type DetectedColumns,
@@ -106,6 +107,7 @@ export default function ImportPage() {
   const [importComplete, setImportComplete] = useState(false)
   const [importResult, setImportResult] = useState<{
     imported: number
+    reconciled: number
     newBalance: number
   } | null>(null)
 
@@ -207,17 +209,57 @@ export default function ImportPage() {
 
     setImporting(true)
     try {
-      const transactions: NormalizedTransaction[] = selected.map((r) => ({
-        date: r.date,
-        description: r.description,
-        amount: r.amount,
-        category: r.category,
-      }))
+      const newRows = selected.filter((r) => r.status !== "reconcile")
+      const reconcileRows = selected.filter((r) => r.status === "reconcile" && r.reconcileMatch)
 
-      const result = await importTransactions(transactions, selectedAccountId!)
-      setImportResult({ imported: result.imported, newBalance: result.newBalance })
-      setImportComplete(true)
-      toast.success(`Successfully imported ${result.imported} transaction${result.imported !== 1 ? "s" : ""}`)
+      const hasReconcile = reconcileRows.length > 0
+
+      if (hasReconcile) {
+        const newTransactions: NormalizedTransaction[] = newRows.map((r) => ({
+          date: r.date,
+          description: r.description,
+          amount: r.amount,
+          category: r.category,
+        }))
+        const reconcileItems = reconcileRows.map((r) => ({
+          transaction: {
+            date: r.date,
+            description: r.description,
+            amount: r.amount,
+            category: r.category,
+          },
+          reconcileMatch: r.reconcileMatch!,
+        }))
+
+        const result = await importAndReconcile(newTransactions, reconcileItems, selectedAccountId!)
+        setImportResult({
+          imported: result.imported,
+          reconciled: result.reconciled,
+          newBalance: result.newBalance,
+        })
+        setImportComplete(true)
+
+        const parts: string[] = []
+        if (result.imported > 0) parts.push(`${result.imported} imported`)
+        if (result.reconciled > 0) parts.push(`${result.reconciled} reconciled`)
+        toast.success(`Successfully ${parts.join(", ")}`)
+      } else {
+        const transactions: NormalizedTransaction[] = selected.map((r) => ({
+          date: r.date,
+          description: r.description,
+          amount: r.amount,
+          category: r.category,
+        }))
+
+        const result = await importTransactions(transactions, selectedAccountId!)
+        setImportResult({
+          imported: result.imported,
+          reconciled: 0,
+          newBalance: result.newBalance,
+        })
+        setImportComplete(true)
+        toast.success(`Successfully imported ${result.imported} transaction${result.imported !== 1 ? "s" : ""}`)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Import failed"
       toast.error(message)
@@ -257,7 +299,11 @@ export default function ImportPage() {
           <h2 className="text-xl font-semibold mb-2">Import Complete</h2>
           <p className="text-muted-foreground text-center mb-1">
             Successfully imported {importResult.imported} transaction
-            {importResult.imported !== 1 ? "s" : ""}.
+            {importResult.imported !== 1 ? "s" : ""}
+            {importResult.reconciled > 0 && (
+              <> and reconciled {importResult.reconciled} bill payment
+              {importResult.reconciled !== 1 ? "s" : ""}</>
+            )}.
           </p>
           <p className="text-muted-foreground text-center mb-6">
             New account balance: {formatCurrency(importResult.newBalance)}

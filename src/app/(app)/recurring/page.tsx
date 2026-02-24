@@ -1,17 +1,10 @@
 "use client"
 
 /**
- * Recurring bills list/calendar page -- displays all recurring bills in a
- * grid or calendar view, grouped by payment account.
- *
- * Layout:
- * - Header with title, view toggle (grid/calendar), and "Add Bill" button
- * - Summary bar (Card): Total Monthly Cost, Number of Bills, Estimated count
- * - Grid view: bills grouped by payment account
- * - Calendar view: BillsCalendar showing bills by day-of-month
- * - Skeleton loading placeholders while data is fetched
- * - Empty state with prompt to add first bill
- * - Delete confirmation via AlertDialog
+ * Recurring bills page — displays bills in three tabs:
+ * 1. Bills (grid view grouped by account)
+ * 2. Calendar (day-of-month calendar view)
+ * 3. Ledger (multi-month payment tracking grid)
  *
  * Follows the same client-side data-fetching pattern as the Loans page:
  * useState + useEffect + useCallback for fetch, toast for notifications.
@@ -23,13 +16,12 @@ import {
   DollarSign,
   Receipt,
   AlertCircle,
-  LayoutGrid,
-  CalendarDays,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +35,7 @@ import {
 import { BillCard } from "@/components/recurring/bill-card"
 import { BillForm } from "@/components/recurring/bill-form"
 import { BillsCalendar } from "@/components/recurring/bills-calendar"
+import { PaymentLedger } from "@/components/recurring/payment-ledger"
 import {
   getRecurringBills,
   deleteRecurringBill,
@@ -50,15 +43,13 @@ import {
 } from "@/actions/recurring"
 import { getAccountsFlat } from "@/actions/accounts"
 import { getCategoryNames } from "@/actions/categories"
-import { formatCurrency, cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 
 // ── Skeleton ──────────────────────────────────────────────────────────
 
-/** Skeleton placeholder shown while recurring bill data is loading. */
 function RecurringSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Summary bar skeleton */}
       <Card>
         <CardContent className="flex flex-wrap gap-6 py-4">
           {[1, 2, 3].map((i) => (
@@ -72,8 +63,6 @@ function RecurringSkeleton() {
           ))}
         </CardContent>
       </Card>
-
-      {/* Card grid skeleton */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <Card key={i}>
@@ -97,14 +86,7 @@ function RecurringSkeleton() {
 
 // ── Summary Bar ───────────────────────────────────────────────────────
 
-/**
- * Displays aggregate recurring bill metrics in a horizontal card:
- * - Total Monthly Cost: all bills normalized to monthly equivalent
- * - Number of Bills: total count
- * - Estimated Bills: count of variable-amount bills
- */
 function BillSummaryBar({ bills }: { bills: RecurringBillSummary[] }) {
-  // Calculate monthly-equivalent total
   const totalMonthlyCost = bills.reduce((sum, bill) => {
     switch (bill.frequency) {
       case "MONTHLY":
@@ -181,7 +163,6 @@ export default function RecurringBillsPage() {
     category: string | null
     accountId: string
   } | null>(null)
-  const [view, setView] = useState<"grid" | "calendar">("grid")
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string
     name: string
@@ -215,7 +196,6 @@ export default function RecurringBillsPage() {
     fetchData()
   }, [fetchData])
 
-  /** Open the form dialog in edit mode with the given bill's data. */
   function handleEdit(bill: RecurringBillSummary) {
     setEditData({
       id: bill.id,
@@ -230,7 +210,6 @@ export default function RecurringBillsPage() {
     setFormOpen(true)
   }
 
-  /** Confirm and execute bill deletion (soft delete). */
   async function handleDeleteConfirm() {
     if (!deleteTarget) return
     try {
@@ -245,7 +224,6 @@ export default function RecurringBillsPage() {
     }
   }
 
-  /** Group bills by their payment account ID. */
   function groupByAccount(
     billsList: RecurringBillSummary[]
   ): Map<string, { accountName: string; bills: RecurringBillSummary[] }> {
@@ -272,52 +250,21 @@ export default function RecurringBillsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Recurring Bills</h1>
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex items-center rounded-md border">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-8 rounded-r-none px-2.5",
-                view === "grid" && "bg-muted"
-              )}
-              onClick={() => setView("grid")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="sr-only">Grid view</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-8 rounded-l-none px-2.5",
-                view === "calendar" && "bg-muted"
-              )}
-              onClick={() => setView("calendar")}
-            >
-              <CalendarDays className="h-4 w-4" />
-              <span className="sr-only">Calendar view</span>
-            </Button>
-          </div>
-
-          <Button
-            onClick={() => {
-              setEditData(null)
-              setFormOpen(true)
-            }}
-            size="sm"
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Bill
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setEditData(null)
+            setFormOpen(true)
+          }}
+          size="sm"
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          Add Bill
+        </Button>
       </div>
 
       {loading ? (
         <RecurringSkeleton />
       ) : !bills || bills.length === 0 ? (
-        /* Empty state */
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12">
           <p className="text-muted-foreground">
             No recurring bills yet. Add your first recurring bill to get
@@ -337,44 +284,56 @@ export default function RecurringBillsPage() {
         </div>
       ) : (
         <>
-          {/* Summary bar */}
           <BillSummaryBar bills={bills} />
 
-          {/* Grid view: bills grouped by payment account */}
-          {view === "grid" && (
-            <div className="space-y-6">
-              {Array.from(groupByAccount(bills).entries()).map(
-                ([accountId, group]) => (
-                  <div key={accountId} className="space-y-3">
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      {group.accountName}
-                    </h2>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {group.bills.map((bill) => (
-                        <BillCard
-                          key={bill.id}
-                          {...bill}
-                          onEdit={() => handleEdit(bill)}
-                          onDelete={() =>
-                            setDeleteTarget({ id: bill.id, name: bill.name })
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          )}
+          <Tabs defaultValue="ledger">
+            <TabsList>
+              <TabsTrigger value="bills">Bills</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
+              <TabsTrigger value="ledger">Ledger</TabsTrigger>
+            </TabsList>
 
-          {/* Calendar view */}
-          {view === "calendar" && (
-            <Card>
-              <CardContent className="py-4">
-                <BillsCalendar bills={bills} />
-              </CardContent>
-            </Card>
-          )}
+            {/* Bills tab: grid grouped by payment account */}
+            <TabsContent value="bills">
+              <div className="space-y-6">
+                {Array.from(groupByAccount(bills).entries()).map(
+                  ([accountId, group]) => (
+                    <div key={accountId} className="space-y-3">
+                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                        {group.accountName}
+                      </h2>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.bills.map((bill) => (
+                          <BillCard
+                            key={bill.id}
+                            {...bill}
+                            onEdit={() => handleEdit(bill)}
+                            onDelete={() =>
+                              setDeleteTarget({ id: bill.id, name: bill.name })
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Calendar tab */}
+            <TabsContent value="calendar">
+              <Card>
+                <CardContent className="py-4">
+                  <BillsCalendar bills={bills} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Ledger tab: payment tracking grid */}
+            <TabsContent value="ledger">
+              <PaymentLedger bills={bills} accounts={accounts} />
+            </TabsContent>
+          </Tabs>
         </>
       )}
 

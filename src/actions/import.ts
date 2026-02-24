@@ -74,7 +74,14 @@ export interface NormalizedTransaction {
 }
 
 /** Duplicate detection status for a transaction row. */
-export type DuplicateStatus = "new" | "duplicate" | "review"
+export type DuplicateStatus = "new" | "duplicate" | "review" | "reconcile"
+
+/** Info about a bill payment that can be reconciled with an imported transaction. */
+export interface ReconcileMatch {
+  transactionId: string
+  billPaymentId: string
+  billName: string
+}
 
 /** A transaction row with its duplicate detection result. */
 export interface ImportRow {
@@ -85,12 +92,14 @@ export interface ImportRow {
   category: string | null
   status: DuplicateStatus
   matchDescription?: string
+  reconcileMatch?: ReconcileMatch
   selected: boolean
 }
 
 /** Summary of the import operation result. */
 export interface ImportResult {
   imported: number
+  reconciled: number
   skipped: number
   newBalance: number
 }
@@ -526,7 +535,54 @@ export async function detectDuplicates(
     existingLookup.set(key, descriptions)
   }
 
-  return transactions.map((t, index) => {
+  // ── Bill payment reconciliation pass ──────────────────────────────
+  // Find RECURRING-source transactions on this account that have a linked BillPayment.
+  // These are candidates for reconciliation with imported expense rows.
+  const recurringWithBillPayments = await prisma.transaction.findMany({
+    where: {
+      accountId,
+      source: "RECURRING",
+    },
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      billPayment: {
+        select: {
+          id: true,
+          recurringBill: {
+            select: { name: true },
+          },
+        },
+      },
+    },
+  })
+
+  // Build lookup: absolute cents → array of { transactionId, date, billPaymentId, billName }
+  const reconcileLookup = new Map<number, {
+    transactionId: string
+    date: Date
+    billPaymentId: string
+    billName: string
+  }[]>()
+
+  for (const t of recurringWithBillPayments) {
+    if (!t.billPayment) continue
+    const cents = Math.round(Math.abs(Number(t.amount)) * 100)
+    const entries = reconcileLookup.get(cents) || []
+    entries.push({
+      transactionId: t.id,
+      date: new Date(t.date),
+      billPaymentId: t.billPayment.id,
+      billName: t.billPayment.recurringBill.name,
+    })
+    reconcileLookup.set(cents, entries)
+  }
+
+  // Track which RECURRING transactions have already been matched
+  const matchedRecurringIds = new Set<string>()
+
+  const rows = transactions.map((t, index) => {
     const key = `${t.date}|${t.amount}`
     const matchingDescriptions = existingLookup.get(key) || []
 
@@ -550,6 +606,31 @@ export async function detectDuplicates(
       }
     }
 
+    // Reconciliation pass: only for expense rows still marked "new"
+    let reconcileMatch: ReconcileMatch | undefined
+    if (status === "new" && t.amount < 0) {
+      const cents = Math.round(Math.abs(t.amount) * 100)
+      const candidates = reconcileLookup.get(cents) || []
+      const importDate = new Date(t.date + "T00:00:00")
+
+      for (const candidate of candidates) {
+        if (matchedRecurringIds.has(candidate.transactionId)) continue
+        const sameMonth =
+          importDate.getFullYear() === candidate.date.getFullYear() &&
+          importDate.getMonth() === candidate.date.getMonth()
+        if (sameMonth) {
+          status = "reconcile"
+          reconcileMatch = {
+            transactionId: candidate.transactionId,
+            billPaymentId: candidate.billPaymentId,
+            billName: candidate.billName,
+          }
+          matchedRecurringIds.add(candidate.transactionId)
+          break
+        }
+      }
+    }
+
     return {
       index,
       date: t.date,
@@ -558,9 +639,12 @@ export async function detectDuplicates(
       category: t.category,
       status,
       matchDescription,
-      selected: status === "new",
+      reconcileMatch,
+      selected: status === "new" || status === "reconcile",
     }
   })
+
+  return rows
 }
 
 /**
@@ -622,6 +706,102 @@ export async function importTransactions(
 
   return {
     imported: transactions.length,
+    reconciled: 0,
+    skipped: 0,
+    newBalance: result.newBalance,
+  }
+}
+
+/**
+ * Imports new transactions and reconciles bill payment matches in a single atomic operation.
+ *
+ * For reconciled rows: creates the IMPORT transaction, re-points the BillPayment record,
+ * and deletes the old RECURRING transaction. Net balance effect is zero for reconciled items
+ * since the amounts are identical.
+ *
+ * For new rows: creates IMPORT transactions and adjusts balance normally.
+ */
+export async function importAndReconcile(
+  newTransactions: NormalizedTransaction[],
+  reconcileItems: { transaction: NormalizedTransaction; reconcileMatch: ReconcileMatch }[],
+  accountId: string
+): Promise<ImportResult> {
+  const userId = await requireUserId()
+
+  if (newTransactions.length === 0 && reconcileItems.length === 0) {
+    throw new Error("No transactions to import")
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId },
+  })
+  if (!account) throw new Error("Account not found")
+
+  // Only new (non-reconciled) transactions change the balance.
+  // Reconciled items: delete RECURRING (-amount) + create IMPORT (+amount) = net zero.
+  const netAmount = newTransactions.reduce((sum, t) => sum + t.amount, 0)
+  const roundedNet = Math.round(netAmount * 100) / 100
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Bulk-create new (non-reconcile) transactions
+    if (newTransactions.length > 0) {
+      await tx.transaction.createMany({
+        data: newTransactions.map((t) => ({
+          date: new Date(t.date + "T00:00:00"),
+          description: t.description,
+          amount: t.amount,
+          type: t.amount < 0 ? "EXPENSE" : "INCOME",
+          category: t.category || null,
+          source: "IMPORT",
+          userId,
+          accountId,
+        })),
+      })
+    }
+
+    // Process each reconciliation
+    for (const item of reconcileItems) {
+      const t = item.transaction
+      const match = item.reconcileMatch
+
+      // Create the new IMPORT transaction
+      const newTx = await tx.transaction.create({
+        data: {
+          date: new Date(t.date + "T00:00:00"),
+          description: t.description,
+          amount: t.amount,
+          type: t.amount < 0 ? "EXPENSE" : "INCOME",
+          category: t.category || null,
+          source: "IMPORT",
+          userId,
+          accountId,
+        },
+      })
+
+      // Re-point the BillPayment to the new IMPORT transaction
+      await tx.billPayment.update({
+        where: { id: match.billPaymentId },
+        data: { transactionId: newTx.id },
+      })
+
+      // Delete the old RECURRING transaction
+      await tx.transaction.delete({
+        where: { id: match.transactionId },
+      })
+    }
+
+    // Update account balance (only net of new transactions)
+    const updated = await tx.account.update({
+      where: { id: accountId },
+      data: { balance: { increment: roundedNet } },
+    })
+
+    return { newBalance: Number(updated.balance) }
+  })
+
+  return {
+    imported: newTransactions.length,
+    reconciled: reconcileItems.length,
     skipped: 0,
     newBalance: result.newBalance,
   }

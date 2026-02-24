@@ -319,6 +319,46 @@ export async function confirmVariableBill(transactionId: string, actualAmount: n
         },
       })
     }
+
+    // Create BillPayment record if this transaction is linked to a recurring bill.
+    // Find the recurring bill by matching description and account.
+    const bill = await tx.recurringBill.findFirst({
+      where: {
+        userId,
+        accountId: transaction.accountId,
+        name: transaction.description,
+        isActive: true,
+      },
+    })
+
+    if (bill) {
+      const txDate = new Date(transaction.date)
+      const month = txDate.getMonth() + 1
+      const year = txDate.getFullYear()
+
+      // Only create if no payment record exists yet for this month
+      const existing = await tx.billPayment.findUnique({
+        where: {
+          recurringBillId_month_year: {
+            recurringBillId: bill.id,
+            month,
+            year,
+          },
+        },
+      })
+
+      if (!existing) {
+        await tx.billPayment.create({
+          data: {
+            month,
+            year,
+            amount: Math.abs(actualAmount),
+            recurringBillId: bill.id,
+            transactionId,
+          },
+        })
+      }
+    }
   })
 
   return { success: true }

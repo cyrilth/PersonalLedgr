@@ -155,7 +155,7 @@ export function CSVUploader({
         </CardHeader>
         <CardContent>
           <Select
-            value={selectedAccountId ?? undefined}
+            value={selectedAccountId ?? ""}
             onValueChange={onAccountSelect}
           >
             <SelectTrigger className="w-full">

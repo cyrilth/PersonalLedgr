@@ -22,7 +22,8 @@ interface SpendingBreakdownProps {
 }
 
 /** Custom tooltip rendered as themed HTML so text is always readable. */
-function PieTooltip({ active, payload }: TooltipProps<number, string>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PieTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const { name, value } = payload[0]
   return (
