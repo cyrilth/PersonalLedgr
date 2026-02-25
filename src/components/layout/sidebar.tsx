@@ -22,6 +22,7 @@ import {
   BarChart3,
   FileUp,
   Settings,
+  BookOpen,
   Menu,
   X,
 } from "lucide-react"
@@ -41,6 +42,7 @@ const navItems = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/import", label: "Import", icon: FileUp },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/guide", label: "Getting Started", icon: BookOpen },
 ]
 
 export function Sidebar() {

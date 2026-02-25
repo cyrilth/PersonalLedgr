@@ -30,6 +30,7 @@ const pageTitles: Record<string, string> = {
   "/import": "Import",
   "/settings": "Settings",
   "/profile": "Profile",
+  "/guide": "Getting Started",
 }
 
 // Static list computed once at module load — year range: [currentYear+1, ..., currentYear-5]

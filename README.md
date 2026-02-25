@@ -11,6 +11,7 @@ A self-hosted finance app that actually knows the difference between spending mo
 - **Recurring bills** -- fixed and variable recurring transactions with automatic generation
 - **Budgets** -- category-based budget tracking with visual progress bars
 - **CSV import** -- flexible column mapping with duplicate detection
+- **Getting Started guide** -- in-app step-by-step guide for first-time users at `/guide`
 - **Dark/light theme** -- system-aware theme with manual toggle
 - **Multi-user** -- self-registration with username/password authentication
 - **Fully self-hosted** -- runs entirely on your own hardware via Docker

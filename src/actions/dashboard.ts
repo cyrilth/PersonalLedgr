@@ -7,6 +7,13 @@ import { SPENDING_TYPES, INCOME_TYPES } from "@/lib/constants"
 import { computeNetWorth, computeUtilization } from "@/lib/calculations"
 import { getTithingSettings } from "@/actions/settings"
 
+// ── Account count (for empty-state detection) ───────────────────────
+
+export async function getAccountCount(): Promise<number> {
+  const userId = await requireUserId()
+  return prisma.account.count({ where: { userId } })
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /**
