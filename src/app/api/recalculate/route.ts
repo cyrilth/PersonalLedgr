@@ -11,7 +11,9 @@
  * - { all: true, confirm: true }         → apply corrections for all accounts with drift
  */
 
+import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
 import {
   recalculateBalance,
   confirmRecalculate,
@@ -20,6 +22,11 @@ import {
 } from "@/actions/accounts"
 
 export async function POST(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
 
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     )
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error("[API] Recalculate error:", err)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
