@@ -48,7 +48,7 @@ export function TithingCard({ months, ytdEstimated, ytdActual }: TithingCardProp
           <Heart className="h-4 w-4" />
           Tithing
         </CardTitle>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-col items-end gap-1 text-sm sm:flex-row sm:items-center sm:gap-4">
           <span className="text-muted-foreground">
             YTD Estimated: <span className="font-medium text-foreground">{formatCurrency(ytdEstimated)}</span>
           </span>
