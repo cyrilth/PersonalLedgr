@@ -19,6 +19,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   PieChart,
+  BarChart3,
   FileUp,
   Settings,
   Menu,
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/recurring", label: "Recurring Bills", icon: CalendarClock },
   { href: "/payments", label: "Payment Tracker", icon: ClipboardCheck },
   { href: "/budgets", label: "Budgets", icon: PieChart },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/import", label: "Import", icon: FileUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
