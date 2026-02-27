@@ -1,10 +1,7 @@
 "use client"
 
 /**
- * Recurring bills page — displays bills in three tabs:
- * 1. Bills (grid view grouped by account)
- * 2. Calendar (day-of-month calendar view)
- * 3. Ledger (multi-month payment tracking grid)
+ * Recurring bills page — displays bills in a grid grouped by account.
  *
  * Follows the same client-side data-fetching pattern as the Loans page:
  * useState + useEffect + useCallback for fetch, toast for notifications.
@@ -21,7 +18,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +30,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { BillCard } from "@/components/recurring/bill-card"
 import { BillForm } from "@/components/recurring/bill-form"
-import { BillsCalendar } from "@/components/recurring/bills-calendar"
 import {
   getRecurringBills,
   deleteRecurringBill,
@@ -285,49 +280,29 @@ export default function RecurringBillsPage() {
         <>
           <BillSummaryBar bills={bills} />
 
-          <Tabs defaultValue="bills">
-            <TabsList>
-              <TabsTrigger value="bills">Bills</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            </TabsList>
-
-            {/* Bills tab: grid grouped by payment account */}
-            <TabsContent value="bills">
-              <div className="space-y-6">
-                {Array.from(groupByAccount(bills).entries()).map(
-                  ([accountId, group]) => (
-                    <div key={accountId} className="space-y-3">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        {group.accountName}
-                      </h2>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {group.bills.map((bill) => (
-                          <BillCard
-                            key={bill.id}
-                            {...bill}
-                            onEdit={() => handleEdit(bill)}
-                            onDelete={() =>
-                              setDeleteTarget({ id: bill.id, name: bill.name })
-                            }
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Calendar tab */}
-            <TabsContent value="calendar">
-              <Card>
-                <CardContent className="py-4">
-                  <BillsCalendar bills={bills} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-          </Tabs>
+          <div className="space-y-6">
+            {Array.from(groupByAccount(bills).entries()).map(
+              ([accountId, group]) => (
+                <div key={accountId} className="space-y-3">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    {group.accountName}
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.bills.map((bill) => (
+                      <BillCard
+                        key={bill.id}
+                        {...bill}
+                        onEdit={() => handleEdit(bill)}
+                        onDelete={() =>
+                          setDeleteTarget({ id: bill.id, name: bill.name })
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
         </>
       )}
 
