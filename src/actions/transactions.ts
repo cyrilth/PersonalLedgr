@@ -424,3 +424,17 @@ export async function bulkCategorize(ids: string[], category: string) {
 
   return { count: result.count }
 }
+
+/**
+ * Returns the year of the user's earliest transaction, or null if none exist.
+ * Used by the header year picker to extend the selectable range.
+ */
+export async function getEarliestTransactionYear(): Promise<number | null> {
+  const userId = await requireUserId()
+  const result = await prisma.transaction.findFirst({
+    where: { userId },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  })
+  return result ? result.date.getFullYear() : null
+}

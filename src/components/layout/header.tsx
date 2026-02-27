@@ -5,12 +5,14 @@
  *
  * Page title is derived from the current pathname using a lookup table.
  * The year picker (right-aligned) lets users scope all views to a calendar year,
- * showing 7 options from currentYear+1 down to currentYear-5.
+ * with range extending back to the user's earliest transaction.
  */
 
+import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { CalendarDays } from "lucide-react"
 import { useYear } from "@/contexts/year-context"
+import { getEarliestTransactionYear } from "@/actions/transactions"
 import {
   Select,
   SelectContent,
@@ -33,13 +35,22 @@ const pageTitles: Record<string, string> = {
   "/guide": "Getting Started",
 }
 
-// Static list computed once at module load — year range: [currentYear+1, ..., currentYear-5]
 const currentYear = new Date().getFullYear()
-const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i)
+const defaultYearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i)
 
 export function Header() {
   const pathname = usePathname()
   const { year, setYear } = useYear()
+  const [yearOptions, setYearOptions] = useState(defaultYearOptions)
+
+  useEffect(() => {
+    getEarliestTransactionYear().then((earliest) => {
+      if (earliest !== null && earliest < currentYear - 5) {
+        const start = currentYear + 1
+        setYearOptions(Array.from({ length: start - earliest + 1 }, (_, i) => start - i))
+      }
+    })
+  }, [])
 
   // Match the most specific route first
   const title =
