@@ -18,8 +18,11 @@ export async function wipe(prisma?: PrismaClient) {
   console.log("[wipe] Clearing all data...")
 
   // Delete in dependency order (children before parents)
+  await prisma.billPayment.deleteMany()
   await prisma.interestLog.deleteMany()
   await prisma.budget.deleteMany()
+  await prisma.userCategory.deleteMany()
+  await prisma.userSettings.deleteMany()
   await prisma.recurringBill.deleteMany()
   await prisma.transaction.deleteMany()
   await prisma.aprRate.deleteMany()
