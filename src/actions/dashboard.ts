@@ -122,6 +122,7 @@ export async function getMonthlyIncomeExpense() {
           "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
         >,
       },
+      category: { not: "Opening Balance" },
       account: { isActive: true },
     },
     select: { date: true, amount: true, type: true },
@@ -183,6 +184,7 @@ export async function getSpendingByCategory(year: number, month: number) {
           "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
         >,
       },
+      category: { not: "Opening Balance" },
       account: { isActive: true },
     },
     select: { category: true, amount: true },
@@ -346,6 +348,7 @@ export async function getTithingData(year: number) {
           "INCOME" | "EXPENSE" | "TRANSFER" | "LOAN_PRINCIPAL" | "LOAN_INTEREST" | "INTEREST_EARNED" | "INTEREST_CHARGED"
         >,
       },
+      category: { not: "Opening Balance" },
       account: { isActive: true },
     },
     select: { date: true, amount: true },
