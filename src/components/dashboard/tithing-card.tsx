@@ -12,6 +12,7 @@ import {
 } from "recharts"
 import { Heart } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChartTooltip } from "@/components/ui/chart-tooltip"
 import { formatCurrency } from "@/lib/utils"
 
 export interface TithingMonth {
@@ -79,17 +80,12 @@ export function TithingCard({ months, ytdEstimated, ytdActual }: TithingCardProp
               width={65}
             />
             <Tooltip
-              formatter={(value: number | undefined, name?: string) => [
-                formatDollar(value ?? 0),
-                name === "estimated" ? "Estimated" : "Actual",
-              ]}
-              labelFormatter={(label: unknown) => formatMonthLabel(String(label))}
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "0.5rem",
-                fontSize: "0.875rem",
-              }}
+              content={
+                <ChartTooltip
+                  labelFormatter={(label) => formatMonthLabel(String(label))}
+                  nameFormatter={(name) => name === "estimated" ? "Estimated" : "Actual"}
+                />
+              }
             />
             <Legend
               formatter={(value: string) => (value === "estimated" ? "Estimated" : "Actual")}

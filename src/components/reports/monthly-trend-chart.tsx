@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChartTooltip } from "@/components/ui/chart-tooltip"
 
 interface MonthData {
   month: string
@@ -60,17 +61,12 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
                 width={65}
               />
               <Tooltip
-                formatter={(value: number | undefined, name?: string) => [
-                  formatDollar(value ?? 0),
-                  name === "income" ? "Income" : "Expenses",
-                ]}
-                labelFormatter={(label: unknown) => formatMonthLabel(String(label))}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.875rem",
-                }}
+                content={
+                  <ChartTooltip
+                    labelFormatter={(label) => formatMonthLabel(String(label))}
+                    nameFormatter={(name) => name === "income" ? "Income" : "Expenses"}
+                  />
+                }
               />
               <Legend
                 formatter={(value: string) => (value === "income" ? "Income" : "Expenses")}

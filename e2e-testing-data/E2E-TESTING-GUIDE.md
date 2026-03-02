@@ -249,7 +249,7 @@ Expense breakdown: $85.00 + $78.33 + $42.15 + $22.99 + $38.90 + $55.60 + $148.20
 | Verification | Look For |
 |---|---|
 | Main Checking balance | **$16,274.51** |
-| Total transactions for Main Checking | **29 transactions** |
+| Total transactions for Main Checking | **30 transactions** (29 imported + 1 opening balance) |
 
 ---
 

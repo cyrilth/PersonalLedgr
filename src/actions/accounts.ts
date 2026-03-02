@@ -158,19 +158,6 @@ export async function getAccount(id: string, options?: { year?: number }) {
       creditCardDetails: true,
       loan: true,
       aprRates: { where: { isActive: true }, orderBy: { effectiveDate: "desc" } },
-      transactions: {
-        orderBy: { date: "desc" },
-        take: 20,
-        select: {
-          id: true,
-          date: true,
-          description: true,
-          amount: true,
-          type: true,
-          category: true,
-          account: { select: { id: true, name: true } },
-        },
-      },
     },
   })
 
@@ -222,15 +209,6 @@ export async function getAccount(id: string, options?: { year?: number }) {
       expirationDate: r.expirationDate,
       description: r.description,
       isActive: r.isActive,
-    })),
-    transactions: account.transactions.map((t) => ({
-      id: t.id,
-      date: t.date,
-      description: t.description,
-      amount: toNumber(t.amount),
-      type: t.type,
-      category: t.category,
-      account: t.account,
     })),
     balanceHistory,
   }
@@ -677,18 +655,46 @@ export async function confirmRecalculateAll() {
  */
 export async function getAccountTransactions(
   accountId: string,
-  page: number = 1,
-  pageSize: number = 10
+  params: {
+    page?: number
+    pageSize?: number
+    dateFrom?: string
+    dateTo?: string
+    amountFilter?: "all" | "positive" | "negative"
+    sortOrder?: "asc" | "desc"
+  } = {}
 ) {
   const userId = await requireUserId()
+  const {
+    page = 1,
+    pageSize = 20,
+    dateFrom,
+    dateTo,
+    amountFilter = "all",
+    sortOrder = "desc",
+  } = params
 
   const account = await prisma.account.findFirst({ where: { id: accountId, userId } })
   if (!account) throw new Error("Account not found")
 
+  // Build where clause with filters
+  const where: Record<string, unknown> = { accountId }
+  if (dateFrom || dateTo) {
+    where.date = {
+      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+      ...(dateTo ? { lte: new Date(dateTo + "T23:59:59.999Z") } : {}),
+    }
+  }
+  if (amountFilter === "positive") {
+    where.amount = { gt: 0 }
+  } else if (amountFilter === "negative") {
+    where.amount = { lt: 0 }
+  }
+
   const [transactions, total] = await Promise.all([
     prisma.transaction.findMany({
-      where: { accountId },
-      orderBy: { date: "desc" },
+      where,
+      orderBy: { date: sortOrder },
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
@@ -700,7 +706,7 @@ export async function getAccountTransactions(
         category: true,
       },
     }),
-    prisma.transaction.count({ where: { accountId } }),
+    prisma.transaction.count({ where }),
   ])
 
   return {

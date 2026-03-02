@@ -20,6 +20,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChartTooltip } from "@/components/ui/chart-tooltip"
 
 interface BalanceChartProps {
   data: { date: string; balance: number }[]
@@ -69,14 +70,12 @@ export function BalanceChart({ data, isDebt = false }: BalanceChartProps) {
               width={65}
             />
             <Tooltip
-              formatter={(value: number | undefined) => [formatDollar(value ?? 0), "Balance"]}
-              labelFormatter={(label: unknown) => formatMonthLabel(String(label))}
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "0.5rem",
-                fontSize: "0.875rem",
-              }}
+              content={
+                <ChartTooltip
+                  labelFormatter={(label) => formatMonthLabel(String(label))}
+                  nameFormatter={() => "Balance"}
+                />
+              }
             />
             <Line
               type="monotone"

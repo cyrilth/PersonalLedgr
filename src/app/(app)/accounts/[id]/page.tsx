@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BalanceChart } from "@/components/accounts/balance-chart"
 import { AccountForm } from "@/components/accounts/account-form"
+import { AccountTransactions } from "@/components/accounts/account-transactions"
 import { AprRateManager } from "@/components/accounts/apr-rate-manager"
 import {
   getAccount,
@@ -35,7 +36,7 @@ import {
   LOAN_TYPE_LABELS,
 } from "@/lib/constants"
 import type { AccountType, LoanType, AprRateType } from "@/lib/constants"
-import { formatCurrency, formatDate, formatDateShort, getAmountColor, formatAmount } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { useYear } from "@/contexts/year-context"
 
@@ -384,46 +385,8 @@ export default function AccountDetailPage() {
         </Card>
       )}
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Recent Transactions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {account.transactions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No transactions yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {account.transactions.map((t) => (
-                <div key={t.id} className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{t.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{formatDateShort(t.date)}</span>
-                      {t.category && (
-                        <>
-                          <span>·</span>
-                          <span>{t.category}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "text-sm font-medium flex-shrink-0 ml-3",
-                      getAmountColor(t.type)
-                    )}
-                  >
-                    {formatAmount(t.amount, t.type)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Transactions */}
+      <AccountTransactions accountId={account.id} />
 
       {/* Edit Dialog */}
       <AccountForm

@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatCurrency } from "@/lib/utils"
+import { ChartTooltip } from "@/components/ui/chart-tooltip"
 import {
   calculateExtraPaymentImpact,
   generateAmortizationSchedule,
@@ -212,17 +213,12 @@ export function ExtraPaymentCalc({
                   width={70}
                 />
                 <Tooltip
-                  formatter={(value: number | undefined, name?: string) => [
-                    formatDollar(value ?? 0),
-                    name === "without" ? "Without Extra" : "With Extra",
-                  ]}
-                  labelFormatter={(label: unknown) => `Month ${label}`}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  content={
+                    <ChartTooltip
+                      labelFormatter={(label) => `Month ${label}`}
+                      nameFormatter={(name) => name === "without" ? "Without Extra" : "With Extra"}
+                    />
+                  }
                 />
                 <Legend
                   formatter={(value: string) =>

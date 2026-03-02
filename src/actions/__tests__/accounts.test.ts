@@ -301,29 +301,7 @@ describe("getAccount", () => {
     expect(result.aprRates[0].rateType).toBe("STANDARD")
   })
 
-  it("returns recent transactions with amounts converted", async () => {
-    mockAccountFindFirst.mockResolvedValue(
-      makeAccount({
-        transactions: [
-          {
-            id: "txn-1",
-            date: new Date("2026-01-15"),
-            description: "Coffee",
-            amount: decimal(-5.50),
-            type: "EXPENSE",
-            category: "Food",
-            account: { id: "acc-1", name: "My Checking" },
-          },
-        ],
-      }) as never
-    )
-    mockTransactionFindMany.mockResolvedValue([] as never)
-
-    const result = await getAccount("acc-1")
-
-    expect(result.transactions).toHaveLength(1)
-    expect(result.transactions[0].amount).toBe(-5.50)
-  })
+  // Transactions are now fetched separately via getAccountTransactions
 })
 
 // ── createAccount ─────────────────────────────────────────────────────────────
@@ -972,7 +950,7 @@ describe("getAccountTransactions", () => {
     ] as never)
     mockTransactionCount.mockResolvedValue(25 as never)
 
-    const result = await getAccountTransactions("acc-1", 1, 10)
+    const result = await getAccountTransactions("acc-1", { page: 1, pageSize: 10 })
 
     expect(result.transactions).toHaveLength(2)
     expect(result.transactions[0].amount).toBe(-5.50)
@@ -987,7 +965,7 @@ describe("getAccountTransactions", () => {
     mockTransactionFindMany.mockResolvedValue([] as never)
     mockTransactionCount.mockResolvedValue(0 as never)
 
-    await getAccountTransactions("acc-1", 3, 5)
+    await getAccountTransactions("acc-1", { page: 3, pageSize: 5 })
 
     expect(mockTransactionFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
