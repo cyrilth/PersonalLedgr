@@ -40,43 +40,14 @@ function r2(n: number): number {
 
 // ── Main Seed ───────────────────────────────────────────────────────
 
-export async function seed(prisma?: PrismaClient) {
+export async function seed(userId: string, prisma?: PrismaClient) {
   if (!prisma) {
     // Lazy import for standalone execution
     const { prisma: dbPrisma } = await import("@/db")
     prisma = dbPrisma
   }
 
-  console.log("[seed] Starting seed...")
-
-  // We need a user. Create a demo user via Better Auth's user table.
-  const demoUser = await prisma.user.upsert({
-    where: { email: "demo@personalledgr.local" },
-    update: {},
-    create: {
-      id: cuid(),
-      name: "Demo User",
-      email: "demo@personalledgr.local",
-      emailVerified: true,
-    },
-  })
-  const userId = demoUser.id
-
-  // Create auth account with password so the demo user can log in
-  await prisma.authAccount.upsert({
-    where: { id: `${userId}-credential` },
-    update: {},
-    create: {
-      id: `${userId}-credential`,
-      accountId: userId,
-      providerId: "credential",
-      userId,
-      password:
-        "87503ef442cb390da0c27d671804afe5:f1ad5489f6a4abce94328002053ed803eee5c2f144b8e8711202adb9ba194c6d5e676c0e199ae3b7a236e598ee12fc282f3eff6f631caa8283fc06a3798003e2",
-    },
-  })
-
-  console.log("[seed] Demo user:", demoUser.email)
+  console.log(`[seed] Starting seed for user ${userId}...`)
 
   // ── Accounts ────────────────────────────────────────────────────
 

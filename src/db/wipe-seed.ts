@@ -9,33 +9,28 @@
 
 import type { PrismaClient } from "@prisma/client"
 
-export async function wipe(prisma?: PrismaClient) {
+export async function wipe(userId: string, prisma?: PrismaClient) {
   if (!prisma) {
     const { prisma: dbPrisma } = await import("@/db")
     prisma = dbPrisma
   }
 
-  console.log("[wipe] Clearing all data...")
+  console.log(`[wipe] Clearing data for user ${userId}...`)
 
   // Delete in dependency order (children before parents)
-  await prisma.billPayment.deleteMany()
-  await prisma.interestLog.deleteMany()
-  await prisma.budget.deleteMany()
-  await prisma.userCategory.deleteMany()
-  await prisma.userSettings.deleteMany()
-  await prisma.recurringBill.deleteMany()
-  await prisma.transaction.deleteMany()
-  await prisma.aprRate.deleteMany()
-  await prisma.creditCardDetails.deleteMany()
-  await prisma.loan.deleteMany()
-  await prisma.account.deleteMany()
+  // Models without direct userId use nested relation filters
+  await prisma.billPayment.deleteMany({ where: { recurringBill: { userId } } })
+  await prisma.interestLog.deleteMany({ where: { userId } })
+  await prisma.budget.deleteMany({ where: { userId } })
+  await prisma.userCategory.deleteMany({ where: { userId } })
+  await prisma.userSettings.deleteMany({ where: { userId } })
+  await prisma.recurringBill.deleteMany({ where: { userId } })
+  await prisma.transaction.deleteMany({ where: { userId } })
+  await prisma.aprRate.deleteMany({ where: { account: { userId } } })
+  await prisma.creditCardDetails.deleteMany({ where: { account: { userId } } })
+  await prisma.loan.deleteMany({ where: { account: { userId } } })
+  await prisma.account.deleteMany({ where: { userId } })
 
-  // Auth models (optional — uncomment to also wipe users)
-  // await prisma.session.deleteMany()
-  // await prisma.authAccount.deleteMany()
-  // await prisma.verification.deleteMany()
-  // await prisma.user.deleteMany()
-
-  console.log("[wipe] All finance data cleared.")
+  console.log("[wipe] User finance data cleared.")
 }
 

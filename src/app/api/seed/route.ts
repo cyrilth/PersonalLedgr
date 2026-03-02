@@ -26,12 +26,12 @@ export async function POST(request: NextRequest) {
     const action = searchParams.get("action")
 
     if (action === "generate") {
-      await seed(prisma)
+      await seed(session.user.id, prisma)
       return NextResponse.json({ message: "Seed data generated" })
     }
 
     if (action === "wipe") {
-      await wipe(prisma)
+      await wipe(session.user.id, prisma)
       return NextResponse.json({ message: "All finance data wiped" })
     }
 
