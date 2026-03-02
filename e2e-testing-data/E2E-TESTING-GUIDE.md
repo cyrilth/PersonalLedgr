@@ -34,7 +34,7 @@ Open `http://localhost:3000`. The app should show the login page.
 16. [Duplicate Detection on Re-Import](#16-duplicate-detection-on-re-import)
 17. [Reports Verification](#17-reports-verification)
 18. [Settings & Profile](#18-settings--profile)
-19. [Come Back Tomorrow — Cron Job Verification](#19-come-back-tomorrow--cron-job-verification)
+19. [Cron Job Verification](#19-cron-job-verification)
 20. [BNPL Loan Cron Test](#20-bnpl-loan-cron-test)
 21. [Payday Loan Cron Test](#21-payday-loan-cron-test)
 22. [Multi-User Isolation](#22-multi-user-isolation)
@@ -107,6 +107,7 @@ Navigate to `/accounts`. The page should be empty. Create the following accounts
 | Name | High-Yield Savings |
 | Type | Savings |
 | Balance | 10000.00 |
+| APY (%) | 4.50 |
 | Owner | (leave blank) |
 
 **After saving:** Account shows $10,000.00.
@@ -611,10 +612,10 @@ This file uses the **Separate Debit/Credit columns** format.
 | 1 | Navigate to `/import`, upload `import-credit-card-jan.csv` | Column preview: Transaction Date, Memo, Debit, Credit |
 | 2 | Select "Separate Debit/Credit" amount pattern | Two column mappings appear (Debit + Credit) |
 | 2b | Verify "Invert signs" checkbox is **checked** by default (credit card account) | Checkbox checked |
-| 2c | Verify sign description says "Positive amounts will be treated as charges and negative amounts as payment." | Account-type-aware text (charges/payment for credit card) |
+| 2c | Verify sign description says "Positive amounts will be treated as charges and negative amounts as payment." | This describes how **raw CSV values** are interpreted: positive debits in the CSV = charges on the card |
 | 3 | Map: Date → "Transaction Date", Description → "Memo", Debit → "Debit", Credit → "Credit" | Preview shows 8 rows |
-| 4 | Verify debit rows show as negative (expenses) | -$79.99, -$24.99, -$32.50, etc. |
-| 5 | Verify credit row shows as positive (payment) | +$500.00 |
+| 4 | Verify debit rows show as negative in preview (stored as expenses after sign inversion) | -$79.99, -$24.99, -$32.50, etc. |
+| 5 | Verify credit row shows as positive in preview (stored as payment after sign inversion) | +$500.00 |
 | 6 | All rows show as "New" | Green badges |
 | 7 | Select target account: **Visa Rewards** | Account selected |
 | 8 | Click "Import 8 Transaction(s)" | Success |
@@ -658,40 +659,41 @@ This file contains 2 rows that match previously imported checking transactions (
 
 ## 17. Reports Verification
 
-Navigate to `/reports`. Set date range: 2026-01-01 to 2026-03-31.
+Navigate to `/reports`. Set date range: 2026-01-01 to 2026-03-31. The reports page shows data across all accounts (there is no account filter).
 
 ### 17.1 Summary Cards
+
+These totals include transactions from **all accounts** (Main Checking + Visa Rewards). The $500 CC payment imported in the Credit column should be categorized as a **Transfer** and excluded from both income and spending totals. If it incorrectly appears as income, that is a bug.
 
 | Card | Expected Value |
 |---|---|
 | Total Income | **$13,200.00** (Jan: $6,500 + Feb: $6,500 + Mar: $200 freelance) |
-| Total Spending | **$1,874.99** (Jan: $1,026.11 + Feb: $699.38 + Mar: $75 pharmacy + $28.50 + $45.00) |
-| Net | **$11,325.01** (income - spending, from checking only) |
-
-**Note:** Visa card transactions also count. Add Visa expenses: $282.53. Total spending becomes **~$2,157.52**. The $500 CC payment is a TRANSFER (imported as positive/income-like on Visa) — verify how it was categorized. If imported as generic income it will count; if categorized correctly as a transfer/payment it should not.
+| Total Spending | **$2,156.52** (Checking: $1,026.11 + $699.38 + $75.00 + $28.50 + $45.00 = $1,873.99; Visa: $282.53) |
+| Net | **$11,043.48** (income - spending) |
 
 ### 17.2 Category Breakdown Table
 
-Look for these categories with approximate totals across Jan + Feb:
+Look for these categories with totals across all accounts (Jan–Mar). Checking transactions have explicit categories from the CSV. Visa transactions are imported **without** a Category column, so they will appear as **Uncategorized** unless manually recategorized after import.
 
-| Category | Approximate Spending |
-|---|---|
-| Groceries | $647.61 (Jan: $347.50 + Feb: $293.65 + minor rounding) |
-| Utilities | $553.79 (Jan: $220.60 + Feb: $233.20 + more) |
-| Dining Out | $171.40 |
-| Gas | $90.45 |
-| Subscriptions | $67.96 |
-| Home Improvement | $234.50 |
-| Healthcare | $73.50 |
-| Shopping | $67.23 |
+| Category | Expected Spending | Source |
+|---|---|---|
+| Groceries | **$641.15** (Jan: $347.50 + Feb: $293.65) | Checking |
+| Utilities | **$453.80** (Jan: $220.60 + Feb: $233.20) | Checking |
+| Dining Out | **$170.40** (Jan: $74.00 + Feb: $96.40) | Checking |
+| Gas | $90.45 | Checking |
+| Subscriptions | $67.96 | Checking |
+| Home Improvement | $234.50 | Checking |
+| Healthcare | **$148.50** (Jan duplicates-test: $28.50 + $45.00 + Mar: $75.00) | Checking |
+| Shopping | $67.23 | Checking |
+| Uncategorized | **$282.53** (7 Visa expenses with no category column) | Visa |
 
 ### 17.3 Monthly Trend Chart
 
 | Month | Income Bar (green) | Spending Bar (red) |
 |---|---|---|
-| January 2026 | $6,500.00 | ~$1,026.11 |
+| January 2026 | $6,500.00 | ~$1,382.14 (Checking: $1,026.11 + $28.50 + $45.00 + Visa: $282.53) |
 | February 2026 | $6,500.00 | ~$699.38 |
-| March 2026 | $200.00 | ~$148.50 ($75 pharmacy + $28.50 + $45.00) |
+| March 2026 | $200.00 | ~$75.00 (pharmacy only) |
 
 ### 17.4 Custom Date Range Test
 
@@ -699,7 +701,7 @@ Look for these categories with approximate totals across Jan + Feb:
 |---|---|---|
 | 1 | Change range to Mar 1–Mar 31 only | Only March data shown |
 | 2 | Income total | $200.00 (freelance) |
-| 3 | Spending total | Only March expenses ($75 + $28.50 + $45.00) |
+| 3 | Spending total | **$75.00** (pharmacy only — the $28.50 and $45.00 duplicate-test rows are dated January, not March) |
 | 4 | January and February data gone from chart | Single month in trend |
 
 ---
@@ -716,7 +718,7 @@ Look for these categories with approximate totals across Jan + Feb:
 | 4 | Set category: Donations | Saved |
 | 5 | Return to dashboard | **Tithing Card** appears |
 | 6 | Verify January estimated | $6,500 x 10% = **$650.00** |
-| 7 | Verify February estimated | $6,700 x 10% = **$670.00** |
+| 7 | Verify February estimated | $6,500 x 10% = **$650.00** |
 | 8 | Verify actual (if no Donations transactions) | **$0.00** for both months |
 
 ### 18.2 Theme Toggle
@@ -746,9 +748,9 @@ Look for these categories with approximate totals across Jan + Feb:
 
 ---
 
-## 19. Come Back Tomorrow — Cron Job Verification
+## 19. Cron Job Verification
 
-The cron container runs scheduled jobs automatically. After leaving the app running overnight, come back and verify the effects. The jobs run at these UTC times:
+The cron container runs scheduled jobs automatically. The verification steps below use specific dates based on a March 2026 test run. The jobs run at these UTC times:
 
 | Job | Schedule | What It Does |
 |---|---|---|
@@ -920,7 +922,7 @@ Navigate to `/loans`, click "Add Loan":
 | APR (%) | 0 |
 | Number of Installments | 4 |
 | Payment Frequency | Biweekly |
-| First Payment Date | Tomorrow's date |
+| First Payment Date | 2026-03-03 |
 | Payment Account | Main Checking |
 
 **After saving:**
@@ -931,7 +933,7 @@ Navigate to `/loans`, click "Add Loan":
 
 Since APR = 0%, each payment is a pure transfer (no interest split).
 
-**Tomorrow (Payment 1):**
+**March 3 (Payment 1):**
 
 | Verification | Where to Look | Expected |
 |---|---|---|
@@ -941,24 +943,24 @@ Since APR = 0%, each payment is a pure transfer (no interest split).
 | Checking balance | Decreased by $50 | Current - $50 |
 | BNPL balance | -$200 + $50 = **-$150.00** | |
 | Completed installments | Loan detail | **1 of 4** |
-| Next payment date | Loan detail | Tomorrow + 14 days |
+| Next payment date | Loan detail | 2026-03-17 |
 
-**14 days later (Payment 2):**
+**March 17 (Payment 2):**
 
 | Verification | Expected |
 |---|---|
 | BNPL balance | -$100.00 |
 | Completed installments | 2 of 4 |
-| Next payment date | +14 more days |
+| Next payment date | 2026-03-31 |
 
-**28 days later (Payment 3):**
+**March 31 (Payment 3):**
 
 | Verification | Expected |
 |---|---|
 | BNPL balance | -$50.00 |
 | Completed installments | 3 of 4 |
 
-**42 days later (Payment 4 — Final):**
+**April 14 (Payment 4 — Final):**
 
 | Verification | Expected |
 |---|---|
@@ -992,9 +994,9 @@ Navigate to `/loans`, click "Add Loan":
   - Fee: $500 x ($15 / $100) = **$75.00**
   - Total repayment: **$575.00**
   - Equivalent APR: (15/100) x (365/14) x 100 = **391.07%**
-- Due date: today + 14 days
+- Due date: 2026-03-16
 
-### 21.2 On Due Date (14 Days Later)
+### 21.2 On Due Date (March 16)
 
 The payday loan cron fires a single balloon payment:
 
