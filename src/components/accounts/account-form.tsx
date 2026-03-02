@@ -265,6 +265,11 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
               value={balance}
               onChange={(e) => setBalance(e.target.value)}
             />
+            {["CREDIT_CARD", "LOAN", "MORTGAGE"].includes(type) && (
+              <p className="text-xs text-muted-foreground">
+                Enter as a positive number — it will be stored as a negative (debt) balance.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -274,12 +274,19 @@ export async function createAccount(data: {
   const userId = await requireUserId()
 
   const apyTypes = ["SAVINGS", "CHECKING", "CD"]
+  const liabilityTypes = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
+
+  // Auto-negate balance for liability accounts so users can enter positive values
+  const balance =
+    liabilityTypes.includes(data.type) && data.balance > 0
+      ? -data.balance
+      : data.balance
 
   const account = await prisma.account.create({
     data: {
       name: data.name,
       type: data.type,
-      balance: data.balance,
+      balance,
       creditLimit: data.creditLimit,
       apy: apyTypes.includes(data.type) ? (data.apy ?? 0) : 0,
       termMonths: data.type === "CD" && data.cd ? data.cd.termMonths : null,
@@ -317,13 +324,13 @@ export async function createAccount(data: {
   // Create an opening balance transaction so the transaction ledger matches the
   // stored balance from day one. Without this, recalculate would show drift equal
   // to the starting balance for any newly created account.
-  if (data.balance !== 0) {
+  if (balance !== 0) {
     await prisma.transaction.create({
       data: {
         date: new Date(),
         description: "Opening Balance",
-        amount: data.balance,
-        type: data.balance > 0 ? "INCOME" : "EXPENSE",
+        amount: balance,
+        type: balance > 0 ? "INCOME" : "EXPENSE",
         category: "Opening Balance",
         source: "SYSTEM",
         userId,
@@ -337,7 +344,7 @@ export async function createAccount(data: {
     await prisma.aprRate.create({
       data: {
         rateType: "STANDARD",
-        apr: data.creditCard.purchaseApr,
+        apr: data.creditCard.purchaseApr / 100,
         effectiveDate: new Date(),
         isActive: true,
         accountId: account.id,
@@ -391,12 +398,19 @@ export async function updateAccount(
   if (!existing) throw new Error("Account not found")
 
   const apyTypes = ["SAVINGS", "CHECKING", "CD"]
+  const liabilityTypes = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
+
+  // Auto-negate balance for liability accounts so users can enter positive values
+  const balance =
+    liabilityTypes.includes(existing.type) && data.balance > 0
+      ? -data.balance
+      : data.balance
 
   await prisma.account.update({
     where: { id },
     data: {
       name: data.name,
-      balance: data.balance,
+      balance,
       creditLimit: data.creditLimit,
       apy: apyTypes.includes(existing.type) ? (data.apy ?? 0) : 0,
       owner: data.owner || null,

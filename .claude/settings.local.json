@@ -54,7 +54,8 @@
       "Bash(wslpath:*)",
       "Bash(D:/sources/personal_repos/PersonalLedgr/cc-test.csv:*)",
       "Bash(npx vitest:*)",
-      "Bash(pnpm exec:*)"
+      "Bash(pnpm exec:*)",
+      "mcp__plugin_playwright_playwright__browser_handle_dialog"
     ]
   }
 }

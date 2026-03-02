@@ -117,7 +117,7 @@ Navigate to `/accounts`. The page should be empty. Create the following accounts
 |---|---|
 | Name | Visa Rewards |
 | Type | Credit Card |
-| Balance | -350.00 |
+| Balance | 350.00 |
 | Credit Limit | 5000.00 |
 | Statement Close Day | 15 |
 | Payment Due Day | 10 |
@@ -478,7 +478,7 @@ Navigate to `/loans`. Page should be empty.
 | Account Type | Loan |
 | Loan Type | Auto |
 | Original Balance | 20000.00 |
-| Current Balance | -18000.00 |
+| Current Balance | 18000.00 |
 | Interest Rate (%) | 5.49 |
 | Term (months) | 60 |
 | Start Date | 2025-03-01 |
@@ -493,7 +493,7 @@ Navigate to `/loans`. Page should be empty.
 | Account Name | Home Mortgage |
 | Account Type | Mortgage |
 | Original Balance | 250000.00 |
-| Current Balance | -245000.00 |
+| Current Balance | 245000.00 |
 | Interest Rate (%) | 6.50 |
 | Term (months) | 360 |
 | Start Date | 2024-06-01 |
