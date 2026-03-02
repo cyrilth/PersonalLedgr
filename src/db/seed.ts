@@ -121,6 +121,7 @@ export async function seed(prisma?: PrismaClient) {
       name: "Marcus Savings",
       type: "SAVINGS",
       balance: 25000.0,
+      apy: 4.50,
       owner: null,
       userId,
     },
@@ -157,7 +158,21 @@ export async function seed(prisma?: PrismaClient) {
     },
   })
 
-  console.log("[seed] Created 7 accounts")
+  const cdAccount = await prisma.account.create({
+    data: {
+      id: cuid(),
+      name: "12-Month CD",
+      type: "CD",
+      balance: 10000.0,
+      apy: 5.0,
+      termMonths: 12,
+      maturityDate: monthsAgo(-6, 1), // matures 6 months from now
+      autoRenew: true,
+      userId,
+    },
+  })
+
+  console.log("[seed] Created 8 accounts")
 
   // ── Credit Card Details ─────────────────────────────────────────
 

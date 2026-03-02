@@ -1,8 +1,8 @@
 /**
  * Monthly savings interest payout job.
  *
- * Runs on the 1st of every month. For each active SAVINGS account that has a
- * positive balance and at least one active APR rate, this job:
+ * Runs on the 1st of every month. For each active SAVINGS or CHECKING account
+ * that has a positive balance and an APY set, this job:
  *
  *   1. Calculates the monthly interest:  balance × (apy / 100 / 12)
  *   2. Rounds the result to 2 decimal places.
@@ -14,7 +14,7 @@
  * interactive transaction so they succeed or fail atomically.
  *
  * Accounts are skipped when:
- *   - No active AprRate exists for the account.
+ *   - No APY is set on the account.
  *   - The account balance is zero or negative (no interest accrues).
  *   - The computed interest rounds to zero.
  *
@@ -26,32 +26,16 @@ import { prisma } from "../db.js"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-/** Minimal shape of a SAVINGS account row with its active APR rates. */
-interface SavingsAccount {
+/** Minimal shape of a SAVINGS/CHECKING account row with APY. */
+interface InterestAccount {
   id: string
   name: string
   balance: Decimal
+  apy: Decimal
   userId: string
-  aprRates: Array<{
-    id: string
-    apr: Decimal
-  }>
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Returns the first active APR rate for a savings account, or `null` if none
- * exists. For a SAVINGS account the APR column stores the annual yield (APY).
- *
- * @param account - The savings account with its eagerly loaded active rates.
- * @returns The first active AprRate record, or `null`.
- */
-function getActiveSavingsRate(
-  account: SavingsAccount,
-): SavingsAccount["aprRates"][number] | null {
-  return account.aprRates.length > 0 ? account.aprRates[0] : null
-}
 
 /**
  * Computes the monthly interest amount for the given balance and annual rate.
@@ -60,14 +44,10 @@ function getActiveSavingsRate(
  *
  * The result is rounded to 2 decimal places using "round half away from zero"
  * semantics (standard banker rounding for currency).
- *
- * @param balance - Current account balance as a Prisma Decimal.
- * @param annualRate - Annual percentage yield stored as a Prisma Decimal.
- * @returns Monthly interest amount rounded to 2 decimal places, as a number.
  */
-function calcMonthlyInterest(balance: Decimal, annualRate: Decimal): number {
+function calcMonthlyInterest(balance: Decimal, apy: Decimal): number {
   const balanceNum = balance.toNumber()
-  const rateNum = annualRate.toNumber()
+  const rateNum = apy.toNumber()
   const monthly = balanceNum * (rateNum / 100 / 12)
   return Math.round(monthly * 100) / 100
 }
@@ -75,50 +55,32 @@ function calcMonthlyInterest(balance: Decimal, annualRate: Decimal): number {
 // ── Main Job ───────────────────────────────────────────────────────────────
 
 /**
- * Processes monthly savings interest for all eligible SAVINGS accounts.
- *
- * Fetches every active SAVINGS account that has a positive balance and at
- * least one active AprRate, then atomically records the interest earned and
- * updates the account balance for each.
- *
- * Logs progress and a final summary to stdout so results are visible in
- * container logs. Non-fatal per-account errors are caught and logged without
- * aborting processing for the remaining accounts.
- *
- * @returns A promise that resolves when all accounts have been processed.
- * @throws Will throw (and let the caller log) only if the initial database
- *         query fails entirely.
+ * Processes monthly savings interest for all eligible SAVINGS and CHECKING accounts.
  */
 export async function runSavingsInterest(): Promise<void> {
   const runDate = new Date()
   console.log(`[interest-savings] Job started at ${runDate.toISOString()}`)
 
-  // ── 1. Fetch eligible SAVINGS accounts ──────────────────────────────────
+  // ── 1. Fetch eligible accounts ──────────────────────────────────
 
-  const accounts: SavingsAccount[] = await prisma.account.findMany({
+  const accounts: InterestAccount[] = await prisma.account.findMany({
     where: {
-      type: "SAVINGS",
+      type: { in: ["SAVINGS", "CHECKING", "CD"] },
       isActive: true,
       balance: { gt: 0 },
-      aprRates: {
-        some: { isActive: true },
-      },
+      apy: { gt: 0 },
     },
     select: {
       id: true,
       name: true,
       balance: true,
+      apy: true,
       userId: true,
-      aprRates: {
-        where: { isActive: true },
-        select: { id: true, apr: true },
-        take: 1,
-      },
     },
   })
 
   if (accounts.length === 0) {
-    console.log("[interest-savings] No eligible SAVINGS accounts found. Exiting.")
+    console.log("[interest-savings] No eligible accounts found. Exiting.")
     return
   }
 
@@ -133,17 +95,7 @@ export async function runSavingsInterest(): Promise<void> {
   let failed = 0
 
   for (const account of accounts) {
-    const rate = getActiveSavingsRate(account)
-
-    if (!rate) {
-      console.log(
-        `[interest-savings] SKIP  account=${account.id} (${account.name}) — no active rate`,
-      )
-      skipped++
-      continue
-    }
-
-    const interestAmount = calcMonthlyInterest(account.balance, rate.apr)
+    const interestAmount = calcMonthlyInterest(account.balance, account.apy)
 
     if (interestAmount <= 0) {
       console.log(
@@ -154,7 +106,7 @@ export async function runSavingsInterest(): Promise<void> {
     }
 
     const interestStr = interestAmount.toFixed(2)
-    const aprPct = rate.apr.toNumber()
+    const apyPct = account.apy.toNumber()
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -164,7 +116,7 @@ export async function runSavingsInterest(): Promise<void> {
             date: runDate,
             amount: interestStr,
             type: "EARNED",
-            notes: `Monthly savings interest at ${aprPct}% APY on balance $${account.balance.toFixed(2)}`,
+            notes: `Monthly interest at ${apyPct}% APY on balance $${account.balance.toFixed(2)}`,
             userId: account.userId,
             accountId: account.id,
           },

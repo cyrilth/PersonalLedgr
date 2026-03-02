@@ -53,7 +53,8 @@
       "mcp__plugin_playwright_playwright__browser_press_key",
       "Bash(wslpath:*)",
       "Bash(D:/sources/personal_repos/PersonalLedgr/cc-test.csv:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(pnpm exec:*)"
     ]
   }
 }

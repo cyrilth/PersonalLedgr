@@ -127,24 +127,65 @@ Navigate to `/accounts`. The page should be empty. Create the following accounts
 
 **After saving:** Account shows -$350.00. Credit limit $5,000.00 visible on detail page. A STANDARD APR rate of 21.99% is automatically created.
 
-### 3.4 Verify Account List
+### 3.4 Certificate of Deposit (CD) Account
 
-After creating all 3 accounts, the Accounts page should show:
+| Field | Value |
+|---|---|
+| Name | 12-Month CD |
+| Type | Certificate of Deposit |
+| Balance | 5000.00 |
+| APY (%) | 4.75 |
+| Term (months) | 12 |
+| Maturity Date | 2027-03-01 |
+| Auto-renew | ON |
+| Owner | (leave blank) |
+
+**After saving:** Account appears under "Certificate of Deposit" group with Lock icon and balance $5,000.00.
+
+### 3.5 Verify CD Detail Page
+
+| Step | Action | Look For |
+|---|---|---|
+| 1 | Click the "12-Month CD" account card | Navigated to account detail page |
+| 2 | Verify header | "12-Month CD" title, "Certificate of Deposit" type label |
+| 3 | Verify balance | $5,000.00 (positive, not debt-colored) |
+| 4 | Verify APY card | Shows "APY: 4.75%" |
+| 5 | Verify CD Details card | Term: 12 months |
+| 6 | | Maturity Date: Feb 28, 2027 (or Mar 1, 2027) |
+| 7 | | Auto-Renew: Yes |
+| 8 | Verify Opening Balance transaction | +$5,000.00, category "Opening Balance" |
+
+### 3.6 Verify CD Edit
+
+| Step | Action | Look For |
+|---|---|---|
+| 1 | Click "Edit" on the CD detail page | Edit dialog opens |
+| 2 | Verify type dropdown is disabled | Cannot change type after creation |
+| 3 | Verify CD Details section is visible | Term, Maturity Date, Auto-renew fields shown |
+| 4 | Verify APY field is visible | APY field shown for CD type |
+| 5 | Change Auto-renew to OFF | Checkbox unchecked |
+| 6 | Save | Success toast |
+| 7 | Verify detail page | Auto-Renew now shows "No" |
+
+### 3.7 Verify Account List
+
+After creating all 4 accounts, the Accounts page should show:
 
 | Account | Type | Balance |
 |---|---|---|
 | Main Checking | Checking | $5,000.00 |
 | High-Yield Savings | Savings | $10,000.00 |
+| 12-Month CD | Certificate of Deposit | $5,000.00 |
 | Visa Rewards | Credit Card | -$350.00 |
 
-### 3.5 Verify Dashboard Updates
+### 3.8 Verify Dashboard Updates
 
 Navigate to `/`. The welcome card should be **gone** — normal dashboard widgets now display:
 
 | Widget | Expected Value |
 |---|---|
-| Net Worth | $14,650.00 |
-| Assets | $15,000.00 ($5,000 + $10,000) |
+| Net Worth | $19,650.00 |
+| Assets | $20,000.00 ($5,000 checking + $10,000 savings + $5,000 CD) |
 | Liabilities | $350.00 |
 | Credit Utilization | Visa Rewards: $350 / $5,000 = **7.00%** |
 
@@ -220,9 +261,9 @@ Navigate to `/`. With 2 months of checking data imported:
 
 | Field | Expected Value |
 |---|---|
-| Assets | $26,274.51 ($16,274.51 checking + $10,000 savings) |
+| Assets | $31,274.51 ($16,274.51 checking + $10,000 savings + $5,000 CD) |
 | Liabilities | $350.00 (Visa unchanged) |
-| Net Worth | **$25,924.51** |
+| Net Worth | **$30,924.51** |
 
 ### 5.2 Income vs Expense Chart
 
@@ -468,6 +509,7 @@ Navigate to `/accounts`:
 |---|---|
 | Main Checking | $15,399.51 |
 | High-Yield Savings | $11,000.00 |
+| 12-Month CD | $5,000.00 |
 | Visa Rewards | -$350.00 |
 | Car Loan | -$18,000.00 |
 | Home Mortgage | -$245,000.00 |
@@ -476,9 +518,9 @@ Navigate to `/accounts`:
 
 | Field | Expected |
 |---|---|
-| Assets | $26,399.51 ($15,399.51 + $11,000) |
+| Assets | $31,399.51 ($15,399.51 + $11,000 + $5,000) |
 | Liabilities | $263,350.00 ($350 + $18,000 + $245,000) |
-| Net Worth | **-$236,950.49** |
+| Net Worth | **-$231,950.49** |
 
 ---
 
@@ -800,34 +842,32 @@ The $500 payment in the Jan import counts if it falls within the statement windo
 | APR rates list on Visa detail | Intro rate shows inactive/expired |
 | Interest logs after April 1 | Previously 0%-interest transactions now generate daily CHARGED entries |
 
-### 19.4 Savings Interest (1st of Month)
+### 19.4 Savings & CD Interest (1st of Month)
 
-**Precondition:** High-Yield Savings needs an active APR rate. If you didn't add one, **add one now:**
+The savings interest cron processes all SAVINGS, CHECKING, and CD accounts with a positive balance and APY > 0.
 
-| Field | Value |
-|---|---|
-| Rate Type | Standard |
-| APR / APY (%) | 4.50 |
-| Effective Date | 2026-01-01 |
-| Description | High-yield APY |
+**Precondition:** High-Yield Savings needs an APY set on the account. The 12-Month CD was created with 4.75% APY.
 
 **What to look for on March 1:**
 
 ```
-Monthly interest = $11,000.00 x (4.50 / 100 / 12) = $11,000 x 0.00375 = $41.25
+Savings interest = $11,000.00 x (4.50 / 100 / 12) = $11,000 x 0.00375 = $41.25
+CD interest      = $5,000.00  x (4.75 / 100 / 12) = $5,000 x 0.003958 = $19.79
 ```
 
 | Verification | Where to Look | Expected |
 |---|---|---|
 | New transaction on savings | High-Yield Savings transactions | INTEREST_EARNED +$41.25 |
-| Balance increase | Savings account balance | $11,000.00 + $41.25 = **$11,041.25** |
-| Interest log | Account detail interest section | EARNED entry for $41.25 |
-| Dashboard net worth | Net worth card | Assets increased by $41.25 |
+| Balance increase (savings) | Savings account balance | $11,000.00 + $41.25 = **$11,041.25** |
+| New transaction on CD | 12-Month CD transactions | INTEREST_EARNED +$19.79 |
+| Balance increase (CD) | CD account balance | $5,000.00 + $19.79 = **$5,019.79** |
+| Interest logs | Account detail interest sections | EARNED entries for both accounts |
+| Dashboard net worth | Net worth card | Assets increased by $41.25 + $19.79 = $61.04 |
 
 **On April 1 (next month):**
 ```
-Interest = $11,041.25 x 0.00375 = $41.40
-New balance = $11,041.25 + $41.40 = $11,082.65
+Savings interest = $11,041.25 x 0.00375 = $41.40
+CD interest      = $5,019.79  x 0.003958 = $19.87
 ```
 
 Interest compounds — each month's calculation uses the updated balance.
@@ -1004,11 +1044,12 @@ The payday loan cron fires a single balloon payment:
 |---|---|---|---|---|
 | 1 | Main Checking | Checking | $5,000.00 | Primary bank account |
 | 2 | High-Yield Savings | Savings | $10,000.00 | Savings with 4.5% APY |
-| 3 | Visa Rewards | Credit Card | -$350.00 | CC with 21.99% APR |
-| 4 | Car Loan | Loan (Auto) | -$18,000.00 | 5.49%, 60 months |
-| 5 | Home Mortgage | Mortgage | -$245,000.00 | 6.50%, 360 months |
-| 6 | PayPal - Winter Jacket | Loan (BNPL) | -$200.00 | 0% 4-installment |
-| 7 | QuickCash Payday | Loan (Payday) | -$500.00 | $15/$100 fee, 14 days |
+| 3 | 12-Month CD | Certificate of Deposit | $5,000.00 | CD with 4.75% APY, 12-month term, auto-renew |
+| 4 | Visa Rewards | Credit Card | -$350.00 | CC with 21.99% APR |
+| 5 | Car Loan | Loan (Auto) | -$18,000.00 | 5.49%, 60 months |
+| 6 | Home Mortgage | Mortgage | -$245,000.00 | 6.50%, 360 months |
+| 7 | PayPal - Winter Jacket | Loan (BNPL) | -$200.00 | 0% 4-installment |
+| 8 | QuickCash Payday | Loan (Payday) | -$500.00 | $15/$100 fee, 14 days |
 
 ### CSV Files
 
@@ -1046,8 +1087,10 @@ Print this and check off each item as you verify:
 - [ ] **Statement Close** — Visa lastStatementBalance updated on the 15th
 - [ ] **Statement Close** — lastStatementPaidInFull correctly determined
 - [ ] **APR Expiration** — Intro rate deactivated on April 1 (if created)
-- [ ] **Savings Interest** — INTEREST_EARNED transaction on 1st of month
-- [ ] **Savings Interest** — Balance increased by correct amount
+- [ ] **Savings Interest** — INTEREST_EARNED transaction on 1st of month (savings)
+- [ ] **Savings Interest** — Savings balance increased by correct amount
+- [ ] **CD Interest** — INTEREST_EARNED transaction on 1st of month (CD)
+- [ ] **CD Interest** — CD balance increased by correct amount
 - [ ] **Recurring Fixed** — Internet Service EXPENSE created on the 5th
 - [ ] **Recurring Fixed** — Checking balance decreased by $79.99
 - [ ] **Recurring Variable** — Electric Bill EXPENSE created on the 18th with PENDING_CONFIRMATION

@@ -51,6 +51,7 @@ export const ACCOUNT_TYPES = {
   CREDIT_CARD: "CREDIT_CARD",
   LOAN: "LOAN",
   MORTGAGE: "MORTGAGE",
+  CD: "CD",
 } as const
 
 export type AccountType = (typeof ACCOUNT_TYPES)[keyof typeof ACCOUNT_TYPES]
@@ -170,6 +171,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   CREDIT_CARD: "Credit Card",
   LOAN: "Loan",
   MORTGAGE: "Mortgage",
+  CD: "Certificate of Deposit",
 }
 
 export const LOAN_TYPE_LABELS: Record<LoanType, string> = {

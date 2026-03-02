@@ -7,7 +7,7 @@
  *    (source SYSTEM) inside a single Prisma transaction
  *  - Account balance is incremented by the computed interest amount
  *  - Accounts with zero or negative balance are skipped (the DB query filters them)
- *  - Accounts without any active APR rate are skipped
+ *  - Accounts without an APY are skipped
  *  - Computed interest that rounds to 0 is skipped without writing any records
  */
 
@@ -62,16 +62,14 @@ function makeSavingsAccount(overrides: {
   name?: string
   balance?: number
   userId?: string
-  aprRates?: Array<{ id: string; apr: Decimal }>
+  apy?: number
 } = {}) {
   return {
     id: overrides.id ?? "acc-savings-1",
     name: overrides.name ?? "High Yield Savings",
     balance: new Decimal(overrides.balance ?? 10000),
     userId: overrides.userId ?? "user-1",
-    aprRates: overrides.aprRates ?? [
-      { id: "rate-1", apr: new Decimal(4.5) },
-    ],
+    apy: new Decimal(overrides.apy ?? 4.5),
   }
 }
 
@@ -99,20 +97,19 @@ describe("runSavingsInterest", () => {
   describe("monthly interest formula", () => {
     it("calculates interest as balance × (APY / 100 / 12) rounded to 2 decimal places", async () => {
       // balance=10000, APY=4.5 → 10000 × (4.5/100/12) = 37.5 → rounds to $37.50
-      const account = makeSavingsAccount({ balance: 10000, aprRates: [{ id: "r1", apr: new Decimal(4.5) }] })
+      const account = makeSavingsAccount({ balance: 10000, apy: 4.5 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
 
       expect(txClient.transaction.create).toHaveBeenCalledOnce()
       const createCall = txClient.transaction.create.mock.calls[0][0]
-      // The job passes interestStr = interestAmount.toFixed(2)
       expect(createCall.data.amount).toBe("37.50")
     })
 
     it("rounds fractional cents correctly (half-away-from-zero)", async () => {
       // balance=1000, APY=1.0 → 1000 × (1.0/100/12) = 0.8333... → rounds to $0.83
-      const account = makeSavingsAccount({ balance: 1000, aprRates: [{ id: "r1", apr: new Decimal(1.0) }] })
+      const account = makeSavingsAccount({ balance: 1000, apy: 1.0 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
@@ -123,7 +120,7 @@ describe("runSavingsInterest", () => {
 
     it("computes zero interest for a very small balance and low rate, and skips the account", async () => {
       // balance=0.01, APY=0.01 → 0.01 × (0.01/100/12) ≈ 0.0000000008 → rounds to $0.00
-      const account = makeSavingsAccount({ balance: 0.01, aprRates: [{ id: "r1", apr: new Decimal(0.01) }] })
+      const account = makeSavingsAccount({ balance: 0.01, apy: 0.01 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
@@ -135,7 +132,7 @@ describe("runSavingsInterest", () => {
 
   describe("transaction creation", () => {
     it("creates an InterestLog entry with type EARNED", async () => {
-      const account = makeSavingsAccount({ balance: 5000, aprRates: [{ id: "r1", apr: new Decimal(3.0) }] })
+      const account = makeSavingsAccount({ balance: 5000, apy: 3.0 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
@@ -148,7 +145,7 @@ describe("runSavingsInterest", () => {
     })
 
     it("creates an INTEREST_EARNED transaction with source SYSTEM", async () => {
-      const account = makeSavingsAccount({ balance: 5000, aprRates: [{ id: "r1", apr: new Decimal(3.0) }] })
+      const account = makeSavingsAccount({ balance: 5000, apy: 3.0 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
@@ -163,7 +160,7 @@ describe("runSavingsInterest", () => {
 
     it("increments the account balance by the interest amount", async () => {
       // balance=10000, APY=4.5 → interest=$37.50
-      const account = makeSavingsAccount({ balance: 10000, aprRates: [{ id: "r1", apr: new Decimal(4.5) }] })
+      const account = makeSavingsAccount({ balance: 10000, apy: 4.5 })
       mockAccountFindMany.mockResolvedValue([account] as never)
 
       await runSavingsInterest()
@@ -190,22 +187,10 @@ describe("runSavingsInterest", () => {
   })
 
   describe("skipping logic", () => {
-    it("skips accounts without any active APR rate (aprRates=[]) — but note: DB query filters these", async () => {
-      // The DB query already filters for accounts with active rates, but if one
-      // slips through with an empty array, getActiveSavingsRate returns null and
-      // the account is skipped.
-      const account = makeSavingsAccount({ aprRates: [] })
-      mockAccountFindMany.mockResolvedValue([account] as never)
-
-      await runSavingsInterest()
-
-      expect(prisma.$transaction).not.toHaveBeenCalled()
-    })
-
     it("processes multiple accounts independently", async () => {
       const accounts = [
-        makeSavingsAccount({ id: "acc-1", name: "Acc 1", balance: 10000, aprRates: [{ id: "r1", apr: new Decimal(4.5) }] }),
-        makeSavingsAccount({ id: "acc-2", name: "Acc 2", balance: 5000, aprRates: [{ id: "r2", apr: new Decimal(2.0) }] }),
+        makeSavingsAccount({ id: "acc-1", name: "Acc 1", balance: 10000, apy: 4.5 }),
+        makeSavingsAccount({ id: "acc-2", name: "Acc 2", balance: 5000, apy: 2.0 }),
       ]
       mockAccountFindMany.mockResolvedValue(accounts as never)
 

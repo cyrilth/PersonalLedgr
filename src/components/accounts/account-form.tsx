@@ -45,6 +45,7 @@ interface AccountData {
   balance: number
   creditLimit: number | null
   owner: string | null
+  apy: number
   creditCardDetails?: {
     statementCloseDay: number
     paymentDueDay: number
@@ -59,6 +60,9 @@ interface AccountData {
     monthlyPayment: number
     extraPaymentAmount: number
   } | null
+  termMonths?: number | null
+  maturityDate?: Date | string | null
+  autoRenew?: boolean
 }
 
 interface AccountFormProps {
@@ -87,6 +91,7 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
   const [gracePeriodDays, setGracePeriodDays] = useState(
     account?.creditCardDetails?.gracePeriodDays?.toString() ?? "25"
   )
+  const [apy, setApy] = useState(account?.apy?.toString() ?? "")
   const [purchaseApr, setPurchaseApr] = useState("")
 
   // Loan fields
@@ -116,6 +121,17 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
     account?.loan?.extraPaymentAmount?.toString() ?? "0"
   )
 
+  // CD fields
+  const [cdTermMonths, setCdTermMonths] = useState(account?.termMonths?.toString() ?? "12")
+  const [cdMaturityDate, setCdMaturityDate] = useState(() => {
+    if (account?.maturityDate) {
+      const d = new Date(account.maturityDate)
+      return d.toISOString().split("T")[0]
+    }
+    return ""
+  })
+  const [cdAutoRenew, setCdAutoRenew] = useState(account?.autoRenew ?? false)
+
   const [saving, setSaving] = useState(false)
 
   // Reset form when dialog opens with different account
@@ -140,6 +156,7 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
         name: name.trim(),
         balance: parseFloat(balance) || 0,
         owner: owner.trim() || undefined,
+        apy: type === "SAVINGS" || type === "CHECKING" || type === "CD" ? (apy ? parseFloat(apy) : undefined) : undefined,
         creditLimit: type === "CREDIT_CARD" ? parseFloat(creditLimit) || undefined : undefined,
         creditCard:
           type === "CREDIT_CARD"
@@ -160,6 +177,14 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                 startDate: startDate,
                 monthlyPayment: parseFloat(monthlyPayment) || 0,
                 extraPaymentAmount: parseFloat(extraPayment) || 0,
+              }
+            : undefined,
+        cd:
+          type === "CD"
+            ? {
+                termMonths: parseInt(cdTermMonths) || 12,
+                maturityDate: cdMaturityDate,
+                autoRenew: cdAutoRenew,
               }
             : undefined,
       }
@@ -251,6 +276,21 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
               placeholder="e.g. John"
             />
           </div>
+
+          {/* APY field for Savings/Checking/CD */}
+          {(type === "SAVINGS" || type === "CHECKING" || type === "CD") && (
+            <div className="space-y-2">
+              <Label htmlFor="apy">Annual Percentage Yield (APY %)</Label>
+              <Input
+                id="apy"
+                type="number"
+                step="0.01"
+                value={apy}
+                onChange={(e) => setApy(e.target.value)}
+                placeholder="e.g. 4.50"
+              />
+            </div>
+          )}
 
           {/* Credit Card fields */}
           {type === "CREDIT_CARD" && (
@@ -413,6 +453,45 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                   value={extraPayment}
                   onChange={(e) => setExtraPayment(e.target.value)}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* CD fields */}
+          {type === "CD" && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-sm font-medium">CD Details</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="cdTerm">Term (months)</Label>
+                <Input
+                  id="cdTerm"
+                  type="number"
+                  value={cdTermMonths}
+                  onChange={(e) => setCdTermMonths(e.target.value)}
+                  placeholder="e.g. 12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cdMaturity">Maturity Date</Label>
+                <Input
+                  id="cdMaturity"
+                  type="date"
+                  value={cdMaturityDate}
+                  onChange={(e) => setCdMaturityDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="cdAutoRenew"
+                  type="checkbox"
+                  checked={cdAutoRenew}
+                  onChange={(e) => setCdAutoRenew(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="cdAutoRenew">Auto-renew at maturity</Label>
               </div>
             </div>
           )}

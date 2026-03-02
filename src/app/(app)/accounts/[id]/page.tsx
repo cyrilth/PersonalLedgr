@@ -233,6 +233,45 @@ export default function AccountDetailPage() {
         <BalanceChart data={account.balanceHistory} isDebt={isDebt} />
       )}
 
+      {/* APY for Savings/Checking/CD */}
+      {(account.type === "SAVINGS" || account.type === "CHECKING" || account.type === "CD") && account.apy > 0 && (
+        <Card>
+          <CardContent className="flex items-center gap-2 p-4">
+            <span className="text-sm text-muted-foreground">APY:</span>
+            <span className="text-sm font-medium">{account.apy.toFixed(2)}%</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CD Details */}
+      {account.type === "CD" && account.termMonths && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              CD Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-muted-foreground">Term</dt>
+                <dd className="font-medium">{account.termMonths} months</dd>
+              </div>
+              {account.maturityDate && (
+                <div>
+                  <dt className="text-muted-foreground">Maturity Date</dt>
+                  <dd className="font-medium">{formatDate(account.maturityDate)}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-muted-foreground">Auto-Renew</dt>
+                <dd className="font-medium">{account.autoRenew ? "Yes" : "No"}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Credit Card Details */}
       {account.creditCardDetails && (
         <Card>

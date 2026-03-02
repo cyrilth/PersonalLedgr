@@ -70,7 +70,7 @@ interface AccountSummary {
 // ── Server Actions ───────────────────────────────────────────────────
 
 /** Display order for account type groups on the list page. */
-const TYPE_ORDER: AccountType[] = ["CHECKING", "SAVINGS", "CREDIT_CARD", "LOAN", "MORTGAGE"]
+const TYPE_ORDER: AccountType[] = ["CHECKING", "SAVINGS", "CD", "CREDIT_CARD", "LOAN", "MORTGAGE"]
 
 /**
  * Returns all active accounts grouped by type.
@@ -184,8 +184,12 @@ export async function getAccount(id: string, options?: { year?: number }) {
     type: account.type,
     balance: toNumber(account.balance),
     creditLimit: account.creditLimit ? toNumber(account.creditLimit) : null,
+    apy: toNumber(account.apy),
     owner: account.owner,
     isActive: account.isActive,
+    termMonths: account.termMonths,
+    maturityDate: account.maturityDate,
+    autoRenew: account.autoRenew,
     creditCardDetails: account.creditCardDetails
       ? {
           id: account.creditCardDetails.id,
@@ -244,6 +248,7 @@ export async function createAccount(data: {
   type: AccountType
   balance: number
   owner?: string
+  apy?: number
   creditLimit?: number
   creditCard?: {
     statementCloseDay: number
@@ -260,8 +265,15 @@ export async function createAccount(data: {
     monthlyPayment: number
     extraPaymentAmount: number
   }
+  cd?: {
+    termMonths: number
+    maturityDate: string
+    autoRenew: boolean
+  }
 }) {
   const userId = await requireUserId()
+
+  const apyTypes = ["SAVINGS", "CHECKING", "CD"]
 
   const account = await prisma.account.create({
     data: {
@@ -269,6 +281,10 @@ export async function createAccount(data: {
       type: data.type,
       balance: data.balance,
       creditLimit: data.creditLimit,
+      apy: apyTypes.includes(data.type) ? (data.apy ?? 0) : 0,
+      termMonths: data.type === "CD" && data.cd ? data.cd.termMonths : null,
+      maturityDate: data.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : null,
+      autoRenew: data.type === "CD" && data.cd ? data.cd.autoRenew : false,
       owner: data.owner || null,
       userId,
       creditCardDetails:
@@ -345,6 +361,7 @@ export async function updateAccount(
     name: string
     balance: number
     owner?: string
+    apy?: number
     creditLimit?: number
     creditCard?: {
       statementCloseDay: number
@@ -360,6 +377,11 @@ export async function updateAccount(
       monthlyPayment: number
       extraPaymentAmount: number
     }
+    cd?: {
+      termMonths: number
+      maturityDate: string
+      autoRenew: boolean
+    }
   }
 ) {
   const userId = await requireUserId()
@@ -368,13 +390,19 @@ export async function updateAccount(
   const existing = await prisma.account.findFirst({ where: { id, userId } })
   if (!existing) throw new Error("Account not found")
 
+  const apyTypes = ["SAVINGS", "CHECKING", "CD"]
+
   await prisma.account.update({
     where: { id },
     data: {
       name: data.name,
       balance: data.balance,
       creditLimit: data.creditLimit,
+      apy: apyTypes.includes(existing.type) ? (data.apy ?? 0) : 0,
       owner: data.owner || null,
+      termMonths: existing.type === "CD" && data.cd ? data.cd.termMonths : undefined,
+      maturityDate: existing.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : undefined,
+      autoRenew: existing.type === "CD" && data.cd ? data.cd.autoRenew : undefined,
     },
   })
 

@@ -12,7 +12,7 @@
  */
 
 import Link from "next/link"
-import { Landmark, PiggyBank, CreditCard, HandCoins, Home, RotateCcw, Trash2 } from "lucide-react"
+import { Landmark, PiggyBank, CreditCard, HandCoins, Home, Lock, RotateCcw, Trash2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -37,6 +37,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CREDIT_CARD: CreditCard,
   LOAN: HandCoins,
   MORTGAGE: Home,
+  CD: Lock,
 }
 
 /** Account types whose balances are stored as negative (money owed). */
