@@ -274,18 +274,9 @@ Should show bars/lines for January and February:
 | January 2026 | $6,500.00 | $1,026.11 |
 | February 2026 | $6,500.00 | $699.38 |
 
-### 5.3 Spending Breakdown (Current Month — February)
+### 5.3 Spending Breakdown (Current Month — March)
 
-Donut chart should show February spending categories:
-
-| Category | Amount |
-|---|---|
-| Groceries | $238.05 ($78.33 + $55.60 + $96.44 + $63.28 - wait, let me recount) |
-| Utilities | $233.20 ($85.00 + $148.20) |
-| Dining Out | $96.40 ($38.90 + $12.50 + $45.00) |
-| Groceries | $293.65 ($78.33 + $55.60 + $96.44 + $63.28) |
-| Gas | $42.15 |
-| Subscriptions | $33.98 ($22.99 + $10.99) |
+The current month is March. Since only January and February data has been imported so far, the March spending breakdown should be **empty** at this point. Manual transactions added in steps 6–7 will populate March spending later.
 
 ### 5.4 Recent Transactions
 
@@ -303,7 +294,7 @@ Should show the 10 most recent transactions (late February entries first), sorte
 | 2 | Tab: Expense | Expense form shown |
 | 3 | Account: Main Checking | Selected |
 | 4 | Amount: 75.00 | Entered |
-| 5 | Date: 2026-02-28 | Entered |
+| 5 | Date: 2026-03-28 | Entered |
 | 6 | Description: "Pharmacy" | Entered |
 | 7 | Category: Healthcare | Selected from dropdown |
 | 8 | Submit | Transaction created, dialog closes |
@@ -314,7 +305,7 @@ Should show the 10 most recent transactions (late February entries first), sorte
 | Step | Action | Look For |
 |---|---|---|
 | 1 | Add Transaction > Income tab | Income form |
-| 2 | Account: Main Checking, Amount: 200.00, Date: 2026-02-28, Description: "Freelance Work", Category: Freelance | Fields populated |
+| 2 | Account: Main Checking, Amount: 200.00, Date: 2026-03-28, Description: "Freelance Work", Category: Freelance | Fields populated |
 | 3 | Submit | Transaction created |
 | 4 | Verify checking balance | $16,199.51 + $200.00 = **$16,399.51** |
 
@@ -330,7 +321,7 @@ Should show the 10 most recent transactions (late February entries first), sorte
 | 2 | Source: Main Checking | Selected |
 | 3 | Destination: High-Yield Savings | Selected |
 | 4 | Amount: 1000.00 | Entered |
-| 5 | Date: 2026-02-28 | Entered |
+| 5 | Date: 2026-03-28 | Entered |
 | 6 | Submit | Two linked transactions created |
 
 **Expected balances after transfer:**
@@ -356,9 +347,9 @@ This is a critical test — transfers must NEVER count as income or expense.
 
 | Verification Point | Look For |
 |---|---|
-| Dashboard > Income vs Expense chart (February) | Income still **$6,700.00** ($6,500 paychecks + $200 freelance). The $1,000 transfer is NOT included |
-| Dashboard > Spending Breakdown (February) | Total spending is **$774.38** ($699.38 imported + $75 pharmacy). The $1,000 transfer is NOT included |
-| Reports page (filter Feb 2026) | Same — transfer excluded from income and spending totals |
+| Dashboard > Income vs Expense chart (March) | Income shows **$200.00** ($200 freelance). The $1,000 transfer is NOT included |
+| Dashboard > Spending Breakdown (March) | Total spending is **$75.00** ($75 pharmacy). The $1,000 transfer is NOT included |
+| Reports page (filter Mar 2026) | Same — transfer excluded from income and spending totals |
 
 ---
 
@@ -424,7 +415,7 @@ Navigate to `/`. The Upcoming Bills widget should show bills with their next due
 
 ## 10. Create Budgets
 
-Navigate to `/budgets`. Select the current month (February 2026).
+Navigate to `/budgets`. Select the current month (March 2026).
 
 ### 10.1 Create Budgets
 
@@ -440,29 +431,33 @@ Create three budgets:
 
 | Step | Action | Look For |
 |---|---|---|
-| 1 | Navigate to March 2026 | Empty budget page |
+| 1 | Navigate to April 2026 | Empty budget page |
 | 2 | Click "Copy from Previous Month" | All 3 budgets copied |
-| 3 | Verify limits | Groceries $400, Dining Out $150, Utilities $300 — same as Feb |
+| 3 | Verify limits | Groceries $400, Dining Out $150, Utilities $300 — same as March |
 
 ---
 
 ## 11. Verify Budget Tracking
 
-Navigate to `/budgets`, select February 2026.
+Navigate to `/budgets`, select March 2026.
 
-### 11.1 Expected Budget vs Actual (February)
+### 11.1 Expected Budget vs Actual (March)
 
-| Category | Budget | Actual (from imported + manual) | % Used |
+March only contains the manual transactions added in steps 6–7 (the CSV imports were for January and February).
+
+| Category | Budget | Actual (manual transactions only) | % Used |
 |---|---|---|---|
-| Groceries | $400.00 | $293.65 ($78.33 + $55.60 + $96.44 + $63.28) | ~73.4% |
-| Dining Out | $150.00 | $96.40 ($38.90 + $12.50 + $45.00) | ~64.3% |
-| Utilities | $300.00 | $233.20 ($85.00 + $148.20) | ~77.7% |
+| Groceries | $400.00 | $0.00 | 0% |
+| Dining Out | $150.00 | $0.00 | 0% |
+| Utilities | $300.00 | $0.00 | 0% |
+
+**Note:** The $75 pharmacy expense (Healthcare) does not match any of the budgeted categories above. To see populated budget data, navigate back to February 2026 where imported transactions provide spending: Groceries $293.65, Dining Out $96.40, Utilities $233.20.
 
 | Verification | Look For |
 |---|---|
-| Each budget row | Progress bar proportionally filled |
-| No budget over 100% | All bars show normal color (not red/warning) |
-| Totals in summary | Total Budgeted: $850, Total Spent: ~$623.25 |
+| Each budget row | Progress bars at 0% for March (no matching category spending yet) |
+| February comparison | Navigate to Feb — bars show ~73%, ~64%, ~77% as expected |
+| Totals in summary (March) | Total Budgeted: $850, Total Spent: $0.00 |
 
 ---
 
@@ -663,14 +658,14 @@ This file contains 2 rows that match previously imported checking transactions (
 
 ## 17. Reports Verification
 
-Navigate to `/reports`. Set date range: 2026-01-01 to 2026-02-28.
+Navigate to `/reports`. Set date range: 2026-01-01 to 2026-03-31.
 
 ### 17.1 Summary Cards
 
 | Card | Expected Value |
 |---|---|
-| Total Income | **$13,200.00** (Jan: $6,500 + Feb: $6,500 + $200 freelance) |
-| Total Spending | **$1,874.99** (Jan: $1,026.11 + Feb: $699.38 + $75 pharmacy + $28.50 + $45.00) |
+| Total Income | **$13,200.00** (Jan: $6,500 + Feb: $6,500 + Mar: $200 freelance) |
+| Total Spending | **$1,874.99** (Jan: $1,026.11 + Feb: $699.38 + Mar: $75 pharmacy + $28.50 + $45.00) |
 | Net | **$11,325.01** (income - spending, from checking only) |
 
 **Note:** Visa card transactions also count. Add Visa expenses: $282.53. Total spending becomes **~$2,157.52**. The $500 CC payment is a TRANSFER (imported as positive/income-like on Visa) — verify how it was categorized. If imported as generic income it will count; if categorized correctly as a transfer/payment it should not.
@@ -695,16 +690,17 @@ Look for these categories with approximate totals across Jan + Feb:
 | Month | Income Bar (green) | Spending Bar (red) |
 |---|---|---|
 | January 2026 | $6,500.00 | ~$1,026.11 |
-| February 2026 | $6,700.00 | ~$848.88 |
+| February 2026 | $6,500.00 | ~$699.38 |
+| March 2026 | $200.00 | ~$148.50 ($75 pharmacy + $28.50 + $45.00) |
 
 ### 17.4 Custom Date Range Test
 
 | Step | Action | Look For |
 |---|---|---|
-| 1 | Change range to Feb 1–Feb 28 only | Only February data shown |
-| 2 | Income total | $6,700.00 |
-| 3 | Spending total | Only Feb expenses |
-| 4 | January data gone from chart | Single month in trend |
+| 1 | Change range to Mar 1–Mar 31 only | Only March data shown |
+| 2 | Income total | $200.00 (freelance) |
+| 3 | Spending total | Only March expenses ($75 + $28.50 + $45.00) |
+| 4 | January and February data gone from chart | Single month in trend |
 
 ---
 
