@@ -87,6 +87,7 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
   const [gracePeriodDays, setGracePeriodDays] = useState(
     account?.creditCardDetails?.gracePeriodDays?.toString() ?? "25"
   )
+  const [purchaseApr, setPurchaseApr] = useState("")
 
   // Loan fields
   const [loanType, setLoanType] = useState<LoanType>(
@@ -146,6 +147,7 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                 statementCloseDay: parseInt(statementCloseDay) || 15,
                 paymentDueDay: parseInt(paymentDueDay) || 10,
                 gracePeriodDays: parseInt(gracePeriodDays) || 25,
+                purchaseApr: purchaseApr ? parseFloat(purchaseApr) : undefined,
               }
             : undefined,
         loan:
@@ -305,6 +307,18 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                   type="number"
                   value={gracePeriodDays}
                   onChange={(e) => setGracePeriodDays(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="purchaseApr">Purchase APR (%)</Label>
+                <Input
+                  id="purchaseApr"
+                  type="number"
+                  step="0.01"
+                  value={purchaseApr}
+                  onChange={(e) => setPurchaseApr(e.target.value)}
+                  placeholder="e.g. 24.99"
                 />
               </div>
             </div>

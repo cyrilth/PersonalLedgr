@@ -249,6 +249,7 @@ export async function createAccount(data: {
     statementCloseDay: number
     paymentDueDay: number
     gracePeriodDays: number
+    purchaseApr?: number
   }
   loan?: {
     loanType: string
@@ -310,6 +311,19 @@ export async function createAccount(data: {
         category: "Opening Balance",
         source: "SYSTEM",
         userId,
+        accountId: account.id,
+      },
+    })
+  }
+
+  // Create a STANDARD APR rate if a purchase APR was provided for a credit card
+  if (data.type === "CREDIT_CARD" && data.creditCard?.purchaseApr != null) {
+    await prisma.aprRate.create({
+      data: {
+        rateType: "STANDARD",
+        apr: data.creditCard.purchaseApr,
+        effectiveDate: new Date(),
+        isActive: true,
         accountId: account.id,
       },
     })

@@ -39,6 +39,7 @@ function renderMapper(overrides: Partial<Parameters<typeof ColumnMapper>[0]> = {
     headers: defaultHeaders,
     sampleRows: [],
     detected: defaultDetected,
+    accountType: "CHECKING",
     onMappingConfirm: vi.fn(),
     onBack: vi.fn(),
     ...overrides,

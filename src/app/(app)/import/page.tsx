@@ -368,6 +368,7 @@ export default function ImportPage() {
               headers={csvHeaders}
               sampleRows={csvRows.slice(0, 10)}
               detected={detectedColumns}
+              accountType={accounts.find((a) => a.id === selectedAccountId)?.type ?? ""}
               onMappingConfirm={handleMappingConfirm}
               onBack={() => setStep(0)}
             />

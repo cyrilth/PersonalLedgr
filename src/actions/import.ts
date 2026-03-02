@@ -55,6 +55,7 @@ export interface ColumnMapping {
   descriptionColumn: number
   categoryColumn?: number
   amountPattern: AmountPattern
+  invertSigns?: boolean
 }
 
 /** Detected column suggestion from header analysis. */
@@ -305,7 +306,7 @@ function detectAmountPatternFromHeaders(
           .filter((v) => v !== "")
       )
 
-      const debitIndicators = ["DR", "DEBIT", "D", "DB", "-"]
+      const debitIndicators = ["DR", "DEBIT", "D", "DB", "-", "SALE", "PURCHASE", "CHARGE"]
       const hasDebitIndicator = debitIndicators.some((d) => indicatorValues.has(d))
 
       if (hasDebitIndicator) {
@@ -366,8 +367,9 @@ export async function normalizeAmounts(
     if (!date) continue
 
     // Normalize amount based on pattern
-    const amount = normalizeAmount(row, mapping.amountPattern)
+    let amount = normalizeAmount(row, mapping.amountPattern)
     if (amount === null || amount === 0) continue
+    if (mapping.invertSigns) amount = -amount
 
     const category = mapping.categoryColumn !== undefined
       ? (row[mapping.categoryColumn] || "").trim() || null

@@ -172,6 +172,127 @@ export function CSVUploader({
         </CardContent>
       </Card>
 
+      {/* Sample CSV format guide */}
+      <Card>
+        <details className="group">
+          <summary className="flex cursor-pointer items-center justify-between p-6 [&::-webkit-details-marker]:hidden list-none">
+            <CardTitle>Sample CSV Format</CardTitle>
+            <span className="text-muted-foreground text-sm group-open:hidden">Show examples</span>
+            <span className="text-muted-foreground text-sm hidden group-open:inline">Hide examples</span>
+          </summary>
+          <CardContent className="pt-0 space-y-5">
+            <p className="text-sm text-muted-foreground">
+              Your CSV should include columns for date, description, and amount. Below are examples for common account types.
+            </p>
+
+            {/* Checking / Savings — signed amount */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Checking / Savings (signed amount)</h4>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>2026-01-15</TableCell>
+                      <TableCell>Payroll Deposit</TableCell>
+                      <TableCell className="text-emerald-600 dark:text-emerald-400">3500.00</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>2026-01-16</TableCell>
+                      <TableCell>Grocery Store</TableCell>
+                      <TableCell className="text-red-600 dark:text-red-400">-85.42</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>2026-01-17</TableCell>
+                      <TableCell>Electric Bill</TableCell>
+                      <TableCell className="text-red-600 dark:text-red-400">-120.00</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Credit Card — separate debit/credit */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Credit Card (separate debit/credit columns)</h4>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Debit</TableHead>
+                      <TableHead>Credit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>01/20/2026</TableCell>
+                      <TableCell>Amazon Purchase</TableCell>
+                      <TableCell className="text-red-600 dark:text-red-400">49.99</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>01/22/2026</TableCell>
+                      <TableCell>Restaurant</TableCell>
+                      <TableCell className="text-red-600 dark:text-red-400">32.50</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>01/25/2026</TableCell>
+                      <TableCell>Payment - Thank You</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-emerald-600 dark:text-emerald-400">500.00</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Amount + type indicator */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Amount + type indicator column</h4>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>2026-01-10</TableCell>
+                      <TableCell>Transfer from Savings</TableCell>
+                      <TableCell>200.00</TableCell>
+                      <TableCell>Credit</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>2026-01-12</TableCell>
+                      <TableCell>Gas Station</TableCell>
+                      <TableCell>45.00</TableCell>
+                      <TableCell>Debit</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Date formats like YYYY-MM-DD, MM/DD/YYYY, and DD/MM/YYYY are auto-detected. Column names are matched automatically in the next step.
+            </p>
+          </CardContent>
+        </details>
+      </Card>
+
       {/* File upload area */}
       <Card>
         <CardHeader>

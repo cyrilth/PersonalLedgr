@@ -41,6 +41,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, ArrowRight, Columns } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { normalizeAmounts } from "@/actions/import"
@@ -58,6 +59,7 @@ interface ColumnMapperProps {
   headers: string[]
   sampleRows: CSVRow[]
   detected: DetectedColumns
+  accountType: string
   onMappingConfirm: (mapping: ColumnMapping) => void
   onBack: () => void
 }
@@ -80,6 +82,7 @@ export function ColumnMapper({
   headers,
   sampleRows,
   detected,
+  accountType,
   onMappingConfirm,
   onBack,
 }: ColumnMapperProps) {
@@ -135,6 +138,10 @@ export function ColumnMapper({
       : "DR,DEBIT"
   )
 
+  // ── State: sign inversion ───────────────────────────────────────
+  /** Whether to invert signs (for credit cards where positive = charge). */
+  const [invertSigns, setInvertSigns] = useState(accountType === "CREDIT_CARD")
+
   // ── State: live preview ─────────────────────────────────────────
   /** Normalized transactions computed from the current mapping for preview. */
   const [previewRows, setPreviewRows] = useState<NormalizedTransaction[]>([])
@@ -174,6 +181,7 @@ export function ColumnMapper({
       descriptionColumn,
       categoryColumn: categoryColumn ?? undefined,
       amountPattern: pattern,
+      invertSigns,
     }
   }
 
@@ -211,6 +219,7 @@ export function ColumnMapper({
     creditColumn,
     indicatorColumn,
     debitValues,
+    invertSigns,
     // sampleRows is stable from parent — no need to track deeply
   ])
 
@@ -254,6 +263,36 @@ export function ColumnMapper({
               </Button>
             ))}
           </div>
+        </div>
+
+        {/* ── Sign Convention ──────────────────────────────────────── */}
+        <div className="space-y-2">
+          {(() => {
+            const isCC = accountType === "CREDIT_CARD"
+            const posLabel = isCC ? "charge" : "expense"
+            const negLabel = isCC ? "payment" : "income"
+            return (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {invertSigns
+                    ? `Positive amounts will be treated as ${posLabel}s and negative amounts as ${negLabel}.`
+                    : `Negative amounts will be treated as ${posLabel}s and positive amounts as ${negLabel}.`}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="invert-signs"
+                    checked={invertSigns}
+                    onCheckedChange={(checked) => setInvertSigns(checked === true)}
+                  />
+                  <Label htmlFor="invert-signs" className="text-sm font-normal cursor-pointer">
+                    Invert signs {invertSigns
+                      ? `(positive = ${posLabel}, negative = ${negLabel})`
+                      : `(negative = ${posLabel}, positive = ${negLabel})`}
+                  </Label>
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* ── Common Column Mappings ─────────────────────────────── */}
