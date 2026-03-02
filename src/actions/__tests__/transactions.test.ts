@@ -699,6 +699,7 @@ describe("deleteTransaction", () => {
     linkedTransactionId: null,
     linkedTransaction: null,
     linkedBy: null,
+    billPayment: null,
   })
 
   beforeEach(() => {
@@ -723,7 +724,13 @@ describe("deleteTransaction", () => {
 
     expect(mockFindFirst).toHaveBeenCalledWith({
       where: { id: "txn-1", userId: "user-1" },
-      include: { linkedTransaction: true, linkedBy: true },
+      include: {
+        linkedTransaction: true,
+        linkedBy: true,
+        billPayment: {
+          include: { recurringBill: { select: { name: true } } },
+        },
+      },
     })
   })
 
@@ -736,7 +743,7 @@ describe("deleteTransaction", () => {
   it("returns { success: true } on successful delete", async () => {
     mockFindFirst.mockResolvedValue(standaloneTxn as never)
     const result = await deleteTransaction("txn-1")
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({ success: true, warnings: [] })
   })
 
   describe("standalone transaction", () => {

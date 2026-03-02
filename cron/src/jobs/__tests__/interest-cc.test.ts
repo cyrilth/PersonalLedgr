@@ -240,19 +240,32 @@ describe("runCCInterestAccrual", () => {
 
   describe("grace period", () => {
     it("skips current-cycle purchases when lastStatementPaidInFull is true", async () => {
-      // statementCloseDay = 1; "today" in the job is real Date(), so we need
-      // to craft a purchase date that is strictly AFTER the last statement close.
-      // The job normalises today to midnight. We make the purchase "today" minus 1 day,
-      // which for a closeDay=1 and today around mid-month puts the purchase in
-      // the current cycle.
-      const currentCycleDate = new Date()
-      currentCycleDate.setDate(currentCycleDate.getDate() - 1) // yesterday (in current cycle)
+      // We need a purchase date that is strictly AFTER the most recent statement
+      // close date so it falls in the current billing cycle (and is thus skipped
+      // due to the grace period).
+      //
+      // Strategy: use statementCloseDay = 28 so the last close was always on
+      // the 28th of the previous month (or this month if today >= 28).  Then
+      // place the purchase as "today" — today is always after the last close,
+      // so it is a current-cycle purchase and should NOT accrue interest.
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      // Determine the last close date the job will compute for closeDay = 28
+      const closeDay = 28
+      let lastClose: Date
+      if (today.getDate() >= closeDay) {
+        lastClose = new Date(today.getFullYear(), today.getMonth(), closeDay, 0, 0, 0, 0)
+      } else {
+        lastClose = new Date(today.getFullYear(), today.getMonth() - 1, closeDay, 0, 0, 0, 0)
+      }
+      // Pick a purchase date that is strictly after the last close
+      const currentCycleDate = new Date(lastClose.getTime() + 24 * 60 * 60 * 1000)
       currentCycleDate.setHours(0, 0, 0, 0)
 
       const account = makeCCAccount({
         ccDetails: makeCCDetails({
           lastStatementPaidInFull: true,
-          statementCloseDay: 1, // closed on the 1st, so current cycle starts from the 1st
+          statementCloseDay: closeDay,
         }),
         aprRates: [makeAprRate({ apr: 24.99 })],
       })

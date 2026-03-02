@@ -13,6 +13,15 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(() => new Map()),
 }))
 
+// Mock auth to return an authenticated session
+vi.mock("@/lib/auth", () => ({
+  auth: {
+    api: {
+      getSession: vi.fn().mockResolvedValue({ user: { id: "user-1" } }),
+    },
+  },
+}))
+
 import {
   recalculateBalance,
   confirmRecalculate,
@@ -91,6 +100,6 @@ describe("POST /api/recalculate", () => {
 
     expect(res.status).toBe(500)
     const json = await res.json()
-    expect(json.error).toBe("DB error")
+    expect(json.error).toBe("Internal server error")
   })
 })

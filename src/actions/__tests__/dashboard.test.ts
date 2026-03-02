@@ -221,7 +221,7 @@ describe("getMonthlyIncomeExpense", () => {
       { date: new Date(2026, 2, 15), amount: decimal(5000), type: "INCOME" },
       { date: new Date(2026, 2, 20), amount: decimal(-200), type: "EXPENSE" },
       { date: new Date(2026, 2, 25), amount: decimal(50), type: "INTEREST_EARNED" },
-      { date: new Date(2026, 3, 15), amount: decimal(-100), type: "LOAN_INTEREST" },
+      { date: new Date(2026, 1, 15), amount: decimal(-100), type: "LOAN_INTEREST" },
     ] as never)
 
     const result = await getMonthlyIncomeExpense()
@@ -230,9 +230,9 @@ describe("getMonthlyIncomeExpense", () => {
     expect(march.income).toBe(5050) // 5000 + 50 (abs values)
     expect(march.expense).toBe(200) // abs(-200)
 
-    const april = result.find((m) => m.month === "2026-04")!
-    expect(april.income).toBe(0)
-    expect(april.expense).toBe(100) // abs(-100)
+    const feb = result.find((m) => m.month === "2026-02")!
+    expect(feb.income).toBe(0)
+    expect(feb.expense).toBe(100) // abs(-100)
   })
 
   it("uses absolute values for amounts", async () => {

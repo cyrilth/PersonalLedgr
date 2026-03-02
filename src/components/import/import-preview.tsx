@@ -13,6 +13,7 @@
  * - "review"    : Fuzzy match (Levenshtein < 3) — needs manual review
  */
 
+import { useState, useMemo } from "react"
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -191,6 +192,9 @@ export function ImportPreview({
   onBack,
   importing,
 }: ImportPreviewProps) {
+  const [page, setPage] = useState(0)
+  const pageSize = 10
+
   const usedTransactionIds = new Set(
     rows
       .filter((r) => r.status === "reconcile" && r.reconcileMatch)
@@ -202,6 +206,12 @@ export function ImportPreview({
   const reviewCount = rows.filter((r) => r.status === "review").length
   const reconcileCount = rows.filter((r) => r.status === "reconcile").length
   const selectedCount = rows.filter((r) => r.selected).length
+
+  const totalPages = Math.ceil(rows.length / pageSize)
+  const paginatedRows = useMemo(
+    () => rows.slice(page * pageSize, (page + 1) * pageSize),
+    [rows, page]
+  )
 
   return (
     <div className="space-y-4">
@@ -264,7 +274,7 @@ export function ImportPreview({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
+            {paginatedRows.map((row) => (
               <TableRow
                 key={row.index}
                 className={cn(
@@ -318,6 +328,36 @@ export function ImportPreview({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, rows.length)} of {rows.length} rows
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p - 1)}
+              disabled={page === 0}
+            >
+              Previous
+            </Button>
+            <span className="text-muted-foreground">
+              Page {page + 1} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages - 1}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex items-center justify-between pt-2">

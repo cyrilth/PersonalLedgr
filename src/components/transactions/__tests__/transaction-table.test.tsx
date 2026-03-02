@@ -57,7 +57,8 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ description: "Whole Foods" })]}
       />
     )
-    expect(screen.getByText("Whole Foods")).toBeInTheDocument()
+    // Component renders both mobile card and desktop table views, so text appears twice
+    expect(screen.getAllByText("Whole Foods").length).toBeGreaterThan(0)
   })
 
   it("renders account name", () => {
@@ -67,7 +68,7 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ account: { id: "acc-1", name: "Chase Checking", type: "CHECKING" } })]}
       />
     )
-    expect(screen.getByText("Chase Checking")).toBeInTheDocument()
+    expect(screen.getAllByText("Chase Checking").length).toBeGreaterThan(0)
   })
 
   it("renders type badge for EXPENSE", () => {
@@ -77,7 +78,7 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ type: "EXPENSE" })]}
       />
     )
-    expect(screen.getByText("Expense")).toBeInTheDocument()
+    expect(screen.getAllByText("Expense").length).toBeGreaterThan(0)
   })
 
   it("renders type badge for INCOME", () => {
@@ -87,7 +88,7 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ type: "INCOME", amount: 2000 })]}
       />
     )
-    expect(screen.getByText("Income")).toBeInTheDocument()
+    expect(screen.getAllByText("Income").length).toBeGreaterThan(0)
   })
 
   it("renders type badge for TRANSFER", () => {
@@ -97,7 +98,7 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ type: "TRANSFER", amount: 500 })]}
       />
     )
-    expect(screen.getByText("Transfer")).toBeInTheDocument()
+    expect(screen.getAllByText("Transfer").length).toBeGreaterThan(0)
   })
 
   it("applies text-negative class for EXPENSE amounts", () => {
@@ -127,7 +128,7 @@ describe("TransactionTable", () => {
         transactions={[makeTransaction({ category: "Groceries" })]}
       />
     )
-    expect(screen.getByText("Groceries")).toBeInTheDocument()
+    expect(screen.getAllByText("Groceries").length).toBeGreaterThan(0)
   })
 
   it("renders em dash when no category", () => {
@@ -229,8 +230,8 @@ describe("TransactionTable", () => {
         ]}
       />
     )
-    expect(screen.getByText("Amazon Purchase")).toBeInTheDocument()
-    expect(screen.getByText("Gas Station")).toBeInTheDocument()
-    expect(screen.getByText("Paycheck")).toBeInTheDocument()
+    expect(screen.getAllByText("Amazon Purchase").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Gas Station").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Paycheck").length).toBeGreaterThan(0)
   })
 })

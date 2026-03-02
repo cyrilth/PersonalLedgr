@@ -15,7 +15,7 @@
  * with normalized amounts so users can verify before proceeding.
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Card,
   CardContent,
@@ -144,7 +144,15 @@ export function ColumnMapper({
 
   // ── State: live preview ─────────────────────────────────────────
   /** Normalized transactions computed from the current mapping for preview. */
-  const [previewRows, setPreviewRows] = useState<NormalizedTransaction[]>([])
+  const [allPreviewRows, setAllPreviewRows] = useState<NormalizedTransaction[]>([])
+  const [previewPage, setPreviewPage] = useState(0)
+  const previewPageSize = 10
+
+  const previewRows = useMemo(
+    () => allPreviewRows.slice(previewPage * previewPageSize, (previewPage + 1) * previewPageSize),
+    [allPreviewRows, previewPage]
+  )
+  const previewTotalPages = Math.ceil(allPreviewRows.length / previewPageSize)
 
   // ── Build current mapping from state ────────────────────────────
 
@@ -194,14 +202,17 @@ export function ColumnMapper({
 
     async function computePreview() {
       if (!currentMapping) {
-        setPreviewRows([])
+        setAllPreviewRows([])
         return
       }
       try {
-        const preview = await normalizeAmounts(sampleRows.slice(0, 5), currentMapping)
-        if (!cancelled) setPreviewRows(preview)
+        const preview = await normalizeAmounts(sampleRows, currentMapping)
+        if (!cancelled) {
+          setAllPreviewRows(preview)
+          setPreviewPage(0)
+        }
       } catch {
-        if (!cancelled) setPreviewRows([])
+        if (!cancelled) setAllPreviewRows([])
       }
     }
 
@@ -507,8 +518,8 @@ export function ColumnMapper({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Label>Preview</Label>
-            {previewRows.length > 0 && (
-              <Badge variant="secondary">{previewRows.length} rows</Badge>
+            {allPreviewRows.length > 0 && (
+              <Badge variant="secondary">{allPreviewRows.length} rows</Badge>
             )}
           </div>
 
@@ -516,47 +527,77 @@ export function ColumnMapper({
             <p className="text-sm text-muted-foreground">
               Select all required columns to see a preview.
             </p>
-          ) : previewRows.length === 0 ? (
+          ) : allPreviewRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No valid rows found with the current mapping. Check your column selections.
             </p>
           ) : (
-            <div className="rounded-md border overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {previewRows.map((row, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="whitespace-nowrap">{row.date}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {row.description}
-                      </TableCell>
-                      <TableCell>
-                        {row.category ? (
-                          <Badge variant="outline">{row.category}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">--</span>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-mono ${
-                          row.amount >= 0 ? "text-positive" : "text-negative"
-                        }`}
-                      >
-                        {formatCurrency(row.amount)}
-                      </TableCell>
+            <>
+              <div className="rounded-md border overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {previewRows.map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="whitespace-nowrap">{row.date}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {row.description}
+                        </TableCell>
+                        <TableCell>
+                          {row.category ? (
+                            <Badge variant="outline">{row.category}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">--</span>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-mono ${
+                            row.amount >= 0 ? "text-positive" : "text-negative"
+                          }`}
+                        >
+                          {formatCurrency(row.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {previewTotalPages > 1 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Showing {previewPage * previewPageSize + 1}–{Math.min((previewPage + 1) * previewPageSize, allPreviewRows.length)} of {allPreviewRows.length} rows
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage((p) => p - 1)}
+                      disabled={previewPage === 0}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-muted-foreground">
+                      Page {previewPage + 1} of {previewTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage((p) => p + 1)}
+                      disabled={previewPage >= previewTotalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

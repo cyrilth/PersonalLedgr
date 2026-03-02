@@ -122,9 +122,10 @@ Navigate to `/accounts`. The page should be empty. Create the following accounts
 | Statement Close Day | 15 |
 | Payment Due Day | 10 |
 | Grace Period | 25 |
+| Purchase APR (%) | 21.99 |
 | Owner | (leave blank) |
 
-**After saving:** Account shows -$350.00. Credit limit $5,000.00 visible on detail page.
+**After saving:** Account shows -$350.00. Credit limit $5,000.00 visible on detail page. A STANDARD APR rate of 21.99% is automatically created.
 
 ### 3.4 Verify Account List
 
@@ -160,6 +161,8 @@ Navigate to `/`. The welcome card should be **gone** — normal dashboard widget
 | 1 | Navigate to `/import` | Import wizard step 1 |
 | 2 | Upload `import-checking-jan.csv` | Column preview shows: Date, Description, Amount, Category |
 | 3 | Amount pattern should auto-detect as "Single Amount" | One Amount column mapping |
+| 3b | Verify "Invert signs" checkbox is **unchecked** (checking account) | Checkbox not checked |
+| 3c | Verify sign description says "Negative amounts will be treated as expenses and positive amounts as income." | Account-type-aware text (expenses/income for checking) |
 | 4 | Map: Date → "Date", Description → "Description", Amount → "Amount", Category → "Category" | Preview table shows 15 rows |
 | 5 | Verify negative amounts colored red (expenses) | -$85.00, -$112.47, etc. |
 | 6 | Verify positive amounts colored green (income) | $3,250.00 (two paychecks) |
@@ -532,18 +535,19 @@ Remaining = $245,000 - $252.92 = $244,747.08
 
 ## 14. Set Up a Credit Card with APR
 
-The Visa Rewards card was created in Step 3. Now add APR rates.
+The Visa Rewards card was created in Step 3 with a Purchase APR of 21.99%, which auto-created a STANDARD APR rate. Verify it exists before adding more rates.
 
-### 14.1 Add Standard APR Rate
+### 14.1 Verify Standard APR Rate (Auto-Created)
 
 Navigate to the Visa Rewards account detail page. Find the APR rates section.
 
-| Field | Value |
+| Verification | Expected |
 |---|---|
 | Rate Type | Standard |
 | APR (%) | 21.99 |
-| Effective Date | 2025-01-01 |
-| Description | Standard purchase APR |
+| Status | Active |
+
+**Note:** This rate was automatically created when the credit card account was created with a Purchase APR in Step 3.3. If it's missing, add it manually with Effective Date = 2025-01-01.
 
 ### 14.2 Add Intro APR Rate (Optional — for testing expiration)
 
@@ -569,6 +573,8 @@ This file uses the **Separate Debit/Credit columns** format.
 |---|---|---|
 | 1 | Navigate to `/import`, upload `import-credit-card-jan.csv` | Column preview: Transaction Date, Memo, Debit, Credit |
 | 2 | Select "Separate Debit/Credit" amount pattern | Two column mappings appear (Debit + Credit) |
+| 2b | Verify "Invert signs" checkbox is **checked** by default (credit card account) | Checkbox checked |
+| 2c | Verify sign description says "Positive amounts will be treated as charges and negative amounts as payment." | Account-type-aware text (charges/payment for credit card) |
 | 3 | Map: Date → "Transaction Date", Description → "Memo", Debit → "Debit", Credit → "Credit" | Preview shows 8 rows |
 | 4 | Verify debit rows show as negative (expenses) | -$79.99, -$24.99, -$32.50, etc. |
 | 5 | Verify credit row shows as positive (payment) | +$500.00 |

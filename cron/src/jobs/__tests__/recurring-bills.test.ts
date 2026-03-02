@@ -29,6 +29,9 @@ vi.mock("../../db", () => {
     recurringBill: {
       update: vi.fn(),
     },
+    billPayment: {
+      create: vi.fn().mockResolvedValue({}),
+    },
   }
   return {
     prisma: {
@@ -55,6 +58,7 @@ const txClient = (prisma as unknown as {
     transaction: { create: ReturnType<typeof vi.fn> }
     account: { update: ReturnType<typeof vi.fn> }
     recurringBill: { update: ReturnType<typeof vi.fn> }
+    billPayment: { create: ReturnType<typeof vi.fn> }
   }
 })._txClient
 
@@ -107,6 +111,7 @@ beforeEach(() => {
   txClient.transaction.create.mockResolvedValue({})
   txClient.account.update.mockResolvedValue({})
   txClient.recurringBill.update.mockResolvedValue({})
+  txClient.billPayment.create.mockResolvedValue({})
 })
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

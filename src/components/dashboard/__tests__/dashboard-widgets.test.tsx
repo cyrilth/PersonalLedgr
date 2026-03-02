@@ -81,7 +81,7 @@ describe("NetWorthCard", () => {
     )
     // Zero change: the trend span should have text-muted-foreground, NOT text-positive or text-negative
     // The trend indicator is the second element inside the flex row (after the main net-worth figure)
-    const trendSpan = container.querySelector(".flex.items-baseline.gap-2 > span:last-child")
+    const trendSpan = container.querySelector(".flex.flex-wrap.items-baseline > span:last-child")
     expect(trendSpan?.className).not.toContain("text-positive")
     expect(trendSpan?.className).not.toContain("text-negative")
     expect(trendSpan?.className).toContain("text-muted-foreground")

@@ -17,7 +17,7 @@
  * - Account selector dropdown
  */
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { toast } from "sonner"
 import { Upload, FileText, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -71,8 +71,16 @@ export function CSVUploader({
   const [fileName, setFileName] = useState<string | null>(null)
   const [fileSize, setFileSize] = useState<number | null>(null)
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([])
-  const [previewRows, setPreviewRows] = useState<string[][]>([])
+  const [allPreviewRows, setAllPreviewRows] = useState<string[][]>([])
+  const [previewPage, setPreviewPage] = useState(0)
+  const previewPageSize = 10
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const previewRows = useMemo(
+    () => allPreviewRows.slice(previewPage * previewPageSize, (previewPage + 1) * previewPageSize),
+    [allPreviewRows, previewPage]
+  )
+  const previewTotalPages = Math.ceil(allPreviewRows.length / previewPageSize)
 
   /** Read and parse a CSV file, then update state and notify parent. */
   const handleFile = useCallback(
@@ -90,7 +98,8 @@ export function CSVUploader({
         setFileName(file.name)
         setFileSize(file.size)
         setPreviewHeaders(result.headers)
-        setPreviewRows(result.rows.slice(0, 5))
+        setAllPreviewRows(result.rows)
+        setPreviewPage(0)
 
         onFileLoaded({
           headers: result.headers,
@@ -112,7 +121,8 @@ export function CSVUploader({
     setFileName(null)
     setFileSize(null)
     setPreviewHeaders([])
-    setPreviewRows([])
+    setAllPreviewRows([])
+    setPreviewPage(0)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -363,17 +373,17 @@ export function CSVUploader({
       </Card>
 
       {/* Preview table */}
-      {previewHeaders.length > 0 && previewRows.length > 0 && (
+      {previewHeaders.length > 0 && allPreviewRows.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>
               Preview{" "}
               <span className="text-sm font-normal text-muted-foreground">
-                (first {previewRows.length} rows)
+                ({allPreviewRows.length} total rows)
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -396,6 +406,34 @@ export function CSVUploader({
                 </TableBody>
               </Table>
             </div>
+            {previewTotalPages > 1 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Showing {previewPage * previewPageSize + 1}–{Math.min((previewPage + 1) * previewPageSize, allPreviewRows.length)} of {allPreviewRows.length} rows
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewPage((p) => p - 1)}
+                    disabled={previewPage === 0}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-muted-foreground">
+                    Page {previewPage + 1} of {previewTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewPage((p) => p + 1)}
+                    disabled={previewPage >= previewTotalPages - 1}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

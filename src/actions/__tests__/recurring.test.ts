@@ -36,6 +36,12 @@ vi.mock("@/db", () => {
     account: {
       update: vi.fn(),
     },
+    recurringBill: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    billPayment: {
+      create: vi.fn().mockResolvedValue({}),
+    },
   }
   return {
     prisma: {
@@ -361,25 +367,52 @@ describe("createRecurringBill", () => {
   it("calculates nextDueDate as this month when day is in the future", async () => {
     mockRecurringBillCreate.mockResolvedValue({ id: "bill-new" } as never)
 
-    // Today is 2026-02-23; dayOfMonth=28 is in the future this month
-    await createRecurringBill({ ...validData, dayOfMonth: 28 })
+    // Pick a day that is guaranteed to be in the future this month
+    const now = new Date()
+    const today = now.getDate()
+    // Use last day of month (31) — if today < 31 it's in the future; if today=31 skip this assertion
+    const futureDay = 31
+    if (today >= futureDay) return // can't test this case on the last day of a 31-day month
+
+    await createRecurringBill({ ...validData, dayOfMonth: futureDay })
 
     const call = mockRecurringBillCreate.mock.calls[0][0] as { data: { nextDueDate: Date } }
     const nextDue = call.data.nextDueDate
-    expect(nextDue.getDate()).toBe(28)
-    expect(nextDue.getMonth()).toBe(1) // February = 1
+    // When the day is in the future, nextDueDate should be this month or next month
+    // depending on whether the month has that many days (Date auto-overflows)
+    const candidateThisMonth = new Date(now.getFullYear(), now.getMonth(), futureDay)
+    if (candidateThisMonth > now) {
+      expect(nextDue.getMonth()).toBe(now.getMonth())
+    } else {
+      expect(nextDue.getMonth()).toBe((now.getMonth() + 1) % 12)
+    }
+    expect(nextDue.getDate()).toBe(futureDay)
   })
 
   it("calculates nextDueDate as next month when day has already passed", async () => {
     mockRecurringBillCreate.mockResolvedValue({ id: "bill-new" } as never)
 
-    // Today is 2026-02-23; dayOfMonth=1 has already passed in February
-    await createRecurringBill({ ...validData, dayOfMonth: 1 })
+    const now = new Date()
+    const today = now.getDate()
+    // dayOfMonth=1 has always passed (or is today, which triggers next-month logic since nextDue <= now)
+    // unless today IS day 1 at midnight, but the source uses <= so today triggers next month too
+    const pastDay = 1
+
+    await createRecurringBill({ ...validData, dayOfMonth: pastDay })
 
     const call = mockRecurringBillCreate.mock.calls[0][0] as { data: { nextDueDate: Date } }
     const nextDue = call.data.nextDueDate
-    expect(nextDue.getDate()).toBe(1)
-    expect(nextDue.getMonth()).toBe(2) // March = 2
+    expect(nextDue.getDate()).toBe(pastDay)
+
+    // Source: if nextDue <= now → advance to next month
+    const candidateThisMonth = new Date(now.getFullYear(), now.getMonth(), pastDay)
+    if (candidateThisMonth <= now) {
+      // Expect next month
+      const expectedMonth = (now.getMonth() + 1) % 12
+      expect(nextDue.getMonth()).toBe(expectedMonth)
+    } else {
+      expect(nextDue.getMonth()).toBe(now.getMonth())
+    }
   })
 })
 

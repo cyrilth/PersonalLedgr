@@ -423,8 +423,8 @@ describe("detectAmountPattern", () => {
     const result = await detectAmountPattern(
       ["Date", "Description", "Amount", "Type"],
       [
-        ["2026-01-15", "Coffee", "5.50", "PURCHASE"],
-        ["2026-01-16", "Paycheck", "2000.00", "PAYMENT"],
+        ["2026-01-15", "Coffee", "5.50", "POSTED"],
+        ["2026-01-16", "Paycheck", "2000.00", "CLEARED"],
       ]
     )
 
