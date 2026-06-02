@@ -22,8 +22,9 @@
  *
  * Both cases:
  *   - The bill's `nextDueDate` is advanced to the next calendar occurrence
- *     after today, using JavaScript's Date constructor overflow behaviour to
- *     handle month-length differences correctly.
+ *     after today. Monthly/quarterly/annual dates are clamped to the last day
+ *     of the target month so a day-31 bill never overflows into the following
+ *     month (e.g. Jan 31 → Feb 28/29, not Mar 3).
  *   - If a bill is past-due (nextDueDate in the past), exactly ONE
  *     transaction is generated and the due date is fast-forwarded past today.
  *
@@ -80,10 +81,27 @@ function today(): Date {
 }
 
 /**
+ * Returns a Date for the given year/month/day, clamping the day to the last
+ * valid day of that month. This prevents JavaScript's Date overflow from
+ * rolling a day-31 bill into the following month (e.g. `new Date(2025, 1, 31)`
+ * would otherwise become March 3 instead of February 28).
+ *
+ * @param year  - Full year.
+ * @param month - 0-based month index (may be ≥ 12; the Date constructor
+ *                normalises it into the correct year).
+ * @param day   - Desired day-of-month (clamped to the month's last day).
+ * @returns A new Date at midnight local time on the clamped day.
+ */
+function dateInMonthClamped(year: number, month: number, day: number): Date {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDay))
+}
+
+/**
  * Advances a due date by one occurrence of the given frequency.
  *
- * Uses `new Date(year, month + N, day)` which correctly overflows into the
- * next month (e.g. March 31 + 1 month → April 30, not an invalid date).
+ * Monthly/quarterly/annual occurrences are clamped to the last day of the
+ * target month so a day-31 anchor never overflows into the next month.
  *
  * @param from      - The current due date.
  * @param frequency - The bill's recurrence interval.
@@ -110,11 +128,11 @@ function advanceByOneOccurrence(
       return toMidnight(next)
     }
     case "MONTHLY":
-      return toMidnight(new Date(year, month + 1, day))
+      return toMidnight(dateInMonthClamped(year, month + 1, day))
     case "QUARTERLY":
-      return toMidnight(new Date(year, month + 3, day))
+      return toMidnight(dateInMonthClamped(year, month + 3, day))
     case "ANNUAL":
-      return toMidnight(new Date(year, month + 12, day))
+      return toMidnight(dateInMonthClamped(year, month + 12, day))
   }
 }
 

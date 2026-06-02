@@ -130,9 +130,10 @@ export async function runBnplPayments(): Promise<void> {
             data: { balance: { increment: installmentAmount } },
           })
         } else {
-          // BNPL with interest — split principal/interest
+          // BNPL with interest — split principal/interest.
+          // interestRate is stored as a percentage (e.g. 12 = 12%), so divide by 100.
           const loanBalance = Math.abs(Number(loan.account.balance))
-          const monthlyInterest = round2(loanBalance * annualRate / 12)
+          const monthlyInterest = round2(loanBalance * (annualRate / 100) / 12)
           const interestAmount = Math.min(monthlyInterest, installmentAmount)
           const principalAmount = round2(installmentAmount - interestAmount)
 

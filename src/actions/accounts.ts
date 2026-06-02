@@ -384,18 +384,43 @@ export async function updateAccount(
       ? -data.balance
       : data.balance
 
-  await prisma.account.update({
-    where: { id },
-    data: {
-      name: data.name,
-      balance,
-      creditLimit: data.creditLimit,
-      apy: apyTypes.includes(existing.type) ? (data.apy ?? 0) : 0,
-      owner: data.owner || null,
-      termMonths: existing.type === "CD" && data.cd ? data.cd.termMonths : undefined,
-      maturityDate: existing.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : undefined,
-      autoRenew: existing.type === "CD" && data.cd ? data.cd.autoRenew : undefined,
-    },
+  // When the balance is edited directly, the transaction ledger no longer sums
+  // to the stored balance (recalculateBalance would report drift). Record a
+  // SYSTEM "Balance Adjustment" transaction for the delta, atomically with the
+  // account update, so the ledger stays reconciled. The "Balance Adjustment"
+  // category is excluded from income/expense totals in dashboards and reports.
+  const oldBalance = toNumber(existing.balance)
+  const balanceDelta = Math.round((balance - oldBalance) * 100) / 100
+
+  await prisma.$transaction(async (tx) => {
+    await tx.account.update({
+      where: { id },
+      data: {
+        name: data.name,
+        balance,
+        creditLimit: data.creditLimit,
+        apy: apyTypes.includes(existing.type) ? (data.apy ?? 0) : 0,
+        owner: data.owner || null,
+        termMonths: existing.type === "CD" && data.cd ? data.cd.termMonths : undefined,
+        maturityDate: existing.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : undefined,
+        autoRenew: existing.type === "CD" && data.cd ? data.cd.autoRenew : undefined,
+      },
+    })
+
+    if (balanceDelta !== 0) {
+      await tx.transaction.create({
+        data: {
+          date: new Date(),
+          description: "Balance Adjustment",
+          amount: balanceDelta,
+          type: balanceDelta > 0 ? "INCOME" : "EXPENSE",
+          category: "Balance Adjustment",
+          source: "SYSTEM",
+          userId,
+          accountId: id,
+        },
+      })
+    }
   })
 
   // Upsert credit card details

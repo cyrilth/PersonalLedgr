@@ -9,7 +9,8 @@
  *    respecting the grace period: if the prior statement was paid in full,
  *    purchases made within the current billing cycle are interest-free.
  * 3. Computes each transaction's daily periodic rate:
- *      daily interest = |amount| × (APR / 100 / 365)
+ *      daily interest = |amount| × (APR / 365)
+ *    where APR is stored as a decimal fraction (e.g. 0.2499 = 24.99%),
  *    and sums them into a total daily accrual figure.
  * 4. Writes an InterestLog row (type CHARGED) every day with the accrual amount.
  * 5. On the last calendar day of the month, also posts an INTEREST_CHARGED
@@ -245,10 +246,11 @@ export async function runCCInterestAccrual(): Promise<void> {
           continue
         }
 
-        // Daily periodic rate: APR% / 100 / 365
+        // Daily periodic rate: APR / 365. APR is stored as a decimal fraction
+        // (e.g. 0.2499 = 24.99%), so it must NOT be divided by 100 again.
         // Amount is stored as negative for expenses (debit); use abs value.
         const principal = tx.amount.abs()
-        const dailyRate = effectiveApr.div(new Decimal(100)).div(new Decimal(365))
+        const dailyRate = effectiveApr.div(new Decimal(365))
         const dailyInterest = principal.mul(dailyRate)
 
         totalDailyInterest = totalDailyInterest.add(dailyInterest)

@@ -2,7 +2,8 @@
  * Tests for the credit card daily interest accrual job.
  *
  * Key behaviours under test:
- *  - Daily interest = |amount| × (APR / 100 / 365) per qualifying transaction
+ *  - Daily interest = |amount| × (APR / 365) per qualifying transaction
+ *    (APR is stored as a decimal fraction, e.g. 0.2499 = 24.99%)
  *  - Grace period: when lastStatementPaidInFull=true, current-cycle purchases
  *    are exempt; prior-cycle purchases still accrue
  *  - When a transaction's linked APR rate is inactive, falls back to STANDARD
@@ -116,7 +117,7 @@ function makeAprRate(overrides: {
     accountId: "acc-1",
     userId: "user-1",
     rateType: overrides.rateType ?? "STANDARD",
-    apr: decimal(overrides.apr ?? 24.99),
+    apr: decimal(overrides.apr ?? 0.2499),
     isActive: overrides.isActive ?? true,
     expirationDate: null,
     createdAt: new Date(),
@@ -182,12 +183,12 @@ describe("runCCInterestAccrual", () => {
   })
 
   describe("daily interest calculation", () => {
-    it("calculates correct daily interest: |amount| × (APR / 100 / 365)", async () => {
+    it("calculates correct daily interest: |amount| × (APR / 365)", async () => {
       // Use a past date so it's definitely NOT in the current cycle
       // and lastStatementPaidInFull=false so all purchases accrue
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
-        aprRates: [makeAprRate({ apr: 24.99 })],
+        aprRates: [makeAprRate({ apr: 0.2499 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -206,15 +207,15 @@ describe("runCCInterestAccrual", () => {
 
       expect(txClient.interestLog.create).toHaveBeenCalledOnce()
 
-      // Expected: 100 × (24.99 / 100 / 365)
-      const expected = new Decimal(100).mul(new Decimal(24.99).div(100).div(365))
+      // Expected: 100 × (0.2499 / 365)
+      const expected = new Decimal(100).mul(new Decimal(0.2499).div(365))
       expect(loggedAmount!.toFixed(8)).toBe(expected.toFixed(8))
     })
 
     it("sums daily interest across multiple qualifying transactions", async () => {
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
-        aprRates: [makeAprRate({ apr: 20 })],
+        aprRates: [makeAprRate({ apr: 0.2 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -231,8 +232,8 @@ describe("runCCInterestAccrual", () => {
 
       await runCCInterestAccrual()
 
-      // 200 × (20/100/365) + 300 × (20/100/365) = 500 × (20/100/365)
-      const rate = new Decimal(20).div(100).div(365)
+      // 200 × (0.2/365) + 300 × (0.2/365) = 500 × (0.2/365)
+      const rate = new Decimal(0.2).div(365)
       const expected = new Decimal(200).mul(rate).add(new Decimal(300).mul(rate))
       expect(loggedAmount!.toFixed(8)).toBe(expected.toFixed(8))
     })
@@ -267,7 +268,7 @@ describe("runCCInterestAccrual", () => {
           lastStatementPaidInFull: true,
           statementCloseDay: closeDay,
         }),
-        aprRates: [makeAprRate({ apr: 24.99 })],
+        aprRates: [makeAprRate({ apr: 0.2499 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -293,7 +294,7 @@ describe("runCCInterestAccrual", () => {
           lastStatementPaidInFull: true,
           statementCloseDay: 1,
         }),
-        aprRates: [makeAprRate({ apr: 24.99 })],
+        aprRates: [makeAprRate({ apr: 0.2499 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -319,7 +320,7 @@ describe("runCCInterestAccrual", () => {
           lastStatementPaidInFull: false,
           statementCloseDay: 15,
         }),
-        aprRates: [makeAprRate({ apr: 20 })],
+        aprRates: [makeAprRate({ apr: 0.2 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -338,7 +339,7 @@ describe("runCCInterestAccrual", () => {
   describe("APR rate resolution", () => {
     it("uses the transaction-linked APR rate when it is active", async () => {
       const linkedRate = makeAprRate({ id: "promo-rate", apr: 0, isActive: true })
-      const standardRate = makeAprRate({ id: "std-rate", apr: 24.99, rateType: "STANDARD" })
+      const standardRate = makeAprRate({ id: "std-rate", apr: 0.2499, rateType: "STANDARD" })
 
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
@@ -360,7 +361,7 @@ describe("runCCInterestAccrual", () => {
 
     it("falls back to STANDARD rate when linked rate is inactive", async () => {
       const inactivePromo = makeAprRate({ id: "promo-rate", apr: 0, isActive: false })
-      const standardRate = makeAprRate({ id: "std-rate", apr: 20, rateType: "STANDARD", isActive: true })
+      const standardRate = makeAprRate({ id: "std-rate", apr: 0.2, rateType: "STANDARD", isActive: true })
 
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
@@ -380,8 +381,8 @@ describe("runCCInterestAccrual", () => {
 
       await runCCInterestAccrual()
 
-      // Should fall back to 20% standard rate
-      const expected = new Decimal(100).mul(new Decimal(20).div(100).div(365))
+      // Should fall back to 20% standard rate (stored as 0.2)
+      const expected = new Decimal(100).mul(new Decimal(0.2).div(365))
       expect(loggedAmount!.toFixed(8)).toBe(expected.toFixed(8))
     })
 
@@ -418,7 +419,7 @@ describe("runCCInterestAccrual", () => {
 
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
-        aprRates: [makeAprRate({ apr: 20 })],
+        aprRates: [makeAprRate({ apr: 0.2 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([
@@ -461,7 +462,7 @@ describe("runCCInterestAccrual", () => {
 
       const account = makeCCAccount({
         ccDetails: makeCCDetails({ lastStatementPaidInFull: false }),
-        aprRates: [makeAprRate({ apr: 20 })],
+        aprRates: [makeAprRate({ apr: 0.2 })],
       })
       mockPrismaAccountFindMany.mockResolvedValue([account] as never)
       mockPrismaTxFindMany.mockResolvedValue([

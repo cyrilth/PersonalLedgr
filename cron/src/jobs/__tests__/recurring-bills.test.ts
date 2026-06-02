@@ -289,6 +289,32 @@ describe("runRecurringBills", () => {
     })
   })
 
+  describe("monthly date clamping (no month overflow)", () => {
+    it("clamps a day-31 monthly bill to Feb 28 instead of overflowing into March", async () => {
+      vi.useFakeTimers()
+      // Today is Jan 31, 2025 (a non-leap year). Use local-time noon.
+      vi.setSystemTime(new Date("2025-01-31T12:00:00"))
+
+      const bill = makeBill({
+        frequency: "MONTHLY",
+        isVariableAmount: false,
+        nextDueDate: new Date("2025-01-31T00:00:00"),
+        dayOfMonth: 31,
+      })
+      mockRecurringBillFindMany.mockResolvedValue([bill] as never)
+
+      await runRecurringBills()
+
+      const updateCall = txClient.recurringBill.update.mock.calls[0][0]
+      const nextDue: Date = updateCall.data.nextDueDate
+      // Must land on Feb 28 (2025 is not a leap year), NOT roll into March.
+      expect(nextDue.getMonth()).toBe(1) // February
+      expect(nextDue.getDate()).toBe(28)
+
+      vi.useRealTimers()
+    })
+  })
+
   describe("atomicity", () => {
     it("wraps all writes for a single bill in one Prisma transaction", async () => {
       const bill = makeBill({ isVariableAmount: false })

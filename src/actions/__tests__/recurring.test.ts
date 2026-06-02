@@ -51,6 +51,9 @@ vi.mock("@/db", () => {
         create: vi.fn(),
         update: vi.fn(),
       },
+      account: {
+        findFirst: vi.fn(),
+      },
       transaction: {
         findFirst: vi.fn(),
       },
@@ -80,6 +83,7 @@ const mockRecurringBillFindMany = vi.mocked(prisma.recurringBill.findMany)
 const mockRecurringBillFindFirst = vi.mocked(prisma.recurringBill.findFirst)
 const mockRecurringBillCreate = vi.mocked(prisma.recurringBill.create)
 const mockRecurringBillUpdate = vi.mocked(prisma.recurringBill.update)
+const mockAccountFindFirst = vi.mocked(prisma.account.findFirst)
 const mockTransactionFindFirst = vi.mocked(prisma.transaction.findFirst)
 const mock$Transaction = vi.mocked(prisma.$transaction)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,6 +148,13 @@ function makePendingTransaction(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks()
   mockGetSession.mockResolvedValue(makeSession() as never)
+  // By default the payment account exists and belongs to the user so
+  // create/update ownership checks pass. Individual tests override this.
+  mockAccountFindFirst.mockResolvedValue({
+    id: "acc-1",
+    userId: "user-1",
+    isActive: true,
+  } as never)
 })
 
 // ── getRecurringBills ─────────────────────────────────────────────────────────
@@ -364,29 +375,25 @@ describe("createRecurringBill", () => {
     )
   })
 
-  it("calculates nextDueDate as this month when day is in the future", async () => {
+  it("clamps a day-31 nextDueDate to the last valid day of the target month (no overflow)", async () => {
     mockRecurringBillCreate.mockResolvedValue({ id: "bill-new" } as never)
 
-    // Pick a day that is guaranteed to be in the future this month
-    const now = new Date()
-    const today = now.getDate()
-    // Use last day of month (31) — if today < 31 it's in the future; if today=31 skip this assertion
-    const futureDay = 31
-    if (today >= futureDay) return // can't test this case on the last day of a 31-day month
-
-    await createRecurringBill({ ...validData, dayOfMonth: futureDay })
+    await createRecurringBill({ ...validData, dayOfMonth: 31 })
 
     const call = mockRecurringBillCreate.mock.calls[0][0] as { data: { nextDueDate: Date } }
     const nextDue = call.data.nextDueDate
-    // When the day is in the future, nextDueDate should be this month or next month
-    // depending on whether the month has that many days (Date auto-overflows)
-    const candidateThisMonth = new Date(now.getFullYear(), now.getMonth(), futureDay)
-    if (candidateThisMonth > now) {
-      expect(nextDue.getMonth()).toBe(now.getMonth())
-    } else {
-      expect(nextDue.getMonth()).toBe((now.getMonth() + 1) % 12)
-    }
-    expect(nextDue.getDate()).toBe(futureDay)
+    // The due date must never roll into the following month (e.g. Feb 31 → Mar 3).
+    // The day is clamped to min(31, last day of the resolved month).
+    const lastDayOfMonth = new Date(nextDue.getFullYear(), nextDue.getMonth() + 1, 0).getDate()
+    expect(nextDue.getDate()).toBe(Math.min(31, lastDayOfMonth))
+    expect(nextDue.getDate()).toBeLessThanOrEqual(lastDayOfMonth)
+  })
+
+  it("throws 'Account not found' when the payment account belongs to another user", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+
+    await expect(createRecurringBill(validData)).rejects.toThrow("Account not found")
+    expect(mockRecurringBillCreate).not.toHaveBeenCalled()
   })
 
   it("calculates nextDueDate as next month when day has already passed", async () => {
@@ -492,6 +499,16 @@ describe("updateRecurringBill", () => {
         where: expect.objectContaining({ id: "bill-1", userId: "user-1" }),
       })
     )
+  })
+
+  it("throws 'Account not found' when moving the bill to another user's account", async () => {
+    mockRecurringBillFindFirst.mockResolvedValue(makeRecurringBill() as never)
+    mockAccountFindFirst.mockResolvedValue(null as never)
+
+    await expect(
+      updateRecurringBill("bill-1", { accountId: "acc-other" })
+    ).rejects.toThrow("Account not found")
+    expect(mockRecurringBillUpdate).not.toHaveBeenCalled()
   })
 
   it("returns { success: true } on update", async () => {

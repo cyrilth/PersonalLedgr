@@ -125,6 +125,13 @@ export async function recordBillPayment(data: {
   })
   if (!bill) throw new Error("Bill not found")
 
+  // Verify the payment account also belongs to the user and is active.
+  // Without this, a caller could post a transaction against another user's account.
+  const account = await prisma.account.findFirst({
+    where: { id: data.accountId, userId, isActive: true },
+  })
+  if (!account) throw new Error("Account not found")
+
   const negativeAmount = -Math.abs(data.amount)
   const paymentDate = data.date ?? new Date()
 

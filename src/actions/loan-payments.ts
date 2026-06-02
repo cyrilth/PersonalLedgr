@@ -258,9 +258,10 @@ export async function recordLoanPayment(data: {
     }
   }
 
-  // Standard loan payment (or BNPL with interest) — existing logic
+  // Standard loan payment (or BNPL with interest) — existing logic.
+  // interestRate is stored as a percentage (e.g. 6 = 6%), so divide by 100.
   const loanBalance = Math.abs(toNumber(loanAccount.balance))
-  const monthlyInterest = round2(loanBalance * annualRate / 12)
+  const monthlyInterest = round2(loanBalance * (annualRate / 100) / 12)
 
   let interestAmount: number
   let principalAmount: number
@@ -273,13 +274,21 @@ export async function recordLoanPayment(data: {
     principalAmount = round2(data.amount - interestAmount)
   }
 
+  // Cap principal at the outstanding balance so an overpayment cannot push the
+  // loan account into a positive (asset) balance. The effective payment is then
+  // interest + capped principal; any excess is not withdrawn from the source.
+  if (principalAmount > loanBalance) {
+    principalAmount = loanBalance
+  }
+  const effectivePayment = round2(interestAmount + principalAmount)
+
   const result = await prisma.$transaction(async (tx) => {
     // Transaction A: TRANSFER on source account (outgoing)
     const outgoing = await tx.transaction.create({
       data: {
         date: paymentDate,
         description,
-        amount: -data.amount,
+        amount: -effectivePayment,
         type: "TRANSFER",
         source: "MANUAL",
         userId,
@@ -324,7 +333,7 @@ export async function recordLoanPayment(data: {
     // Update source account balance
     await tx.account.update({
       where: { id: data.fromAccountId },
-      data: { balance: { decrement: data.amount } },
+      data: { balance: { decrement: effectivePayment } },
     })
 
     // Update loan account balance (increment by principal moves toward zero)
@@ -343,6 +352,16 @@ export async function recordLoanPayment(data: {
         accountId: data.loanAccountId,
       },
     })
+
+    // For standard loans (non-BNPL), deactivate when the balance reaches zero.
+    // After incrementing by principal the new balance is (-loanBalance + principal);
+    // because principal is capped at loanBalance it can never go positive.
+    if (!isBNPL && round2(-loanBalance + principalAmount) >= 0) {
+      await tx.account.update({
+        where: { id: data.loanAccountId },
+        data: { isActive: false },
+      })
+    }
 
     // If BNPL with interest, also advance installment tracking
     if (isBNPL) {

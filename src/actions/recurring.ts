@@ -43,6 +43,29 @@ function toNumber(d: unknown): number {
   return Number(d)
 }
 
+/**
+ * Returns a Date for the given year/month/day, clamping the day to the last
+ * valid day of that month. Prevents JavaScript's Date overflow from rolling a
+ * day-31 bill into the following month (e.g. `new Date(2025, 1, 31)` would
+ * otherwise become March 3 instead of February 28).
+ */
+function dateInMonthClamped(year: number, month: number, day: number): Date {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDay))
+}
+
+/**
+ * Verifies that an account exists, is active, and belongs to the given user.
+ * Throws "Account not found" otherwise. Used by bill create/update to prevent
+ * attaching a recurring bill to another user's account.
+ */
+async function assertAccountOwnership(accountId: string, userId: string): Promise<void> {
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId, isActive: true },
+  })
+  if (!account) throw new Error("Account not found")
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 /** Recurring bill with associated payment account info for display. */
@@ -123,6 +146,9 @@ export async function createRecurringBill(data: {
   if (data.amount <= 0) throw new Error("Amount must be positive")
   if (!data.accountId) throw new Error("Account is required")
 
+  // Verify the target account belongs to the authenticated user
+  await assertAccountOwnership(data.accountId, userId)
+
   const isSubMonthly = data.frequency === "WEEKLY" || data.frequency === "BIWEEKLY"
 
   let nextDue: Date
@@ -149,9 +175,9 @@ export async function createRecurringBill(data: {
     }
     dayOfMonth = data.dayOfMonth
     const now = new Date()
-    nextDue = new Date(now.getFullYear(), now.getMonth(), dayOfMonth)
+    nextDue = dateInMonthClamped(now.getFullYear(), now.getMonth(), dayOfMonth)
     if (nextDue <= now) {
-      nextDue = new Date(now.getFullYear(), now.getMonth() + 1, dayOfMonth)
+      nextDue = dateInMonthClamped(now.getFullYear(), now.getMonth() + 1, dayOfMonth)
     }
   }
 
@@ -201,6 +227,11 @@ export async function updateRecurringBill(
   })
   if (!bill) throw new Error("Bill not found")
 
+  // If the bill is being moved to a different account, verify ownership
+  if (data.accountId !== undefined) {
+    await assertAccountOwnership(data.accountId, userId)
+  }
+
   const update: Record<string, unknown> = {}
   if (data.name !== undefined) update.name = data.name.trim()
   if (data.amount !== undefined) update.amount = data.amount
@@ -228,9 +259,9 @@ export async function updateRecurringBill(
     update.dayOfMonth = nextDue.getDate()
   } else if (!isSubMonthly && data.dayOfMonth !== undefined) {
     const now = new Date()
-    let nextDue = new Date(now.getFullYear(), now.getMonth(), data.dayOfMonth)
+    let nextDue = dateInMonthClamped(now.getFullYear(), now.getMonth(), data.dayOfMonth)
     if (nextDue <= now) {
-      nextDue = new Date(now.getFullYear(), now.getMonth() + 1, data.dayOfMonth)
+      nextDue = dateInMonthClamped(now.getFullYear(), now.getMonth() + 1, data.dayOfMonth)
     }
     update.nextDueDate = nextDue
   }

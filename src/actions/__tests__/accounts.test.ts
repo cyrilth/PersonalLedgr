@@ -19,8 +19,10 @@ vi.mock("@/db", () => {
     transaction: {
       findMany: vi.fn(),
       updateMany: vi.fn(),
+      create: vi.fn(),
     },
     account: {
+      update: vi.fn(),
       delete: vi.fn(),
     },
   }
@@ -487,7 +489,9 @@ describe("createAccount", () => {
 describe("updateAccount", () => {
   beforeEach(() => {
     mockAccountFindFirst.mockResolvedValue(makeAccount() as never)
-    mockAccountUpdate.mockResolvedValue({} as never)
+    // updateAccount now runs the account update + adjustment inside $transaction
+    mockTx.account.update.mockResolvedValue({} as never)
+    mockTx.transaction.create.mockResolvedValue({} as never)
   })
 
   it("throws Unauthorized when no session", async () => {
@@ -507,7 +511,7 @@ describe("updateAccount", () => {
   it("updates basic account fields", async () => {
     await updateAccount("acc-1", { name: "Renamed", balance: 2000, owner: "Bob" })
 
-    expect(mockAccountUpdate).toHaveBeenCalledWith({
+    expect(mockTx.account.update).toHaveBeenCalledWith({
       where: { id: "acc-1" },
       data: expect.objectContaining({
         name: "Renamed",
@@ -515,6 +519,41 @@ describe("updateAccount", () => {
         owner: "Bob",
       }),
     })
+  })
+
+  it("creates a SYSTEM Balance Adjustment transaction for the balance delta", async () => {
+    // Stored balance is $1,000 (makeAccount default); update to $1,250 → +$250 delta
+    await updateAccount("acc-1", { name: "My Checking", balance: 1250 })
+
+    expect(mockTx.transaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        description: "Balance Adjustment",
+        amount: 250,
+        type: "INCOME",
+        category: "Balance Adjustment",
+        source: "SYSTEM",
+        userId: "user-1",
+        accountId: "acc-1",
+      }),
+    })
+  })
+
+  it("creates an EXPENSE Balance Adjustment when the balance decreases", async () => {
+    // $1,000 → $600 = -$400 delta
+    await updateAccount("acc-1", { name: "My Checking", balance: 600 })
+
+    const call = mockTx.transaction.create.mock.calls[0][0] as {
+      data: { amount: number; type: string }
+    }
+    expect(call.data.amount).toBe(-400)
+    expect(call.data.type).toBe("EXPENSE")
+  })
+
+  it("does NOT create an adjustment when only metadata changes (balance unchanged)", async () => {
+    // Keep balance at the stored $1,000, just rename
+    await updateAccount("acc-1", { name: "Renamed", balance: 1000 })
+
+    expect(mockTx.transaction.create).not.toHaveBeenCalled()
   })
 
   it("upserts CC details when account type is CREDIT_CARD", async () => {

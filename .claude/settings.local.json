@@ -56,7 +56,10 @@
       "Bash(npx vitest:*)",
       "Bash(pnpm exec:*)",
       "mcp__plugin_playwright_playwright__browser_handle_dialog",
-      "mcp__plugin_playwright_playwright__browser_run_code"
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "Bash(pnpm vitest *)",
+      "Bash(git stash *)",
+      "Bash(node *)"
     ]
   }
 }

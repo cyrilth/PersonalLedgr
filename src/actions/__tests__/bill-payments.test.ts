@@ -46,6 +46,9 @@ vi.mock("@/db", () => {
         findMany: vi.fn(),
         findFirst: vi.fn(),
       },
+      account: {
+        findFirst: vi.fn(),
+      },
       billPayment: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
@@ -79,6 +82,7 @@ import {
 const mockGetSession = vi.mocked(auth.api.getSession)
 const mockRecurringBillFindMany = vi.mocked(prisma.recurringBill.findMany)
 const mockRecurringBillFindFirst = vi.mocked(prisma.recurringBill.findFirst)
+const mockAccountFindFirst = vi.mocked(prisma.account.findFirst)
 const mockBillPaymentFindMany = vi.mocked(prisma.billPayment.findMany)
 const mockBillPaymentFindUnique = vi.mocked(prisma.billPayment.findUnique)
 const mockBillPaymentCreate = vi.mocked(prisma.billPayment.create)
@@ -311,6 +315,12 @@ describe("recordBillPayment", () => {
 
   beforeEach(() => {
     mockRecurringBillFindFirst.mockResolvedValue(makeRecurringBill() as never)
+    // By default the payment account exists, is active, and belongs to the user
+    mockAccountFindFirst.mockResolvedValue({
+      id: "acc-1",
+      userId: "user-1",
+      isActive: true,
+    } as never)
     mockTx.transaction.create.mockResolvedValue(makeTransaction() as never)
     mockTx.account.update.mockResolvedValue({} as never)
     mockTx.billPayment.create.mockResolvedValue({ id: "pay-new" } as never)
@@ -324,6 +334,29 @@ describe("recordBillPayment", () => {
   it("throws 'Bill not found' when bill does not belong to user", async () => {
     mockRecurringBillFindFirst.mockResolvedValue(null as never)
     await expect(recordBillPayment(validData)).rejects.toThrow("Bill not found")
+  })
+
+  it("throws 'Account not found' when the payment account belongs to another user", async () => {
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(recordBillPayment(validData)).rejects.toThrow("Account not found")
+    // No transaction should be created when the account check fails
+    expect(mockTx.transaction.create).not.toHaveBeenCalled()
+  })
+
+  it("throws 'Account not found' for an inactive or missing account", async () => {
+    // findFirst with isActive:true filter returns null for inactive accounts
+    mockAccountFindFirst.mockResolvedValue(null as never)
+    await expect(recordBillPayment(validData)).rejects.toThrow("Account not found")
+  })
+
+  it("scopes the account ownership check by userId and isActive", async () => {
+    await recordBillPayment(validData)
+
+    expect(mockAccountFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "acc-1", userId: "user-1", isActive: true }),
+      })
+    )
   })
 
   it("allows multiple payments for the same bill/month/year", async () => {

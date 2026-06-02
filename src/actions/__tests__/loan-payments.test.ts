@@ -75,14 +75,15 @@ const validInput = {
   description: "Mortgage Payment",
 }
 
-// Loan: $200,000 balance, 6% rate → monthly interest = 200000 * 0.06 / 12 = $1,000
+// Loan: $200,000 balance, 6% rate → monthly interest = 200000 * (6/100) / 12 = $1,000.
+// interestRate is stored as a percentage (6 = 6%), not a decimal fraction.
 const mockLoanAccount = {
   id: "loan-1",
   userId: "user-1",
   balance: decimal(-200000),
   loan: {
     id: "loan-record-1",
-    interestRate: decimal(0.06),
+    interestRate: decimal(6),
     monthlyPayment: decimal(1199.10),
   },
 }
@@ -231,6 +232,38 @@ describe("recordLoanPayment", () => {
 
     expect(result.interestAmount).toBe(1000)
     expect(result.principalAmount).toBe(0)
+  })
+
+  it("treats interestRate as a percentage, not a decimal fraction (regression for 100x bug)", async () => {
+    // $200k at interestRate=6 must yield $1,000/mo interest, NOT $100,000
+    const result = await recordLoanPayment({ ...validInput, amount: 1199.10 })
+
+    expect(result.interestAmount).toBe(1000)
+    expect(result.interestAmount).not.toBe(100000)
+  })
+
+  it("caps principal at the outstanding balance so overpayment cannot make the loan positive", async () => {
+    // Loan with only $1,000 remaining at 0% APR
+    mockAccountFindFirst.mockImplementation(((args: { where: { id: string } }) => {
+      if (args.where.id === "acc-1") return Promise.resolve(mockFromAccount)
+      if (args.where.id === "loan-1")
+        return Promise.resolve({
+          ...mockLoanAccount,
+          balance: decimal(-1000),
+          loan: { ...mockLoanAccount.loan, interestRate: decimal(0) },
+        })
+      return Promise.resolve(null)
+    }) as never)
+
+    const result = await recordLoanPayment({ ...validInput, amount: 2000 })
+
+    // Principal is capped at the $1,000 balance, not the full $2,000 payment
+    expect(result.principalAmount).toBe(1000)
+    // Loan account is incremented by at most the outstanding balance → reaches 0, never positive
+    expect(txClient.account.update).toHaveBeenCalledWith({
+      where: { id: "loan-1" },
+      data: { balance: { increment: 1000 } },
+    })
   })
 
   // ── Transaction Creation ────────────────────────────────────────────
