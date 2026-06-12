@@ -1,16 +1,18 @@
 # ── Stage 1: Dependencies ────────────────────────────────────────────
 FROM node:22-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
-RUN pnpm install --frozen-lockfile --config.strict-dep-builds=false
+RUN pnpm install --frozen-lockfile
 
 # ── Stage 2: Build ───────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
