@@ -953,7 +953,7 @@ describe("getBalanceHistory", () => {
       { date: thisMonth, amount: decimal(1000) },
     ] as never)
 
-    const result = await getBalanceHistory("acc-1", 12)
+    const result = await getBalanceHistory("acc-1", { months: 12 })
 
     expect(result).toHaveLength(12)
     // Most recent month should be current balance

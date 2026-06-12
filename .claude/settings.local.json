@@ -59,7 +59,16 @@
       "mcp__plugin_playwright_playwright__browser_run_code",
       "Bash(pnpm vitest *)",
       "Bash(git stash *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(git -C /d/sources/personal_repos/PersonalLedgr log --oneline -8)",
+      "Bash(git -C /d/sources/personal_repos/PersonalLedgr diff --stat b661f34~1..HEAD)",
+      "Bash(git *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(pnpm install *)",
+      "Bash(docker exec personalledgr-db-1 *)",
+      "Bash(sed -n 940,975p /d/sources/personal_repos/PersonalLedgr/src/actions/__tests__/accounts.test.ts)",
+      "Bash(sed -n 685,720p /d/sources/personal_repos/PersonalLedgr/src/actions/__tests__/transactions.test.ts)",
+      "Bash(echo \"lint exit: $?\")"
     ]
   }
 }

@@ -432,6 +432,10 @@ next-env.d.ts
 
 # Testing
 /coverage
+/test-results/
+/playwright-report/
+/e2e/.auth/
+*.tmp.ts
 
 # Debug
 npm-debug.log*

@@ -97,6 +97,7 @@ function makeTransaction(overrides: Partial<{
   linkedTransactionId: string | null
   linkedTransaction: null | { id: string; accountId: string; amount: ReturnType<typeof decimal> }
   linkedBy: null | { id: string; accountId: string; amount: ReturnType<typeof decimal> }
+  billPayment: null | { id: string; month: number; year: number; recurringBill: { name: string } }
   account: { id: string; name: string; type: string }
 }> = {}) {
   return {
@@ -113,6 +114,7 @@ function makeTransaction(overrides: Partial<{
     linkedTransactionId: null,
     linkedTransaction: null,
     linkedBy: null,
+    billPayment: null,
     account: { id: "acc-1", name: "Checking", type: "CHECKING" },
     ...overrides,
   }

@@ -150,14 +150,23 @@ export function LoanPaymentForm({
 
     setSaving(true)
     try {
-      await recordLoanPayment({
+      const result = await recordLoanPayment({
         loanAccountId,
         fromAccountId,
         amount: parsedAmount,
         date,
         description: description || undefined,
       })
-      toast.success("Loan payment recorded")
+      // The server caps principal at the outstanding balance, so the amount
+      // actually withdrawn can be less than what was entered.
+      const charged = Math.abs(result.totalAmount)
+      if (charged < parsedAmount - 0.005) {
+        toast.success(
+          `Loan paid off — payment reduced to ${formatCurrency(charged)} (remaining balance was less than the entered amount)`
+        )
+      } else {
+        toast.success("Loan payment recorded")
+      }
       onSuccess()
       onOpenChange(false)
     } catch (err) {

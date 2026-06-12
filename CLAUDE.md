@@ -103,6 +103,17 @@ Payday loans are modeled as a loan subtype with fee-based pricing:
 - **Auto-payment cron** — daily job at 7 AM processes payday loans with a configured `paymentAccountId`
 - **Lender tracking** — `lenderName` field for payday lender identification
 
+## Interest Rate Storage Conventions
+
+Two different conventions coexist — do not mix them up:
+
+| Field | Stored as | Example | Used by |
+|---|---|---|---|
+| `AprRate.apr` | **Decimal fraction** | `0.2499` = 24.99% | CC interest accrual (`apr / 365` daily rate, no ÷100) |
+| `Loan.interestRate` | **Percentage** | `6` = 6% | Loan/BNPL payment splits (`rate / 100 / 12` monthly rate) |
+
+UI forms always accept user-friendly percentages (e.g. "24.99"); the APR rate paths divide by 100 before persisting (`createAccount`, `apr-rate-manager.tsx`), while loan forms persist the percentage as-is.
+
 ## Recurring Frequencies
 
 | Frequency | Scheduling | Anchor |

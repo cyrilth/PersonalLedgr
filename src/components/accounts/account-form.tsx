@@ -45,7 +45,7 @@ interface AccountData {
   balance: number
   creditLimit: number | null
   owner: string | null
-  apy: number
+  apy?: number | null
   creditCardDetails?: {
     statementCloseDay: number
     paymentDueDay: number
