@@ -68,7 +68,17 @@
       "Bash(docker exec personalledgr-db-1 *)",
       "Bash(sed -n 940,975p /d/sources/personal_repos/PersonalLedgr/src/actions/__tests__/accounts.test.ts)",
       "Bash(sed -n 685,720p /d/sources/personal_repos/PersonalLedgr/src/actions/__tests__/transactions.test.ts)",
-      "Bash(echo \"lint exit: $?\")"
+      "Bash(echo \"lint exit: $?\")",
+      "Bash(ssh *)",
+      "PowerShell(curl.exe -s -o NUL -w \"External: HTTP %{http_code} in %{time_total}s\" http://ud-web-host.local:3000/login)",
+      "PowerShell(curl.exe -s -o NUL -w \"external: HTTP %{http_code}\" http://ud-web-host.local:3000/login)",
+      "PowerShell(curl.exe -s -o NUL -w \"https://pl.ct-home.net/login -> HTTP %{http_code} \\(TLS: %{ssl_verify_result}\\)`n\" https://pl.ct-home.net/login; curl.exe -s -o NUL -w \"http redirect check -> HTTP %{http_code} -> %{redirect_url}\" http://pl.ct-home.net/login)",
+      "PowerShell(Resolve-DnsName *)",
+      "PowerShell(curl.exe -s -o NUL -w \"https://pl.ct-home.net/login -> HTTP %{http_code}\" https://pl.ct-home.net/login)",
+      "PowerShell(curl.exe -vk -s -o NUL https://pl.ct-home.net/ 2>&1 | Select-String -Pattern \"subject:|issuer:|expire|SSL certificate|verify\" | ForEach-Object { $_.Line.Trim\\(\\) })",
+      "PowerShell($r = curl.exe -vk --silent --output NUL https://pl.ct-home.net/ 2>&1 | Out-String; $r -split \"`n\" | Where-Object { $_ -match \"subject|issuer|expire|verif|TLS|certificate\" } | ForEach-Object { $_.Trim\\(\\) })",
+      "PowerShell(curl.exe -s -o NUL -w \"http://pl.ct-home.net -> HTTP %{http_code}, redirects to: '%{redirect_url}'\" http://pl.ct-home.net/)",
+      "PowerShell(curl.exe -sk -o NUL -w \"https://192.168.1.30:3000 \\(upstream\\) -> HTTP %{http_code}`n\" https://192.168.1.30:3000/login; curl.exe -s -o NUL -w \"https://pl.ct-home.net \\(public\\) -> HTTP %{http_code}\" https://pl.ct-home.net/login)"
     ]
   }
 }
