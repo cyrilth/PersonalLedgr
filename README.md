@@ -2,6 +2,34 @@
 
 A self-hosted finance app that actually knows the difference between spending money and moving it around.
 
+> **🚀 Public demo coming soon!** A hosted demo instance with sample data will be available shortly — stay tuned.
+
+## Screenshots
+
+### Dashboard
+
+Net worth, credit utilization, upcoming bills, income vs. expenses, and spending breakdown at a glance.
+
+![Dashboard](Docs/screenshots/dashboard.png)
+
+### Accounts & Transactions
+
+| Accounts | Transactions |
+|---|---|
+| ![Accounts](Docs/screenshots/accounts.png) | ![Transactions](Docs/screenshots/transactions.png) |
+
+### Loans & Budgets
+
+| Loans | Budgets |
+|---|---|
+| ![Loans](Docs/screenshots/loans.png) | ![Budgets](Docs/screenshots/budgets.png) |
+
+### Reports & Recurring Bills
+
+| Reports | Recurring Bills |
+|---|---|
+| ![Reports](Docs/screenshots/reports.png) | ![Recurring Bills](Docs/screenshots/recurring.png) |
+
 ## Key Features
 
 - **Multi-account tracking** -- checking, savings, credit cards, loans, and mortgages in one place
