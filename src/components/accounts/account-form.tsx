@@ -13,7 +13,7 @@
  * On submit, calls createAccount() or updateAccount() server actions.
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -133,6 +133,41 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
   const [cdAutoRenew, setCdAutoRenew] = useState(account?.autoRenew ?? false)
 
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+
+    setName(account?.name ?? "")
+    setType((account?.type as AccountType) ?? "CHECKING")
+    setBalance(account?.balance?.toString() ?? "0")
+    setOwner(account?.owner ?? "")
+    setCreditLimit(account?.creditLimit?.toString() ?? "")
+    setStatementCloseDay(account?.creditCardDetails?.statementCloseDay?.toString() ?? "15")
+    setPaymentDueDay(account?.creditCardDetails?.paymentDueDay?.toString() ?? "10")
+    setGracePeriodDays(account?.creditCardDetails?.gracePeriodDays?.toString() ?? "25")
+    setApy(account?.apy?.toString() ?? "")
+    setPurchaseApr("")
+    setLoanType((account?.loan?.loanType as LoanType) ?? "PERSONAL")
+    setOriginalBalance(account?.loan?.originalBalance?.toString() ?? "")
+    setInterestRate(account?.loan?.interestRate?.toString() ?? "")
+    setTermMonths(account?.loan?.termMonths?.toString() ?? "")
+    if (account?.loan?.startDate) {
+      const d = new Date(account.loan.startDate)
+      setStartDate(d.toISOString().split("T")[0])
+    } else {
+      setStartDate(new Date().toISOString().split("T")[0])
+    }
+    setMonthlyPayment(account?.loan?.monthlyPayment?.toString() ?? "")
+    setExtraPayment(account?.loan?.extraPaymentAmount?.toString() ?? "0")
+    setCdTermMonths(account?.termMonths?.toString() ?? "12")
+    if (account?.maturityDate) {
+      const d = new Date(account.maturityDate)
+      setCdMaturityDate(d.toISOString().split("T")[0])
+    } else {
+      setCdMaturityDate("")
+    }
+    setCdAutoRenew(account?.autoRenew ?? false)
+  }, [open, account])
 
   // Reset form when dialog opens with different account
   const handleOpenChange = (nextOpen: boolean) => {

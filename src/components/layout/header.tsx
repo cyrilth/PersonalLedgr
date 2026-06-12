@@ -1,11 +1,10 @@
 "use client"
 
 /**
- * App header — displays the current page title and the global year picker.
+ * App header — displays the current page title and optional global year picker.
  *
  * Page title is derived from the current pathname using a lookup table.
- * The year picker (right-aligned) lets users scope all views to a calendar year,
- * with range extending back to the user's earliest transaction.
+ * The year picker is only shown on routes that consume the global year context.
  */
 
 import { useEffect, useState } from "react"
@@ -25,7 +24,9 @@ const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/transactions": "Transactions",
   "/accounts": "Accounts",
+  "/calendar": "Calendar",
   "/loans": "Loans",
+  "/payments": "Payments",
   "/recurring": "Recurring Bills",
   "/budgets": "Budgets",
   "/reports": "Reports",
@@ -38,19 +39,30 @@ const pageTitles: Record<string, string> = {
 const currentYear = new Date().getFullYear()
 const defaultYearOptions = Array.from({ length: 7 }, (_, i) => currentYear + 1 - i)
 
+function shouldShowYearPicker(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/transactions" ||
+    pathname === "/budgets" ||
+    pathname.startsWith("/accounts/")
+  )
+}
+
 export function Header() {
   const pathname = usePathname()
   const { year, setYear } = useYear()
   const [yearOptions, setYearOptions] = useState(defaultYearOptions)
+  const showYearPicker = shouldShowYearPicker(pathname)
 
   useEffect(() => {
+    if (!showYearPicker) return
     getEarliestTransactionYear().then((earliest) => {
       if (earliest !== null && earliest < currentYear - 5) {
         const start = currentYear + 1
         setYearOptions(Array.from({ length: start - earliest + 1 }, (_, i) => start - i))
       }
     })
-  }, [])
+  }, [showYearPicker])
 
   // Match the most specific route first
   const title =
@@ -64,24 +76,26 @@ export function Header() {
       {/* Spacer for mobile hamburger */}
       <div className="w-10 md:hidden" />
       <h1 className="text-lg font-semibold">{title}</h1>
-      <div className="ml-auto flex items-center gap-2">
-        <CalendarDays className="text-muted-foreground h-4 w-4" />
-        <Select
-          value={String(year)}
-          onValueChange={(v) => setYear(Number(v))}
-        >
-          <SelectTrigger className="w-[5.5rem]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            {yearOptions.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {showYearPicker && (
+        <div className="ml-auto flex items-center gap-2">
+          <CalendarDays className="text-muted-foreground h-4 w-4" />
+          <Select
+            value={String(year)}
+            onValueChange={(v) => setYear(Number(v))}
+          >
+            <SelectTrigger className="w-[5.5rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </header>
   )
 }

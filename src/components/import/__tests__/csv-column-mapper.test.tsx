@@ -155,6 +155,40 @@ describe("ColumnMapper", () => {
     })
   })
 
+  it("defaults credit-card single amount imports to inverted signs", () => {
+    const onMappingConfirm = vi.fn()
+    renderMapper({ accountType: "CREDIT_CARD", onMappingConfirm })
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }))
+
+    expect(onMappingConfirm.mock.calls[0][0]).toMatchObject({
+      amountPattern: { type: "single", amountColumn: 2 },
+      invertSigns: true,
+    })
+  })
+
+  it("does not invert credit-card separate debit and credit imports by default", () => {
+    const onMappingConfirm = vi.fn()
+    renderMapper({
+      headers: ["Transaction Date", "Memo", "Debit", "Credit"],
+      accountType: "CREDIT_CARD",
+      detected: {
+        dateColumn: 0,
+        descriptionColumn: 1,
+        categoryColumn: null,
+        amountPattern: { type: "separate", debitColumn: 2, creditColumn: 3 },
+      },
+      onMappingConfirm,
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }))
+
+    expect(onMappingConfirm.mock.calls[0][0]).toMatchObject({
+      amountPattern: { type: "separate", debitColumn: 2, creditColumn: 3 },
+      invertSigns: false,
+    })
+  })
+
   it("renders common column selectors: Date, Description, Category", () => {
     renderMapper()
     expect(screen.getByLabelText(/Date Column/)).toBeInTheDocument()

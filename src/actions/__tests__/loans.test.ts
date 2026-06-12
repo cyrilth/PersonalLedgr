@@ -337,6 +337,88 @@ describe("createLoan", () => {
     )
   })
 
+  it("normalizes positive loan balances to negative liabilities", async () => {
+    mockTx.account.create.mockResolvedValue({
+      id: "acc-new",
+      loan: { id: "loan-new" },
+    } as never)
+
+    await createLoan({
+      ...validData,
+      name: "Car Loan",
+      type: "LOAN",
+      balance: 18000,
+      loanType: "AUTO",
+      originalBalance: 18000,
+    })
+
+    expect(mockTx.account.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "LOAN",
+          balance: -18000,
+        }),
+      })
+    )
+    expect(mockTx.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: -18000,
+          type: "EXPENSE",
+          source: "SYSTEM",
+        }),
+      })
+    )
+  })
+
+  it("stores payday loan balance as borrowed principal, not principal plus fee", async () => {
+    mockTx.account.create.mockResolvedValue({
+      id: "acc-new",
+      loan: { id: "loan-new" },
+    } as never)
+
+    await createLoan({
+      ...validData,
+      name: "QuickCash Payday",
+      type: "LOAN",
+      balance: -575,
+      loanType: "PAYDAY",
+      originalBalance: 500,
+      interestRate: 0,
+      monthlyPayment: 575,
+      feePerHundred: 15,
+      termDays: 14,
+      lenderName: "QuickCash",
+      paymentAccountId: "acc-checking",
+    })
+
+    expect(mockTx.account.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "LOAN",
+          balance: -500,
+          loan: {
+            create: expect.objectContaining({
+              loanType: "PAYDAY",
+              originalBalance: 500,
+              monthlyPayment: 575,
+              feePerHundred: 15,
+            }),
+          },
+        }),
+      })
+    )
+    expect(mockTx.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: -500,
+          type: "EXPENSE",
+          source: "SYSTEM",
+        }),
+      })
+    )
+  })
+
   it("skips opening balance transaction when balance is 0", async () => {
     mockTx.account.create.mockResolvedValue({
       id: "acc-new",

@@ -140,7 +140,9 @@ export function ColumnMapper({
 
   // ── State: sign inversion ───────────────────────────────────────
   /** Whether to invert signs (for credit cards where positive = charge). */
-  const [invertSigns, setInvertSigns] = useState(accountType === "CREDIT_CARD")
+  const [invertSigns, setInvertSigns] = useState(
+    accountType === "CREDIT_CARD" && (detected.amountPattern?.type ?? "single") === "single"
+  )
 
   // ── State: live preview ─────────────────────────────────────────
   /** Normalized transactions computed from the current mapping for preview. */
@@ -267,7 +269,12 @@ export function ColumnMapper({
               <Button
                 key={p.value}
                 variant={patternType === p.value ? "default" : "outline"}
-                onClick={() => setPatternType(p.value)}
+                onClick={() => {
+                  setPatternType(p.value)
+                  if (accountType === "CREDIT_CARD") {
+                    setInvertSigns(p.value === "single")
+                  }
+                }}
                 size="sm"
               >
                 {p.label}

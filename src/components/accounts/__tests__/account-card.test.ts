@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect } from "vitest"
-import { getUtilizationColor, getProgressColor } from "../account-card"
+import { createElement } from "react"
+import { render, screen } from "@testing-library/react"
+import { AccountCard, getUtilizationColor, getProgressColor } from "../account-card"
 
 describe("getUtilizationColor", () => {
   it("returns green for < 30%", () => {
@@ -32,5 +36,21 @@ describe("getProgressColor", () => {
   it("returns red for >= 70%", () => {
     expect(getProgressColor(70)).toBe("[&>div]:bg-negative")
     expect(getProgressColor(100)).toBe("[&>div]:bg-negative")
+  })
+})
+
+describe("AccountCard", () => {
+  it("shows debt balances with their negative sign", () => {
+    render(createElement(AccountCard, {
+      id: "cc-1",
+      name: "Visa Rewards",
+      type: "CREDIT_CARD",
+      balance: -350,
+      creditLimit: 5000,
+      owner: null,
+    }))
+
+    expect(screen.getByText("-$350.00")).toBeInTheDocument()
+    expect(screen.getByText("$350.00 / $5,000.00")).toBeInTheDocument()
   })
 })

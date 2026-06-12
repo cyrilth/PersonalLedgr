@@ -256,4 +256,24 @@ describe("AccountForm", () => {
     const balanceInput = screen.getByLabelText("Balance") as HTMLInputElement
     expect(balanceInput.value).toBe("3500")
   })
+
+  it("resets create-mode fields when reopened", () => {
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      onSuccess: vi.fn(),
+      account: null,
+    }
+    const { rerender } = render(<AccountForm {...props} />)
+
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Visa Rewards" } })
+    fireEvent.change(screen.getByLabelText("Balance"), { target: { value: "-350" } })
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Visa Rewards")
+
+    rerender(<AccountForm {...props} open={false} />)
+    rerender(<AccountForm {...props} open={true} />)
+
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("")
+    expect((screen.getByLabelText("Balance") as HTMLInputElement).value).toBe("0")
+  })
 })

@@ -164,13 +164,13 @@ describe("getNetWorth", () => {
 describe("getMonthlyIncomeExpense", () => {
   it("throws Unauthorized when no session", async () => {
     mockGetSession.mockResolvedValue(null as never)
-    await expect(getMonthlyIncomeExpense()).rejects.toThrow("Unauthorized")
+    await expect(getMonthlyIncomeExpense(2026)).rejects.toThrow("Unauthorized")
   })
 
   it("excludes transactions from inactive accounts", async () => {
     mockTransactionFindMany.mockResolvedValue([] as never)
 
-    await getMonthlyIncomeExpense()
+    await getMonthlyIncomeExpense(2026)
 
     expect(mockTransactionFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -184,7 +184,7 @@ describe("getMonthlyIncomeExpense", () => {
   it("only includes INCOME_TYPES and SPENDING_TYPES (no transfers)", async () => {
     mockTransactionFindMany.mockResolvedValue([] as never)
 
-    await getMonthlyIncomeExpense()
+    await getMonthlyIncomeExpense(2026)
 
     const whereClause = mockTransactionFindMany.mock.calls[0][0]?.where as Record<string, unknown>
     const typeFilter = whereClause.type as { in: string[] }
@@ -204,10 +204,11 @@ describe("getMonthlyIncomeExpense", () => {
   it("returns all 12 months even with no transactions", async () => {
     mockTransactionFindMany.mockResolvedValue([] as never)
 
-    const result = await getMonthlyIncomeExpense()
+    const result = await getMonthlyIncomeExpense(2026)
 
     expect(result).toHaveLength(12)
-    // Should return trailing 12 months ending at current month
+    expect(result[0].month).toBe("2026-01")
+    expect(result[11].month).toBe("2026-12")
     result.forEach((m) => {
       expect(m.income).toBe(0)
       expect(m.expense).toBe(0)
@@ -224,7 +225,7 @@ describe("getMonthlyIncomeExpense", () => {
       { date: new Date(2026, 1, 15), amount: decimal(-100), type: "LOAN_INTEREST" },
     ] as never)
 
-    const result = await getMonthlyIncomeExpense()
+    const result = await getMonthlyIncomeExpense(2026)
 
     const march = result.find((m) => m.month === "2026-03")!
     expect(march.income).toBe(5050) // 5000 + 50 (abs values)
@@ -241,7 +242,7 @@ describe("getMonthlyIncomeExpense", () => {
       { date: new Date("2026-01-20"), amount: decimal(3000), type: "INCOME" },
     ] as never)
 
-    const result = await getMonthlyIncomeExpense()
+    const result = await getMonthlyIncomeExpense(2026)
     const jan = result.find((m) => m.month === "2026-01")!
 
     expect(jan.expense).toBe(500) // abs(-500)

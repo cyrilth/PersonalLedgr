@@ -46,6 +46,17 @@ function toNumber(d: unknown): number {
   return Number(d)
 }
 
+const LOAN_BALANCE_TYPES = ["LOAN", "MORTGAGE"]
+
+function balanceTransactionWhere(account: { id: string; type?: string }) {
+  return {
+    accountId: account.id,
+    ...(LOAN_BALANCE_TYPES.includes(account.type ?? "")
+      ? { type: { not: "LOAN_INTEREST" as const } }
+      : {}),
+  }
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 /** A group of accounts sharing the same type, with a display label and balance total. */
@@ -546,7 +557,10 @@ export async function deleteAccount(id: string) {
 }
 
 /**
- * Compares the stored balance against the sum of all transactions for an account.
+ * Compares the stored balance against balance-impacting transactions.
+ *
+ * Loan interest is reportable spending, but it does not reduce loan principal;
+ * loan/mortgage balance recalculation therefore excludes LOAN_INTEREST.
  *
  * Returns the stored balance, calculated balance, and drift (difference).
  * Does NOT modify the balance — use confirmRecalculate() to apply corrections.
@@ -558,7 +572,7 @@ export async function recalculateBalance(id: string) {
   if (!account) throw new Error("Account not found")
 
   const result = await prisma.transaction.aggregate({
-    where: { accountId: id },
+    where: balanceTransactionWhere(account),
     _sum: { amount: true },
   })
 
@@ -571,7 +585,7 @@ export async function recalculateBalance(id: string) {
 /**
  * Applies the recalculated balance for a single account.
  *
- * Re-sums all transactions and overwrites the stored balance.
+ * Re-sums balance-impacting transactions and overwrites the stored balance.
  * Called after the user reviews the drift from recalculateBalance().
  */
 export async function confirmRecalculate(id: string) {
@@ -581,7 +595,7 @@ export async function confirmRecalculate(id: string) {
   if (!account) throw new Error("Account not found")
 
   const result = await prisma.transaction.aggregate({
-    where: { accountId: id },
+    where: balanceTransactionWhere(account),
     _sum: { amount: true },
   })
 
@@ -612,7 +626,7 @@ export async function recalculateAllBalances() {
   const results = await Promise.all(
     accounts.map(async (account) => {
       const result = await prisma.transaction.aggregate({
-        where: { accountId: account.id },
+        where: balanceTransactionWhere(account),
         _sum: { amount: true },
       })
 
@@ -644,13 +658,13 @@ export async function confirmRecalculateAll() {
 
   const accounts = await prisma.account.findMany({
     where: { userId, isActive: true },
-    select: { id: true, balance: true },
+    select: { id: true, type: true, balance: true },
   })
 
   const results = await Promise.all(
     accounts.map(async (account) => {
       const result = await prisma.transaction.aggregate({
-        where: { accountId: account.id },
+        where: balanceTransactionWhere(account),
         _sum: { amount: true },
       })
 

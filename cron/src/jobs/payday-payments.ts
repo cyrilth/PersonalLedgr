@@ -74,9 +74,9 @@ export async function runPaydayPayments(): Promise<void> {
       const feePerHundred = loan.feePerHundred ? Number(loan.feePerHundred) : 0
       const fee = round2(originalBalance * (feePerHundred / 100))
       const remainingBalance = Math.abs(Number(loan.account.balance))
-      // Principal portion = remaining balance - fee (or just the original balance)
-      const principalAmount = round2(remainingBalance - fee)
-      const totalPayment = remainingBalance
+      const principalAmount = round2(Math.min(originalBalance, remainingBalance))
+      const totalPayment = round2(principalAmount + fee)
+      const legacyFeeInBalance = round2(Math.max(remainingBalance - originalBalance, 0))
       const paymentDate = loan.dueDate ? new Date(loan.dueDate) : todayDate
       const description = loan.lenderName
         ? `Payday Loan Payment - ${loan.lenderName}`
@@ -124,6 +124,22 @@ export async function runPaydayPayments(): Promise<void> {
           },
         })
 
+        if (legacyFeeInBalance > 0) {
+          await tx.transaction.create({
+            data: {
+              date: paymentDate,
+              description: `${description} - Balance Adjustment`,
+              amount: legacyFeeInBalance,
+              type: "LOAN_PRINCIPAL",
+              source: "SYSTEM",
+              category: "Balance Adjustment",
+              notes: "Corrects legacy payday balance rows that included the flat fee in principal.",
+              userId,
+              accountId: loan.accountId,
+            },
+          })
+        }
+
         // Link outgoing → principal
         await tx.transaction.update({
           where: { id: outgoing.id },
@@ -151,10 +167,11 @@ export async function runPaydayPayments(): Promise<void> {
           },
         })
 
-        // Payday loans are single payment — deactivate on payoff
+        // Payday loans are single payment. The fee is recorded separately as
+        // LOAN_INTEREST, so force the liability balance to zero on payoff.
         await tx.account.update({
           where: { id: loan.accountId },
-          data: { isActive: false },
+          data: { balance: 0, isActive: false },
         })
       })
 

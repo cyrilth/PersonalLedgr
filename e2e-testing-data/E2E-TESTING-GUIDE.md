@@ -416,11 +416,11 @@ Navigate to `/`. The Upcoming Bills widget should show bills with their next due
 
 ## 10. Create Budgets
 
-Navigate to `/budgets`. Select the current month (March 2026).
+Navigate to `/budgets`. Create the test budgets in **February 2026** first, then copy them forward to March and April. February has imported spending data, so it is the source month for populated budget-progress checks. March is still used for the current-month manual transaction checks.
 
 ### 10.1 Create Budgets
 
-Create three budgets:
+Select **February 2026** and create three budgets:
 
 | Category | Monthly Limit |
 |---|---|
@@ -428,12 +428,20 @@ Create three budgets:
 | Dining Out | 150.00 |
 | Utilities | 300.00 |
 
-### 10.2 Copy Budgets to Next Month
+### 10.2 Copy Budgets to March
+
+| Step | Action | Look For |
+|---|---|---|
+| 1 | Navigate to March 2026 | Empty budget page |
+| 2 | Click "Copy from Previous Month" | All 3 budgets copied |
+| 3 | Verify limits | Groceries $400, Dining Out $150, Utilities $300 — same as February |
+
+### 10.3 Copy Budgets to April
 
 | Step | Action | Look For |
 |---|---|---|
 | 1 | Navigate to April 2026 | Empty budget page |
-| 2 | Click "Copy from Previous Month" | All 3 budgets copied |
+| 2 | Click "Copy from Previous Month" | All 3 budgets copied from March |
 | 3 | Verify limits | Groceries $400, Dining Out $150, Utilities $300 — same as March |
 
 ---
@@ -452,7 +460,7 @@ March only contains the manual transactions added in steps 6–7 (the CSV import
 | Dining Out | $150.00 | $0.00 | 0% |
 | Utilities | $300.00 | $0.00 | 0% |
 
-**Note:** The $75 pharmacy expense (Healthcare) does not match any of the budgeted categories above. To see populated budget data, navigate back to February 2026 where imported transactions provide spending: Groceries $293.65, Dining Out $96.40, Utilities $233.20.
+**Note:** The $75 pharmacy expense (Healthcare) does not match any of the budgeted categories above. Since Step 10 created February budgets before copying them forward, navigate back to February 2026 to verify populated budget data from imported transactions: Groceries $293.65, Dining Out $96.40, Utilities $233.20.
 
 | Verification | Look For |
 |---|---|

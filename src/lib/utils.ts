@@ -34,9 +34,32 @@ export function formatCurrencySigned(amount: number): string {
 
 // ── Date Helpers ─────────────────────────────────────────────────────
 
+/** Convert date-only values to local calendar dates without UTC timezone drift. */
+function toDisplayDate(date: Date | string): Date {
+  if (typeof date === "string") {
+    const dateOnlyMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/)
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch
+      return new Date(Number(year), Number(month) - 1, Number(day))
+    }
+    return new Date(date)
+  }
+
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  ) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  }
+
+  return date
+}
+
 /** "Jan 15, 2026" — full date for transaction lists and detail views. */
 export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
+  const d = toDisplayDate(date)
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -46,7 +69,7 @@ export function formatDate(date: Date | string): string {
 
 /** "Jan 15" — compact date without year, for upcoming bills and recent items. */
 export function formatDateShort(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
+  const d = toDisplayDate(date)
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -55,7 +78,7 @@ export function formatDateShort(date: Date | string): string {
 
 /** "January 2026" — for budget period headers and chart axis labels. */
 export function formatMonthYear(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
+  const d = toDisplayDate(date)
   return d.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",

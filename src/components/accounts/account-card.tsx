@@ -8,7 +8,7 @@
  * green (<30%), yellow (30-70%), red (>70%).
  *
  * Debt account balances (CC/loan/mortgage) are stored as negative in the DB
- * but displayed as positive values here using Math.abs().
+ * and displayed with their sign so account totals match transaction history.
  */
 
 import Link from "next/link"
@@ -60,7 +60,6 @@ export function getProgressColor(pct: number): string {
 export function AccountCard({ id, name, type, balance, creditLimit, owner, onReactivate, onPermanentDelete }: AccountCardProps) {
   const Icon = ICON_MAP[type] || Landmark
   const isDebt = DEBT_TYPES.includes(type)
-  const displayBalance = isDebt ? Math.abs(balance) : balance
   const limit = creditLimit ? Number(creditLimit) : 0
   const utilization = type === "CREDIT_CARD" && limit > 0 ? (Math.abs(balance) / limit) * 100 : 0
   const isInactive = !!onReactivate
@@ -81,7 +80,7 @@ export function AccountCard({ id, name, type, balance, creditLimit, owner, onRea
             </div>
           </div>
           <p className={cn("text-sm font-semibold", isDebt && "text-negative")}>
-            {formatCurrency(displayBalance)}
+            {formatCurrency(balance)}
           </p>
         </div>
 

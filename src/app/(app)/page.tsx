@@ -100,7 +100,7 @@ export default function DashboardPage() {
         count,
       ] = await Promise.all([
         getNetWorth(year),
-        getMonthlyIncomeExpense(),
+        getMonthlyIncomeExpense(year),
         getSpendingByCategory(year, currentMonth),
         getCreditUtilization(),
         getUpcomingBills(7),

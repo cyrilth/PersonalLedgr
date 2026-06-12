@@ -182,10 +182,8 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
       const parsed = parseFloat(value)
       if (!isNaN(parsed)) {
         if (isPayday) {
-          // Payday: balance = -(principal + fee)
-          const fee = parseFloat(feePerHundred) || 0
-          const totalFee = Math.abs(parsed) * (fee / 100)
-          setBalance((-(Math.abs(parsed) + totalFee)).toString())
+          // Payday: balance tracks borrowed principal; the fee is recorded as interest at payoff.
+          setBalance((-Math.abs(parsed)).toString())
         } else {
           setBalance((-Math.abs(parsed)).toString())
         }
@@ -260,7 +258,7 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
         await createLoan({
           name: accountName.trim(),
           type: "LOAN",
-          balance: -totalOwed,
+          balance: -origBal,
           owner: owner.trim() || undefined,
           loanType: "PAYDAY",
           originalBalance: origBal,

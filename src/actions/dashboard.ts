@@ -91,8 +91,8 @@ export async function getNetWorth(year: number) {
 }
 
 /**
- * Returns monthly income and expense totals for the trailing 12 months
- * ending at the current month.
+ * Returns monthly income and expense totals for January through December of
+ * the selected calendar year.
  *
  * Only counts "real" income and spending per the core architecture principle:
  * - Income: INCOME, INTEREST_EARNED
@@ -100,18 +100,13 @@ export async function getNetWorth(year: number) {
  * - Transfers are always excluded (they're just money moving between accounts)
  *
  * Returns an array of 12 objects sorted chronologically:
- * [{ month: "2025-04", income: 5000, expense: 3200 }, ...]
+ * [{ month: "2026-01", income: 5000, expense: 3200 }, ...]
  */
-export async function getMonthlyIncomeExpense() {
+export async function getMonthlyIncomeExpense(year: number) {
   const userId = await requireUserId()
 
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() // 0-indexed
-
-  // Go back 11 months from current month to get 12 months total
-  const startDate = new Date(currentYear, currentMonth - 11, 1)
-  const endDate = new Date(currentYear, currentMonth + 1, 1)
+  const startDate = new Date(year, 0, 1)
+  const endDate = new Date(year + 1, 0, 1)
 
   const transactions = await prisma.transaction.findMany({
     where: {
@@ -129,15 +124,14 @@ export async function getMonthlyIncomeExpense() {
     orderBy: { date: "asc" },
   })
 
-  // Pre-populate all 12 trailing months
+  // Pre-populate all 12 months in the selected year.
   const months: Record<
     string,
     { month: string; income: number; expense: number }
   > = {}
 
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(currentYear, currentMonth - i, 1)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  for (let month = 0; month < 12; month++) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}`
     months[key] = { month: key, income: 0, expense: 0 }
   }
 

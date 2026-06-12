@@ -60,6 +60,14 @@ describe("formatDate", () => {
     const result = formatDate(new Date(2026, 5, 1))
     expect(result).toBe("Jun 1, 2026")
   })
+
+  it("preserves a date-only string calendar day", () => {
+    expect(formatDate("2026-03-28")).toBe("Mar 28, 2026")
+  })
+
+  it("preserves a midnight UTC ISO string calendar day", () => {
+    expect(formatDate("2026-03-28T00:00:00.000Z")).toBe("Mar 28, 2026")
+  })
 })
 
 describe("formatDateShort", () => {
@@ -67,12 +75,20 @@ describe("formatDateShort", () => {
     const d = new Date(2026, 0, 15)
     expect(formatDateShort(d)).toBe("Jan 15")
   })
+
+  it("preserves recurring due date calendar day", () => {
+    expect(formatDateShort("2026-07-05T00:00:00.000Z")).toBe("Jul 5")
+  })
 })
 
 describe("formatMonthYear", () => {
   it("formats as full month and year", () => {
     const d = new Date(2026, 0, 1)
     expect(formatMonthYear(d)).toBe("January 2026")
+  })
+
+  it("preserves date-only month headers", () => {
+    expect(formatMonthYear("2026-02-01")).toBe("February 2026")
   })
 })
 

@@ -784,6 +784,27 @@ describe("recalculateBalance", () => {
     expect(result.drift).toBe(0)
   })
 
+  it("excludes loan interest when recalculating loan principal balance", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeAccount({ type: "LOAN", balance: decimal(0) }) as never
+    )
+    mockTransactionAggregate.mockResolvedValue({
+      _sum: { amount: decimal(0) },
+    } as never)
+
+    const result = await recalculateBalance("acc-1")
+
+    expect(mockTransactionAggregate).toHaveBeenCalledWith({
+      where: {
+        accountId: "acc-1",
+        type: { not: "LOAN_INTEREST" },
+      },
+      _sum: { amount: true },
+    })
+    expect(result.calculated).toBe(0)
+    expect(result.drift).toBe(0)
+  })
+
   it("handles null aggregate sum (no transactions)", async () => {
     mockAccountFindFirst.mockResolvedValue(
       makeAccount({ balance: decimal(100) }) as never

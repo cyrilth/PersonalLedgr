@@ -322,12 +322,22 @@ export async function createLoan(data: {
     paydayEquivalentAPR = Math.round((data.feePerHundred / 100) * (365 / data.termDays) * 100 * 100) / 100
   }
 
+  // Loan and mortgage accounts are liabilities. Accept positive form input, but
+  // persist it as owed money so dashboard net worth and balance recalculation agree.
+  // Payday balances track borrowed principal only; the flat fee is recorded as
+  // LOAN_INTEREST at payoff so reports can show the fee as spending.
+  const balance = isPayday
+    ? -Math.abs(data.originalBalance)
+    : data.balance > 0
+      ? -data.balance
+      : data.balance
+
   const result = await prisma.$transaction(async (tx) => {
     const account = await tx.account.create({
       data: {
         name: data.name.trim(),
         type: data.type,
-        balance: data.balance,
+        balance,
         owner: data.owner || null,
         userId,
         loan: {
@@ -359,13 +369,13 @@ export async function createLoan(data: {
     })
 
     // Create opening balance transaction so recalculation stays in sync
-    if (data.balance !== 0) {
+    if (balance !== 0) {
       await tx.transaction.create({
         data: {
           date: new Date(),
           description: "Opening Balance",
-          amount: data.balance,
-          type: data.balance > 0 ? "INCOME" : "EXPENSE",
+          amount: balance,
+          type: balance > 0 ? "INCOME" : "EXPENSE",
           category: "Opening Balance",
           source: "SYSTEM",
           userId,
