@@ -1,0 +1,109 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - link "PersonalLedgr" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e6]:
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - text: Dashboard
+        - link "Transactions" [ref=e13] [cursor=pointer]:
+          - /url: /transactions
+          - img [ref=e14]
+          - text: Transactions
+        - link "Accounts" [ref=e17] [cursor=pointer]:
+          - /url: /accounts
+          - img [ref=e18]
+          - text: Accounts
+        - link "Loans" [ref=e20] [cursor=pointer]:
+          - /url: /loans
+          - img [ref=e21]
+          - text: Loans
+        - link "Recurring Bills" [ref=e27] [cursor=pointer]:
+          - /url: /recurring
+          - img [ref=e28]
+          - text: Recurring Bills
+        - link "Calendar" [ref=e32] [cursor=pointer]:
+          - /url: /calendar
+          - img [ref=e33]
+          - text: Calendar
+        - link "Payment Tracker" [ref=e35] [cursor=pointer]:
+          - /url: /payments
+          - img [ref=e36]
+          - text: Payment Tracker
+        - link "Budgets" [ref=e40] [cursor=pointer]:
+          - /url: /budgets
+          - img [ref=e41]
+          - text: Budgets
+        - link "Reports" [ref=e44] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e45]
+          - text: Reports
+        - link "Import" [ref=e47] [cursor=pointer]:
+          - /url: /import
+          - img [ref=e48]
+          - text: Import
+        - link "Settings" [ref=e52] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e53]
+          - text: Settings
+        - link "Getting Started" [ref=e56] [cursor=pointer]:
+          - /url: /guide
+          - img [ref=e57]
+          - text: Getting Started
+      - generic [ref=e59]:
+        - button "DU Demo User" [ref=e60]:
+          - generic [ref=e61]: DU
+          - generic [ref=e62]: Demo User
+        - button "Toggle theme" [ref=e63]:
+          - img
+          - generic [ref=e64]: Toggle theme
+    - generic [ref=e65]:
+      - banner [ref=e66]:
+        - heading "Budgets" [level=1] [ref=e67]
+        - generic [ref=e68]:
+          - img [ref=e69]
+          - combobox [ref=e71]:
+            - generic: "2026"
+            - img
+      - main [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - heading "Budgets" [level=1] [ref=e75]
+            - generic [ref=e76]:
+              - button "Previous month" [ref=e77]:
+                - img
+              - generic [ref=e78]: June 2026
+              - button "Next month" [ref=e79]:
+                - img
+              - button "Copy from Previous Month" [ref=e80]:
+                - img
+                - text: Copy from Previous Month
+              - button "Add Budget" [ref=e81]:
+                - img
+                - text: Add Budget
+          - generic [ref=e82]:
+            - paragraph [ref=e83]: No budgets for this month. Add your first budget or copy from a previous month.
+            - generic [ref=e84]:
+              - button "Add Budget" [ref=e85]:
+                - img
+                - text: Add Budget
+              - button "Copy from Previous Month" [ref=e86]:
+                - img
+                - text: Copy from Previous Month
+      - contentinfo [ref=e87]:
+        - text: PersonalLedgr is provided as-is. Not financial advice.
+        - link "See Disclaimer for details." [ref=e88] [cursor=pointer]:
+          - /url: /settings#disclaimer
+  - generic [ref=e89]:
+    - heading "Command Palette" [level=2] [ref=e90]
+    - paragraph [ref=e91]: Search for a command to run...
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e97] [cursor=pointer]:
+    - img [ref=e98]
+  - alert [ref=e101]
+```

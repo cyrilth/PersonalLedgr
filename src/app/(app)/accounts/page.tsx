@@ -145,7 +145,7 @@ export default function AccountsPage() {
   async function fetchDeleteTxns(accountId: string, page: number) {
     setDeleteLoading(true)
     try {
-      const result = await getAccountTransactions(accountId, page, 10)
+      const result = await getAccountTransactions(accountId, { page, pageSize: 10 })
       setDeleteTxns(result.transactions)
       setDeleteTxnTotal(result.total)
       setDeleteTxnPage(result.page)

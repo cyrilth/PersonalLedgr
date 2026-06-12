@@ -1,0 +1,1006 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - link "PersonalLedgr" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e6]:
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - text: Dashboard
+        - link "Transactions" [ref=e13] [cursor=pointer]:
+          - /url: /transactions
+          - img [ref=e14]
+          - text: Transactions
+        - link "Accounts" [ref=e17] [cursor=pointer]:
+          - /url: /accounts
+          - img [ref=e18]
+          - text: Accounts
+        - link "Loans" [ref=e20] [cursor=pointer]:
+          - /url: /loans
+          - img [ref=e21]
+          - text: Loans
+        - link "Recurring Bills" [ref=e27] [cursor=pointer]:
+          - /url: /recurring
+          - img [ref=e28]
+          - text: Recurring Bills
+        - link "Calendar" [ref=e32] [cursor=pointer]:
+          - /url: /calendar
+          - img [ref=e33]
+          - text: Calendar
+        - link "Payment Tracker" [ref=e35] [cursor=pointer]:
+          - /url: /payments
+          - img [ref=e36]
+          - text: Payment Tracker
+        - link "Budgets" [ref=e40] [cursor=pointer]:
+          - /url: /budgets
+          - img [ref=e41]
+          - text: Budgets
+        - link "Reports" [ref=e44] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e45]
+          - text: Reports
+        - link "Import" [ref=e47] [cursor=pointer]:
+          - /url: /import
+          - img [ref=e48]
+          - text: Import
+        - link "Settings" [ref=e52] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e53]
+          - text: Settings
+        - link "Getting Started" [ref=e56] [cursor=pointer]:
+          - /url: /guide
+          - img [ref=e57]
+          - text: Getting Started
+      - generic [ref=e59]:
+        - button "DU Demo User" [ref=e60]:
+          - generic [ref=e61]: DU
+          - generic [ref=e62]: Demo User
+        - button "Toggle theme" [ref=e63]:
+          - img
+          - generic [ref=e64]: Toggle theme
+    - generic [ref=e65]:
+      - banner [ref=e66]:
+        - heading "Transactions" [level=1] [ref=e67]
+        - generic [ref=e68]:
+          - img [ref=e69]
+          - combobox [ref=e71]:
+            - generic: "2026"
+            - img
+      - main [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - heading "Transactions" [level=1] [ref=e76]
+              - paragraph [ref=e77]: 111 transactions
+            - button "Add Transaction" [ref=e78]:
+              - img
+              - text: Add Transaction
+          - generic [ref=e79]:
+            - combobox [ref=e81]:
+              - generic: All Accounts
+              - img
+            - combobox [ref=e83]:
+              - generic: All Types
+              - img
+            - combobox [ref=e85]:
+              - generic: All Categories
+              - img
+            - textbox [ref=e87]:
+              - /placeholder: From
+              - text: 2026-01-01
+            - textbox [ref=e89]:
+              - /placeholder: To
+              - text: 2026-12-31
+            - textbox "Search description..." [ref=e91]
+            - button "Clear" [ref=e92]:
+              - img
+              - text: Clear
+          - table [ref=e95]:
+            - rowgroup [ref=e96]:
+              - row "Date Description Amount Category Account Type" [ref=e97]:
+                - columnheader [ref=e98]:
+                  - checkbox [ref=e99]
+                - columnheader "Date" [ref=e100]
+                - columnheader "Description" [ref=e101]
+                - columnheader "Amount" [ref=e102]
+                - columnheader "Category" [ref=e103]
+                - columnheader "Account" [ref=e104]
+                - columnheader "Type" [ref=e105]
+                - columnheader [ref=e106]
+                - columnheader [ref=e107]
+            - rowgroup [ref=e108]:
+              - row "Jun 10, 2026 E2E Expense 1781195785075 -$42.50 — 12-Month CD Expense Actions" [ref=e109]:
+                - cell [ref=e110]:
+                  - checkbox [ref=e111]
+                - cell "Jun 10, 2026" [ref=e112]
+                - cell "E2E Expense 1781195785075" [ref=e113]
+                - cell "-$42.50" [ref=e114]
+                - cell "—" [ref=e115]:
+                  - button "—" [ref=e116] [cursor=pointer]
+                - cell "12-Month CD" [ref=e117]
+                - cell "Expense" [ref=e118]:
+                  - generic [ref=e119]: Expense
+                - cell [ref=e120]
+                - cell "Actions" [ref=e121]:
+                  - button "Actions" [ref=e122]:
+                    - img
+                    - generic [ref=e123]: Actions
+              - row "Jun 10, 2026 E2E Income 1781195785141 +$500.00 — 12-Month CD Income Actions" [ref=e124]:
+                - cell [ref=e125]:
+                  - checkbox [ref=e126]
+                - cell "Jun 10, 2026" [ref=e127]
+                - cell "E2E Income 1781195785141" [ref=e128]
+                - cell "+$500.00" [ref=e129]
+                - cell "—" [ref=e130]:
+                  - button "—" [ref=e131] [cursor=pointer]
+                - cell "12-Month CD" [ref=e132]
+                - cell "Income" [ref=e133]:
+                  - generic [ref=e134]: Income
+                - cell [ref=e135]
+                - cell "Actions" [ref=e136]:
+                  - button "Actions" [ref=e137]:
+                    - img
+                    - generic [ref=e138]: Actions
+              - row "Apr 22, 2026 Water Bill -$65.00 Utilities Chase Checking Expense Actions" [ref=e139]:
+                - cell [ref=e140]:
+                  - checkbox [ref=e141]
+                - cell "Apr 22, 2026" [ref=e142]
+                - cell "Water Bill" [ref=e143]
+                - cell "-$65.00" [ref=e144]
+                - cell "Utilities" [ref=e145]:
+                  - button "Utilities" [ref=e146] [cursor=pointer]:
+                    - generic [ref=e147]: Utilities
+                - cell "Chase Checking" [ref=e148]
+                - cell "Expense" [ref=e149]:
+                  - generic [ref=e150]: Expense
+                - cell [ref=e151]
+                - cell "Actions" [ref=e152]:
+                  - button "Actions" [ref=e153]:
+                    - img
+                    - generic [ref=e154]: Actions
+              - row "Apr 18, 2026 Electric Bill -$150.00 Utilities Chase Checking Expense Actions" [ref=e155]:
+                - cell [ref=e156]:
+                  - checkbox [ref=e157]
+                - cell "Apr 18, 2026" [ref=e158]
+                - cell "Electric Bill" [ref=e159]
+                - cell "-$150.00" [ref=e160]
+                - cell "Utilities" [ref=e161]:
+                  - button "Utilities" [ref=e162] [cursor=pointer]:
+                    - generic [ref=e163]: Utilities
+                - cell "Chase Checking" [ref=e164]
+                - cell "Expense" [ref=e165]:
+                  - generic [ref=e166]: Expense
+                - cell [ref=e167]
+                - cell "Actions" [ref=e168]:
+                  - button "Actions" [ref=e169]:
+                    - img
+                    - generic [ref=e170]: Actions
+              - row "Apr 8, 2026 Netflix -$22.99 Subscriptions Chase Sapphire CC Expense Actions" [ref=e171]:
+                - cell [ref=e172]:
+                  - checkbox [ref=e173]
+                - cell "Apr 8, 2026" [ref=e174]
+                - cell "Netflix" [ref=e175]
+                - cell "-$22.99" [ref=e176]
+                - cell "Subscriptions" [ref=e177]:
+                  - button "Subscriptions" [ref=e178] [cursor=pointer]:
+                    - generic [ref=e179]: Subscriptions
+                - cell "Chase Sapphire CC" [ref=e180]
+                - cell "Expense" [ref=e181]:
+                  - generic [ref=e182]: Expense
+                - cell [ref=e183]
+                - cell "Actions" [ref=e184]:
+                  - button "Actions" [ref=e185]:
+                    - img
+                    - generic [ref=e186]: Actions
+              - row "Apr 5, 2026 Comcast Internet -$89.99 Utilities Chase Sapphire CC Expense Actions" [ref=e187]:
+                - cell [ref=e188]:
+                  - checkbox [ref=e189]
+                - cell "Apr 5, 2026" [ref=e190]
+                - cell "Comcast Internet" [ref=e191]
+                - cell "-$89.99" [ref=e192]
+                - cell "Utilities" [ref=e193]:
+                  - button "Utilities" [ref=e194] [cursor=pointer]:
+                    - generic [ref=e195]: Utilities
+                - cell "Chase Sapphire CC" [ref=e196]
+                - cell "Expense" [ref=e197]:
+                  - generic [ref=e198]: Expense
+                - cell [ref=e199]
+                - cell "Actions" [ref=e200]:
+                  - button "Actions" [ref=e201]:
+                    - img
+                    - generic [ref=e202]: Actions
+              - row "Apr 3, 2026 T-Mobile -$145.00 Utilities Chase Sapphire CC Expense Actions" [ref=e203]:
+                - cell [ref=e204]:
+                  - checkbox [ref=e205]
+                - cell "Apr 3, 2026" [ref=e206]
+                - cell "T-Mobile" [ref=e207]
+                - cell "-$145.00" [ref=e208]
+                - cell "Utilities" [ref=e209]:
+                  - button "Utilities" [ref=e210] [cursor=pointer]:
+                    - generic [ref=e211]: Utilities
+                - cell "Chase Sapphire CC" [ref=e212]
+                - cell "Expense" [ref=e213]:
+                  - generic [ref=e214]: Expense
+                - cell [ref=e215]
+                - cell "Actions" [ref=e216]:
+                  - button "Actions" [ref=e217]:
+                    - img
+                    - generic [ref=e218]: Actions
+              - row "Mar 28, 2026 Interest Earned - Marcus Savings +$95.68 Investment Income Marcus Savings Interest Earned Actions" [ref=e219]:
+                - cell [ref=e220]:
+                  - checkbox [ref=e221]
+                - cell "Mar 28, 2026" [ref=e222]
+                - cell "Interest Earned - Marcus Savings" [ref=e223]
+                - cell "+$95.68" [ref=e224]
+                - cell "Investment Income" [ref=e225]:
+                  - button "Investment Income" [ref=e226] [cursor=pointer]:
+                    - generic [ref=e227]: Investment Income
+                - cell "Marcus Savings" [ref=e228]
+                - cell "Interest Earned" [ref=e229]:
+                  - generic [ref=e230]: Interest Earned
+                - cell [ref=e231]
+                - cell "Actions" [ref=e232]:
+                  - button "Actions" [ref=e233]:
+                    - img
+                    - generic [ref=e234]: Actions
+              - row "Mar 22, 2026 Exxon Gas -$56.57 Gas Discover It CC Expense Actions" [ref=e235]:
+                - cell [ref=e236]:
+                  - checkbox [ref=e237]
+                - cell "Mar 22, 2026" [ref=e238]
+                - cell "Exxon Gas" [ref=e239]
+                - cell "-$56.57" [ref=e240]
+                - cell "Gas" [ref=e241]:
+                  - button "Gas" [ref=e242] [cursor=pointer]:
+                    - generic [ref=e243]: Gas
+                - cell "Discover It CC" [ref=e244]
+                - cell "Expense" [ref=e245]:
+                  - generic [ref=e246]: Expense
+                - cell [ref=e247]
+                - cell "Actions" [ref=e248]:
+                  - button "Actions" [ref=e249]:
+                    - img
+                    - generic [ref=e250]: Actions
+              - row "Mar 20, 2026 Transfer from Chase Checking +$1,000.00 Transfer Marcus Savings Transfer Actions" [ref=e251]:
+                - cell [ref=e252]:
+                  - checkbox [ref=e253]
+                - cell "Mar 20, 2026" [ref=e254]
+                - cell "Transfer from Chase Checking" [ref=e255]
+                - cell "+$1,000.00" [ref=e256]
+                - cell "Transfer" [ref=e257]:
+                  - button "Transfer" [ref=e258] [cursor=pointer]:
+                    - generic [ref=e259]: Transfer
+                - cell "Marcus Savings" [ref=e260]
+                - cell "Transfer" [ref=e261]:
+                  - generic [ref=e262]: Transfer
+                - cell [ref=e263]:
+                  - generic "Linked transfer" [ref=e264]:
+                    - img [ref=e265]
+                - cell "Actions" [ref=e268]:
+                  - button "Actions" [ref=e269]:
+                    - img
+                    - generic [ref=e270]: Actions
+              - row "Mar 20, 2026 Transfer to Marcus Savings -$1,000.00 Transfer Chase Checking Transfer Actions" [ref=e271]:
+                - cell [ref=e272]:
+                  - checkbox [ref=e273]
+                - cell "Mar 20, 2026" [ref=e274]
+                - cell "Transfer to Marcus Savings" [ref=e275]
+                - cell "-$1,000.00" [ref=e276]
+                - cell "Transfer" [ref=e277]:
+                  - button "Transfer" [ref=e278] [cursor=pointer]:
+                    - generic [ref=e279]: Transfer
+                - cell "Chase Checking" [ref=e280]
+                - cell "Transfer" [ref=e281]:
+                  - generic [ref=e282]: Transfer
+                - cell [ref=e283]:
+                  - generic "Linked transfer" [ref=e284]:
+                    - img [ref=e285]
+                - cell "Actions" [ref=e288]:
+                  - button "Actions" [ref=e289]:
+                    - img
+                    - generic [ref=e290]: Actions
+              - row "Mar 20, 2026 Interest Charge - Discover It -$15.78 Interest Charged Discover It CC Interest Charged Actions" [ref=e291]:
+                - cell [ref=e292]:
+                  - checkbox [ref=e293]
+                - cell "Mar 20, 2026" [ref=e294]
+                - cell "Interest Charge - Discover It" [ref=e295]
+                - cell "-$15.78" [ref=e296]
+                - cell "Interest Charged" [ref=e297]:
+                  - button "Interest Charged" [ref=e298] [cursor=pointer]:
+                    - generic [ref=e299]: Interest Charged
+                - cell "Discover It CC" [ref=e300]
+                - cell "Interest Charged" [ref=e301]:
+                  - generic [ref=e302]: Interest Charged
+                - cell [ref=e303]
+                - cell "Actions" [ref=e304]:
+                  - button "Actions" [ref=e305]:
+                    - img
+                    - generic [ref=e306]: Actions
+              - row "Mar 18, 2026 Safeway -$57.89 Groceries Chase Sapphire CC Expense Actions" [ref=e307]:
+                - cell [ref=e308]:
+                  - checkbox [ref=e309]
+                - cell "Mar 18, 2026" [ref=e310]
+                - cell "Safeway" [ref=e311]
+                - cell "-$57.89" [ref=e312]
+                - cell "Groceries" [ref=e313]:
+                  - button "Groceries" [ref=e314] [cursor=pointer]:
+                    - generic [ref=e315]: Groceries
+                - cell "Chase Sapphire CC" [ref=e316]
+                - cell "Expense" [ref=e317]:
+                  - generic [ref=e318]: Expense
+                - cell [ref=e319]
+                - cell "Actions" [ref=e320]:
+                  - button "Actions" [ref=e321]:
+                    - img
+                    - generic [ref=e322]: Actions
+              - row "Mar 15, 2026 Payment to Discover It CC -$750.00 Credit Card Payment Chase Checking Transfer Actions" [ref=e323]:
+                - cell [ref=e324]:
+                  - checkbox [ref=e325]
+                - cell "Mar 15, 2026" [ref=e326]
+                - cell "Payment to Discover It CC" [ref=e327]
+                - cell "-$750.00" [ref=e328]
+                - cell "Credit Card Payment" [ref=e329]:
+                  - button "Credit Card Payment" [ref=e330] [cursor=pointer]:
+                    - generic [ref=e331]: Credit Card Payment
+                - cell "Chase Checking" [ref=e332]
+                - cell "Transfer" [ref=e333]:
+                  - generic [ref=e334]: Transfer
+                - cell [ref=e335]:
+                  - generic "Linked transfer" [ref=e336]:
+                    - img [ref=e337]
+                - cell "Actions" [ref=e340]:
+                  - button "Actions" [ref=e341]:
+                    - img
+                    - generic [ref=e342]: Actions
+              - row "Mar 15, 2026 Paycheck - Acme Corp +$6,500.00 Salary Chase Checking Income Actions" [ref=e343]:
+                - cell [ref=e344]:
+                  - checkbox [ref=e345]
+                - cell "Mar 15, 2026" [ref=e346]
+                - cell "Paycheck - Acme Corp" [ref=e347]
+                - cell "+$6,500.00" [ref=e348]
+                - cell "Salary" [ref=e349]:
+                  - button "Salary" [ref=e350] [cursor=pointer]:
+                    - generic [ref=e351]: Salary
+                - cell "Chase Checking" [ref=e352]
+                - cell "Income" [ref=e353]:
+                  - generic [ref=e354]: Income
+                - cell [ref=e355]
+                - cell "Actions" [ref=e356]:
+                  - button "Actions" [ref=e357]:
+                    - img
+                    - generic [ref=e358]: Actions
+              - row "Mar 15, 2026 Payment from Chase Checking +$750.00 Credit Card Payment Discover It CC Transfer Actions" [ref=e359]:
+                - cell [ref=e360]:
+                  - checkbox [ref=e361]
+                - cell "Mar 15, 2026" [ref=e362]
+                - cell "Payment from Chase Checking" [ref=e363]
+                - cell "+$750.00" [ref=e364]
+                - cell "Credit Card Payment" [ref=e365]:
+                  - button "Credit Card Payment" [ref=e366] [cursor=pointer]:
+                    - generic [ref=e367]: Credit Card Payment
+                - cell "Discover It CC" [ref=e368]
+                - cell "Transfer" [ref=e369]:
+                  - generic [ref=e370]: Transfer
+                - cell [ref=e371]:
+                  - generic "Linked transfer" [ref=e372]:
+                    - img [ref=e373]
+                - cell "Actions" [ref=e376]:
+                  - button "Actions" [ref=e377]:
+                    - img
+                    - generic [ref=e378]: Actions
+              - row "Mar 14, 2026 Kroger -$147.81 Groceries Chase Sapphire CC Expense Actions" [ref=e379]:
+                - cell [ref=e380]:
+                  - checkbox [ref=e381]
+                - cell "Mar 14, 2026" [ref=e382]
+                - cell "Kroger" [ref=e383]
+                - cell "-$147.81" [ref=e384]
+                - cell "Groceries" [ref=e385]:
+                  - button "Groceries" [ref=e386] [cursor=pointer]:
+                    - generic [ref=e387]: Groceries
+                - cell "Chase Sapphire CC" [ref=e388]
+                - cell "Expense" [ref=e389]:
+                  - generic [ref=e390]: Expense
+                - cell [ref=e391]
+                - cell "Actions" [ref=e392]:
+                  - button "Actions" [ref=e393]:
+                    - img
+                    - generic [ref=e394]: Actions
+              - row "Mar 11, 2026 Chipotle -$79.42 Dining Out Chase Sapphire CC Expense Actions" [ref=e395]:
+                - cell [ref=e396]:
+                  - checkbox [ref=e397]
+                - cell "Mar 11, 2026" [ref=e398]
+                - cell "Chipotle" [ref=e399]
+                - cell "-$79.42" [ref=e400]
+                - cell "Dining Out" [ref=e401]:
+                  - button "Dining Out" [ref=e402] [cursor=pointer]:
+                    - generic [ref=e403]: Dining Out
+                - cell "Chase Sapphire CC" [ref=e404]
+                - cell "Expense" [ref=e405]:
+                  - generic [ref=e406]: Expense
+                - cell [ref=e407]
+                - cell "Actions" [ref=e408]:
+                  - button "Actions" [ref=e409]:
+                    - img
+                    - generic [ref=e410]: Actions
+              - row "Mar 10, 2026 Payment from Chase Checking +$2,100.00 Credit Card Payment Chase Sapphire CC Transfer Actions" [ref=e411]:
+                - cell [ref=e412]:
+                  - checkbox [ref=e413]
+                - cell "Mar 10, 2026" [ref=e414]
+                - cell "Payment from Chase Checking" [ref=e415]
+                - cell "+$2,100.00" [ref=e416]
+                - cell "Credit Card Payment" [ref=e417]:
+                  - button "Credit Card Payment" [ref=e418] [cursor=pointer]:
+                    - generic [ref=e419]: Credit Card Payment
+                - cell "Chase Sapphire CC" [ref=e420]
+                - cell "Transfer" [ref=e421]:
+                  - generic [ref=e422]: Transfer
+                - cell [ref=e423]:
+                  - generic "Linked transfer" [ref=e424]:
+                    - img [ref=e425]
+                - cell "Actions" [ref=e428]:
+                  - button "Actions" [ref=e429]:
+                    - img
+                    - generic [ref=e430]: Actions
+              - row "Mar 10, 2026 Student Loan Payment - Interest -$133.07 Loan Payment Student Loan Loan Interest Actions" [ref=e431]:
+                - cell [ref=e432]:
+                  - checkbox [ref=e433]
+                - cell "Mar 10, 2026" [ref=e434]
+                - cell "Student Loan Payment - Interest" [ref=e435]
+                - cell "-$133.07" [ref=e436]
+                - cell "Loan Payment" [ref=e437]:
+                  - button "Loan Payment" [ref=e438] [cursor=pointer]:
+                    - generic [ref=e439]: Loan Payment
+                - cell "Student Loan" [ref=e440]
+                - cell "Loan Interest" [ref=e441]:
+                  - generic [ref=e442]: Loan Interest
+                - cell [ref=e443]
+                - cell "Actions" [ref=e444]:
+                  - button "Actions" [ref=e445]:
+                    - img
+                    - generic [ref=e446]: Actions
+              - row "Mar 10, 2026 Student Loan Payment - Principal -$346.93 Loan Payment Student Loan Loan Principal Actions" [ref=e447]:
+                - cell [ref=e448]:
+                  - checkbox [ref=e449]
+                - cell "Mar 10, 2026" [ref=e450]
+                - cell "Student Loan Payment - Principal" [ref=e451]
+                - cell "-$346.93" [ref=e452]
+                - cell "Loan Payment" [ref=e453]:
+                  - button "Loan Payment" [ref=e454] [cursor=pointer]:
+                    - generic [ref=e455]: Loan Payment
+                - cell "Student Loan" [ref=e456]
+                - cell "Loan Principal" [ref=e457]:
+                  - generic [ref=e458]: Loan Principal
+                - cell [ref=e459]
+                - cell "Actions" [ref=e460]:
+                  - button "Actions" [ref=e461]:
+                    - img
+                    - generic [ref=e462]: Actions
+              - row "Mar 10, 2026 Shell Gas Station -$51.10 Gas Discover It CC Expense Actions" [ref=e463]:
+                - cell [ref=e464]:
+                  - checkbox [ref=e465]
+                - cell "Mar 10, 2026" [ref=e466]
+                - cell "Shell Gas Station" [ref=e467]
+                - cell "-$51.10" [ref=e468]
+                - cell "Gas" [ref=e469]:
+                  - button "Gas" [ref=e470] [cursor=pointer]:
+                    - generic [ref=e471]: Gas
+                - cell "Discover It CC" [ref=e472]
+                - cell "Expense" [ref=e473]:
+                  - generic [ref=e474]: Expense
+                - cell [ref=e475]
+                - cell "Actions" [ref=e476]:
+                  - button "Actions" [ref=e477]:
+                    - img
+                    - generic [ref=e478]: Actions
+              - row "Mar 10, 2026 Payment to Chase Sapphire CC -$2,100.00 Credit Card Payment Chase Checking Transfer Actions" [ref=e479]:
+                - cell [ref=e480]:
+                  - checkbox [ref=e481]
+                - cell "Mar 10, 2026" [ref=e482]
+                - cell "Payment to Chase Sapphire CC" [ref=e483]
+                - cell "-$2,100.00" [ref=e484]
+                - cell "Credit Card Payment" [ref=e485]:
+                  - button "Credit Card Payment" [ref=e486] [cursor=pointer]:
+                    - generic [ref=e487]: Credit Card Payment
+                - cell "Chase Checking" [ref=e488]
+                - cell "Transfer" [ref=e489]:
+                  - generic [ref=e490]: Transfer
+                - cell [ref=e491]:
+                  - generic "Linked transfer" [ref=e492]:
+                    - img [ref=e493]
+                - cell "Actions" [ref=e496]:
+                  - button "Actions" [ref=e497]:
+                    - img
+                    - generic [ref=e498]: Actions
+              - row "Mar 10, 2026 Costco -$164.40 Groceries Chase Sapphire CC Expense Actions" [ref=e499]:
+                - cell [ref=e500]:
+                  - checkbox [ref=e501]
+                - cell "Mar 10, 2026" [ref=e502]
+                - cell "Costco" [ref=e503]
+                - cell "-$164.40" [ref=e504]
+                - cell "Groceries" [ref=e505]:
+                  - button "Groceries" [ref=e506] [cursor=pointer]:
+                    - generic [ref=e507]: Groceries
+                - cell "Chase Sapphire CC" [ref=e508]
+                - cell "Expense" [ref=e509]:
+                  - generic [ref=e510]: Expense
+                - cell [ref=e511]
+                - cell "Actions" [ref=e512]:
+                  - button "Actions" [ref=e513]:
+                    - img
+                    - generic [ref=e514]: Actions
+              - row "Mar 8, 2026 Netflix -$22.99 Subscriptions Chase Sapphire CC Expense Actions" [ref=e515]:
+                - cell [ref=e516]:
+                  - checkbox [ref=e517]
+                - cell "Mar 8, 2026" [ref=e518]
+                - cell "Netflix" [ref=e519]
+                - cell "-$22.99" [ref=e520]
+                - cell "Subscriptions" [ref=e521]:
+                  - button "Subscriptions" [ref=e522] [cursor=pointer]:
+                    - generic [ref=e523]: Subscriptions
+                - cell "Chase Sapphire CC" [ref=e524]
+                - cell "Expense" [ref=e525]:
+                  - generic [ref=e526]: Expense
+                - cell [ref=e527]
+                - cell "Actions" [ref=e528]:
+                  - button "Actions" [ref=e529]:
+                    - img
+                    - generic [ref=e530]: Actions
+              - row "Mar 8, 2026 Spotify -$15.99 Subscriptions Chase Sapphire CC Expense Actions" [ref=e531]:
+                - cell [ref=e532]:
+                  - checkbox [ref=e533]
+                - cell "Mar 8, 2026" [ref=e534]
+                - cell "Spotify" [ref=e535]
+                - cell "-$15.99" [ref=e536]
+                - cell "Subscriptions" [ref=e537]:
+                  - button "Subscriptions" [ref=e538] [cursor=pointer]:
+                    - generic [ref=e539]: Subscriptions
+                - cell "Chase Sapphire CC" [ref=e540]
+                - cell "Expense" [ref=e541]:
+                  - generic [ref=e542]: Expense
+                - cell [ref=e543]
+                - cell "Actions" [ref=e544]:
+                  - button "Actions" [ref=e545]:
+                    - img
+                    - generic [ref=e546]: Actions
+              - row "Mar 6, 2026 Olive Garden -$27.43 Dining Out Chase Sapphire CC Expense Actions" [ref=e547]:
+                - cell [ref=e548]:
+                  - checkbox [ref=e549]
+                - cell "Mar 6, 2026" [ref=e550]
+                - cell "Olive Garden" [ref=e551]
+                - cell "-$27.43" [ref=e552]
+                - cell "Dining Out" [ref=e553]:
+                  - button "Dining Out" [ref=e554] [cursor=pointer]:
+                    - generic [ref=e555]: Dining Out
+                - cell "Chase Sapphire CC" [ref=e556]
+                - cell "Expense" [ref=e557]:
+                  - generic [ref=e558]: Expense
+                - cell [ref=e559]
+                - cell "Actions" [ref=e560]:
+                  - button "Actions" [ref=e561]:
+                    - img
+                    - generic [ref=e562]: Actions
+              - row "Mar 6, 2026 Trader Joe's -$147.21 Groceries Chase Sapphire CC Expense Actions" [ref=e563]:
+                - cell [ref=e564]:
+                  - checkbox [ref=e565]
+                - cell "Mar 6, 2026" [ref=e566]
+                - cell "Trader Joe's" [ref=e567]
+                - cell "-$147.21" [ref=e568]
+                - cell "Groceries" [ref=e569]:
+                  - button "Groceries" [ref=e570] [cursor=pointer]:
+                    - generic [ref=e571]: Groceries
+                - cell "Chase Sapphire CC" [ref=e572]
+                - cell "Expense" [ref=e573]:
+                  - generic [ref=e574]: Expense
+                - cell [ref=e575]
+                - cell "Actions" [ref=e576]:
+                  - button "Actions" [ref=e577]:
+                    - img
+                    - generic [ref=e578]: Actions
+              - row "Mar 5, 2026 Car Loan Payment - Interest -$84.64 Loan Payment Car Loan Loan Interest Actions" [ref=e579]:
+                - cell [ref=e580]:
+                  - checkbox [ref=e581]
+                - cell "Mar 5, 2026" [ref=e582]
+                - cell "Car Loan Payment - Interest" [ref=e583]
+                - cell "-$84.64" [ref=e584]
+                - cell "Loan Payment" [ref=e585]:
+                  - button "Loan Payment" [ref=e586] [cursor=pointer]:
+                    - generic [ref=e587]: Loan Payment
+                - cell "Car Loan" [ref=e588]
+                - cell "Loan Interest" [ref=e589]:
+                  - generic [ref=e590]: Loan Interest
+                - cell [ref=e591]
+                - cell "Actions" [ref=e592]:
+                  - button "Actions" [ref=e593]:
+                    - img
+                    - generic [ref=e594]: Actions
+              - row "Mar 5, 2026 Car Loan Payment - Principal -$450.36 Loan Payment Car Loan Loan Principal Actions" [ref=e595]:
+                - cell [ref=e596]:
+                  - checkbox [ref=e597]
+                - cell "Mar 5, 2026" [ref=e598]
+                - cell "Car Loan Payment - Principal" [ref=e599]
+                - cell "-$450.36" [ref=e600]
+                - cell "Loan Payment" [ref=e601]:
+                  - button "Loan Payment" [ref=e602] [cursor=pointer]:
+                    - generic [ref=e603]: Loan Payment
+                - cell "Car Loan" [ref=e604]
+                - cell "Loan Principal" [ref=e605]:
+                  - generic [ref=e606]: Loan Principal
+                - cell [ref=e607]
+                - cell "Actions" [ref=e608]:
+                  - button "Actions" [ref=e609]:
+                    - img
+                    - generic [ref=e610]: Actions
+              - row "Mar 5, 2026 Comcast Internet -$89.99 Utilities Chase Sapphire CC Expense Actions" [ref=e611]:
+                - cell [ref=e612]:
+                  - checkbox [ref=e613]
+                - cell "Mar 5, 2026" [ref=e614]
+                - cell "Comcast Internet" [ref=e615]
+                - cell "-$89.99" [ref=e616]
+                - cell "Utilities" [ref=e617]:
+                  - button "Utilities" [ref=e618] [cursor=pointer]:
+                    - generic [ref=e619]: Utilities
+                - cell "Chase Sapphire CC" [ref=e620]
+                - cell "Expense" [ref=e621]:
+                  - generic [ref=e622]: Expense
+                - cell [ref=e623]
+                - cell "Actions" [ref=e624]:
+                  - button "Actions" [ref=e625]:
+                    - img
+                    - generic [ref=e626]: Actions
+              - row "Mar 3, 2026 T-Mobile -$145.00 Utilities Chase Sapphire CC Expense Actions" [ref=e627]:
+                - cell [ref=e628]:
+                  - checkbox [ref=e629]
+                - cell "Mar 3, 2026" [ref=e630]
+                - cell "T-Mobile" [ref=e631]
+                - cell "-$145.00" [ref=e632]
+                - cell "Utilities" [ref=e633]:
+                  - button "Utilities" [ref=e634] [cursor=pointer]:
+                    - generic [ref=e635]: Utilities
+                - cell "Chase Sapphire CC" [ref=e636]
+                - cell "Expense" [ref=e637]:
+                  - generic [ref=e638]: Expense
+                - cell [ref=e639]
+                - cell "Actions" [ref=e640]:
+                  - button "Actions" [ref=e641]:
+                    - img
+                    - generic [ref=e642]: Actions
+              - row "Mar 2, 2026 Whole Foods -$108.41 Groceries Chase Sapphire CC Expense Actions" [ref=e643]:
+                - cell [ref=e644]:
+                  - checkbox [ref=e645]
+                - cell "Mar 2, 2026" [ref=e646]
+                - cell "Whole Foods" [ref=e647]
+                - cell "-$108.41" [ref=e648]
+                - cell "Groceries" [ref=e649]:
+                  - button "Groceries" [ref=e650] [cursor=pointer]:
+                    - generic [ref=e651]: Groceries
+                - cell "Chase Sapphire CC" [ref=e652]
+                - cell "Expense" [ref=e653]:
+                  - generic [ref=e654]: Expense
+                - cell [ref=e655]
+                - cell "Actions" [ref=e656]:
+                  - button "Actions" [ref=e657]:
+                    - img
+                    - generic [ref=e658]: Actions
+              - row "Mar 1, 2026 Mortgage Payment - Interest -$1,603.13 Loan Payment Home Mortgage Loan Interest Actions" [ref=e659]:
+                - cell [ref=e660]:
+                  - checkbox [ref=e661]
+                - cell "Mar 1, 2026" [ref=e662]
+                - cell "Mortgage Payment - Interest" [ref=e663]
+                - cell "-$1,603.13" [ref=e664]
+                - cell "Loan Payment" [ref=e665]:
+                  - button "Loan Payment" [ref=e666] [cursor=pointer]:
+                    - generic [ref=e667]: Loan Payment
+                - cell "Home Mortgage" [ref=e668]
+                - cell "Loan Interest" [ref=e669]:
+                  - generic [ref=e670]: Loan Interest
+                - cell [ref=e671]
+                - cell "Actions" [ref=e672]:
+                  - button "Actions" [ref=e673]:
+                    - img
+                    - generic [ref=e674]: Actions
+              - row "Mar 1, 2026 Paycheck - Acme Corp +$6,500.00 Salary Chase Checking Income Actions" [ref=e675]:
+                - cell [ref=e676]:
+                  - checkbox [ref=e677]
+                - cell "Mar 1, 2026" [ref=e678]
+                - cell "Paycheck - Acme Corp" [ref=e679]
+                - cell "+$6,500.00" [ref=e680]
+                - cell "Salary" [ref=e681]:
+                  - button "Salary" [ref=e682] [cursor=pointer]:
+                    - generic [ref=e683]: Salary
+                - cell "Chase Checking" [ref=e684]
+                - cell "Income" [ref=e685]:
+                  - generic [ref=e686]: Income
+                - cell [ref=e687]
+                - cell "Actions" [ref=e688]:
+                  - button "Actions" [ref=e689]:
+                    - img
+                    - generic [ref=e690]: Actions
+              - row "Mar 1, 2026 Mortgage Payment - Principal -$472.87 Loan Payment Home Mortgage Loan Principal Actions" [ref=e691]:
+                - cell [ref=e692]:
+                  - checkbox [ref=e693]
+                - cell "Mar 1, 2026" [ref=e694]
+                - cell "Mortgage Payment - Principal" [ref=e695]
+                - cell "-$472.87" [ref=e696]
+                - cell "Loan Payment" [ref=e697]:
+                  - button "Loan Payment" [ref=e698] [cursor=pointer]:
+                    - generic [ref=e699]: Loan Payment
+                - cell "Home Mortgage" [ref=e700]
+                - cell "Loan Principal" [ref=e701]:
+                  - generic [ref=e702]: Loan Principal
+                - cell [ref=e703]
+                - cell "Actions" [ref=e704]:
+                  - button "Actions" [ref=e705]:
+                    - img
+                    - generic [ref=e706]: Actions
+              - row "Mar 1, 2026 Planet Fitness -$24.99 Healthcare Discover It CC Expense Actions" [ref=e707]:
+                - cell [ref=e708]:
+                  - checkbox [ref=e709]
+                - cell "Mar 1, 2026" [ref=e710]
+                - cell "Planet Fitness" [ref=e711]
+                - cell "-$24.99" [ref=e712]
+                - cell "Healthcare" [ref=e713]:
+                  - button "Healthcare" [ref=e714] [cursor=pointer]:
+                    - generic [ref=e715]: Healthcare
+                - cell "Discover It CC" [ref=e716]
+                - cell "Expense" [ref=e717]:
+                  - generic [ref=e718]: Expense
+                - cell [ref=e719]
+                - cell "Actions" [ref=e720]:
+                  - button "Actions" [ref=e721]:
+                    - img
+                    - generic [ref=e722]: Actions
+              - row "Feb 28, 2026 Interest Earned - Marcus Savings +$104.20 Investment Income Marcus Savings Interest Earned Actions" [ref=e723]:
+                - cell [ref=e724]:
+                  - checkbox [ref=e725]
+                - cell "Feb 28, 2026" [ref=e726]
+                - cell "Interest Earned - Marcus Savings" [ref=e727]
+                - cell "+$104.20" [ref=e728]
+                - cell "Investment Income" [ref=e729]:
+                  - button "Investment Income" [ref=e730] [cursor=pointer]:
+                    - generic [ref=e731]: Investment Income
+                - cell "Marcus Savings" [ref=e732]
+                - cell "Interest Earned" [ref=e733]:
+                  - generic [ref=e734]: Interest Earned
+                - cell [ref=e735]
+                - cell "Actions" [ref=e736]:
+                  - button "Actions" [ref=e737]:
+                    - img
+                    - generic [ref=e738]: Actions
+              - row "Feb 26, 2026 Thai Kitchen +$45.00 Dining Out Chase Sapphire CC Transfer Actions" [ref=e739]:
+                - cell [ref=e740]:
+                  - checkbox [ref=e741]
+                - cell "Feb 26, 2026" [ref=e742]
+                - cell "Thai Kitchen" [ref=e743]
+                - cell "+$45.00" [ref=e744]
+                - cell "Dining Out" [ref=e745]:
+                  - button "Dining Out" [ref=e746] [cursor=pointer]:
+                    - generic [ref=e747]: Dining Out
+                - cell "Chase Sapphire CC" [ref=e748]
+                - cell "Transfer" [ref=e749]:
+                  - generic [ref=e750]: Transfer
+                - cell [ref=e751]
+                - cell "Actions" [ref=e752]:
+                  - button "Actions" [ref=e753]:
+                    - img
+                    - generic [ref=e754]: Actions
+              - row "Feb 24, 2026 Safeway +$63.28 Groceries Chase Sapphire CC Transfer Actions" [ref=e755]:
+                - cell [ref=e756]:
+                  - checkbox [ref=e757]
+                - cell "Feb 24, 2026" [ref=e758]
+                - cell "Safeway" [ref=e759]
+                - cell "+$63.28" [ref=e760]
+                - cell "Groceries" [ref=e761]:
+                  - button "Groceries" [ref=e762] [cursor=pointer]:
+                    - generic [ref=e763]: Groceries
+                - cell "Chase Sapphire CC" [ref=e764]
+                - cell "Transfer" [ref=e765]:
+                  - generic [ref=e766]: Transfer
+                - cell [ref=e767]
+                - cell "Actions" [ref=e768]:
+                  - button "Actions" [ref=e769]:
+                    - img
+                    - generic [ref=e770]: Actions
+              - row "Feb 22, 2026 Exxon Gas -$40.33 Gas Discover It CC Expense Actions" [ref=e771]:
+                - cell [ref=e772]:
+                  - checkbox [ref=e773]
+                - cell "Feb 22, 2026" [ref=e774]
+                - cell "Exxon Gas" [ref=e775]
+                - cell "-$40.33" [ref=e776]
+                - cell "Gas" [ref=e777]:
+                  - button "Gas" [ref=e778] [cursor=pointer]:
+                    - generic [ref=e779]: Gas
+                - cell "Discover It CC" [ref=e780]
+                - cell "Expense" [ref=e781]:
+                  - generic [ref=e782]: Expense
+                - cell [ref=e783]
+                - cell "Actions" [ref=e784]:
+                  - button "Actions" [ref=e785]:
+                    - img
+                    - generic [ref=e786]: Actions
+              - row "Feb 22, 2026 Chipotle +$12.50 Dining Out Chase Sapphire CC Transfer Actions" [ref=e787]:
+                - cell [ref=e788]:
+                  - checkbox [ref=e789]
+                - cell "Feb 22, 2026" [ref=e790]
+                - cell "Chipotle" [ref=e791]
+                - cell "+$12.50" [ref=e792]
+                - cell "Dining Out" [ref=e793]:
+                  - button "Dining Out" [ref=e794] [cursor=pointer]:
+                    - generic [ref=e795]: Dining Out
+                - cell "Chase Sapphire CC" [ref=e796]
+                - cell "Transfer" [ref=e797]:
+                  - generic [ref=e798]: Transfer
+                - cell [ref=e799]
+                - cell "Actions" [ref=e800]:
+                  - button "Actions" [ref=e801]:
+                    - img
+                    - generic [ref=e802]: Actions
+              - row "Feb 20, 2026 Interest Charge - Discover It -$16.41 Interest Charged Discover It CC Interest Charged Actions" [ref=e803]:
+                - cell [ref=e804]:
+                  - checkbox [ref=e805]
+                - cell "Feb 20, 2026" [ref=e806]
+                - cell "Interest Charge - Discover It" [ref=e807]
+                - cell "-$16.41" [ref=e808]
+                - cell "Interest Charged" [ref=e809]:
+                  - button "Interest Charged" [ref=e810] [cursor=pointer]:
+                    - generic [ref=e811]: Interest Charged
+                - cell "Discover It CC" [ref=e812]
+                - cell "Interest Charged" [ref=e813]:
+                  - generic [ref=e814]: Interest Charged
+                - cell [ref=e815]
+                - cell "Actions" [ref=e816]:
+                  - button "Actions" [ref=e817]:
+                    - img
+                    - generic [ref=e818]: Actions
+              - row "Feb 20, 2026 Transfer to Marcus Savings -$1,000.00 Transfer Chase Checking Transfer Actions" [ref=e819]:
+                - cell [ref=e820]:
+                  - checkbox [ref=e821]
+                - cell "Feb 20, 2026" [ref=e822]
+                - cell "Transfer to Marcus Savings" [ref=e823]
+                - cell "-$1,000.00" [ref=e824]
+                - cell "Transfer" [ref=e825]:
+                  - button "Transfer" [ref=e826] [cursor=pointer]:
+                    - generic [ref=e827]: Transfer
+                - cell "Chase Checking" [ref=e828]
+                - cell "Transfer" [ref=e829]:
+                  - generic [ref=e830]: Transfer
+                - cell [ref=e831]:
+                  - generic "Linked transfer" [ref=e832]:
+                    - img [ref=e833]
+                - cell "Actions" [ref=e836]:
+                  - button "Actions" [ref=e837]:
+                    - img
+                    - generic [ref=e838]: Actions
+              - row "Feb 20, 2026 Transfer from Chase Checking +$1,000.00 Transfer Marcus Savings Transfer Actions" [ref=e839]:
+                - cell [ref=e840]:
+                  - checkbox [ref=e841]
+                - cell "Feb 20, 2026" [ref=e842]
+                - cell "Transfer from Chase Checking" [ref=e843]
+                - cell "+$1,000.00" [ref=e844]
+                - cell "Transfer" [ref=e845]:
+                  - button "Transfer" [ref=e846] [cursor=pointer]:
+                    - generic [ref=e847]: Transfer
+                - cell "Marcus Savings" [ref=e848]
+                - cell "Transfer" [ref=e849]:
+                  - generic [ref=e850]: Transfer
+                - cell [ref=e851]:
+                  - generic "Linked transfer" [ref=e852]:
+                    - img [ref=e853]
+                - cell "Actions" [ref=e856]:
+                  - button "Actions" [ref=e857]:
+                    - img
+                    - generic [ref=e858]: Actions
+              - row "Feb 20, 2026 Spotify +$10.99 Subscriptions Chase Sapphire CC Transfer Actions" [ref=e859]:
+                - cell [ref=e860]:
+                  - checkbox [ref=e861]
+                - cell "Feb 20, 2026" [ref=e862]
+                - cell "Spotify" [ref=e863]
+                - cell "+$10.99" [ref=e864]
+                - cell "Subscriptions" [ref=e865]:
+                  - button "Subscriptions" [ref=e866] [cursor=pointer]:
+                    - generic [ref=e867]: Subscriptions
+                - cell "Chase Sapphire CC" [ref=e868]
+                - cell "Transfer" [ref=e869]:
+                  - generic [ref=e870]: Transfer
+                - cell [ref=e871]
+                - cell "Actions" [ref=e872]:
+                  - button "Actions" [ref=e873]:
+                    - img
+                    - generic [ref=e874]: Actions
+              - row "Feb 18, 2026 Safeway -$143.34 Groceries Chase Sapphire CC Expense Actions" [ref=e875]:
+                - cell [ref=e876]:
+                  - checkbox [ref=e877]
+                - cell "Feb 18, 2026" [ref=e878]
+                - cell "Safeway" [ref=e879]
+                - cell "-$143.34" [ref=e880]
+                - cell "Groceries" [ref=e881]:
+                  - button "Groceries" [ref=e882] [cursor=pointer]:
+                    - generic [ref=e883]: Groceries
+                - cell "Chase Sapphire CC" [ref=e884]
+                - cell "Expense" [ref=e885]:
+                  - generic [ref=e886]: Expense
+                - cell [ref=e887]
+                - cell "Actions" [ref=e888]:
+                  - button "Actions" [ref=e889]:
+                    - img
+                    - generic [ref=e890]: Actions
+              - row "Feb 18, 2026 Whole Foods +$96.44 Groceries Chase Sapphire CC Transfer Actions" [ref=e891]:
+                - cell [ref=e892]:
+                  - checkbox [ref=e893]
+                - cell "Feb 18, 2026" [ref=e894]
+                - cell "Whole Foods" [ref=e895]
+                - cell "+$96.44" [ref=e896]
+                - cell "Groceries" [ref=e897]:
+                  - button "Groceries" [ref=e898] [cursor=pointer]:
+                    - generic [ref=e899]: Groceries
+                - cell "Chase Sapphire CC" [ref=e900]
+                - cell "Transfer" [ref=e901]:
+                  - generic [ref=e902]: Transfer
+                - cell [ref=e903]
+                - cell "Actions" [ref=e904]:
+                  - button "Actions" [ref=e905]:
+                    - img
+                    - generic [ref=e906]: Actions
+              - row "Feb 16, 2026 Paycheck - Acme Corp -$3,250.00 Salary Chase Sapphire CC Expense Actions" [ref=e907]:
+                - cell [ref=e908]:
+                  - checkbox [ref=e909]
+                - cell "Feb 16, 2026" [ref=e910]
+                - cell "Paycheck - Acme Corp" [ref=e911]
+                - cell "-$3,250.00" [ref=e912]
+                - cell "Salary" [ref=e913]:
+                  - button "Salary" [ref=e914] [cursor=pointer]:
+                    - generic [ref=e915]: Salary
+                - cell "Chase Sapphire CC" [ref=e916]
+                - cell "Expense" [ref=e917]:
+                  - generic [ref=e918]: Expense
+                - cell [ref=e919]
+                - cell "Actions" [ref=e920]:
+                  - button "Actions" [ref=e921]:
+                    - img
+                    - generic [ref=e922]: Actions
+              - row "Feb 15, 2026 Payment from Chase Checking +$750.00 Credit Card Payment Discover It CC Transfer Actions" [ref=e923]:
+                - cell [ref=e924]:
+                  - checkbox [ref=e925]
+                - cell "Feb 15, 2026" [ref=e926]
+                - cell "Payment from Chase Checking" [ref=e927]
+                - cell "+$750.00" [ref=e928]
+                - cell "Credit Card Payment" [ref=e929]:
+                  - button "Credit Card Payment" [ref=e930] [cursor=pointer]:
+                    - generic [ref=e931]: Credit Card Payment
+                - cell "Discover It CC" [ref=e932]
+                - cell "Transfer" [ref=e933]:
+                  - generic [ref=e934]: Transfer
+                - cell [ref=e935]:
+                  - generic "Linked transfer" [ref=e936]:
+                    - img [ref=e937]
+                - cell "Actions" [ref=e940]:
+                  - button "Actions" [ref=e941]:
+                    - img
+                    - generic [ref=e942]: Actions
+          - generic [ref=e943]:
+            - button "Previous" [disabled]
+            - generic [ref=e944]: Page 1 of 3
+            - button "Next" [ref=e945]
+      - contentinfo [ref=e946]:
+        - text: PersonalLedgr is provided as-is. Not financial advice.
+        - link "See Disclaimer for details." [ref=e947] [cursor=pointer]:
+          - /url: /settings#disclaimer
+  - generic [ref=e948]:
+    - heading "Command Palette" [level=2] [ref=e949]
+    - paragraph [ref=e950]: Search for a command to run...
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e951]:
+        - img [ref=e953]
+        - generic [ref=e957]: Expense recorded
+  - button "Open Next.js Dev Tools" [ref=e963] [cursor=pointer]:
+    - generic [ref=e966]:
+      - text: Compiling
+      - generic [ref=e967]:
+        - generic [ref=e968]: .
+        - generic [ref=e969]: .
+        - generic [ref=e970]: .
+  - alert [ref=e971]
+```

@@ -1,0 +1,190 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - complementary:
+      - generic:
+        - link:
+          - /url: /
+          - text: PersonalLedgr
+      - navigation:
+        - link:
+          - /url: /
+          - img
+          - text: Dashboard
+        - link:
+          - /url: /transactions
+          - img
+          - text: Transactions
+        - link:
+          - /url: /accounts
+          - img
+          - text: Accounts
+        - link:
+          - /url: /loans
+          - img
+          - text: Loans
+        - link:
+          - /url: /recurring
+          - img
+          - text: Recurring Bills
+        - link:
+          - /url: /calendar
+          - img
+          - text: Calendar
+        - link:
+          - /url: /payments
+          - img
+          - text: Payment Tracker
+        - link:
+          - /url: /budgets
+          - img
+          - text: Budgets
+        - link:
+          - /url: /reports
+          - img
+          - text: Reports
+        - link:
+          - /url: /import
+          - img
+          - text: Import
+        - link:
+          - /url: /settings
+          - img
+          - text: Settings
+        - link:
+          - /url: /guide
+          - img
+          - text: Getting Started
+      - generic:
+        - button:
+          - generic: DU
+          - generic: Demo User
+        - button:
+          - img
+          - generic: Toggle theme
+    - generic:
+      - banner:
+        - heading [level=1]: Budgets
+        - generic:
+          - img
+          - combobox:
+            - generic: "2026"
+            - img
+      - main:
+        - generic:
+          - generic:
+            - heading [level=1]: Budgets
+            - generic:
+              - button:
+                - img
+              - generic: June 2026
+              - button:
+                - img
+              - button:
+                - img
+                - text: Copy from Previous Month
+              - button:
+                - img
+                - text: Add Budget
+          - generic:
+            - paragraph: No budgets for this month. Add your first budget or copy from a previous month.
+            - generic:
+              - button:
+                - img
+                - text: Add Budget
+              - button:
+                - img
+                - text: Copy from Previous Month
+      - contentinfo:
+        - text: PersonalLedgr is provided as-is. Not financial advice.
+        - link:
+          - /url: /settings#disclaimer
+          - text: See Disclaimer for details.
+  - generic:
+    - heading [level=2]: Command Palette
+    - paragraph: Search for a command to run...
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e6] [cursor=pointer]:
+    - img [ref=e7]
+  - alert
+  - dialog:
+    - generic:
+      - heading [level=2]: Add Budget
+      - paragraph: Set a monthly spending limit for a category.
+    - generic:
+      - generic:
+        - generic: Category
+        - combobox [expanded]:
+          - generic: Select a category
+          - img
+        - combobox
+      - generic:
+        - generic: Monthly Limit
+        - spinbutton
+      - generic:
+        - button: Cancel
+        - button: Create Budget
+    - button:
+      - img
+      - generic: Close
+  - listbox [ref=e11]:
+    - option "Housing" [active] [ref=e12]:
+      - generic [ref=e14]: Housing
+    - option "Utilities" [ref=e15]:
+      - generic [ref=e17]: Utilities
+    - option "Groceries" [ref=e18]:
+      - generic [ref=e20]: Groceries
+    - option "Dining Out" [ref=e21]:
+      - generic [ref=e23]: Dining Out
+    - option "Transportation" [ref=e24]:
+      - generic [ref=e26]: Transportation
+    - option "Gas" [ref=e27]:
+      - generic [ref=e29]: Gas
+    - option "Insurance" [ref=e30]:
+      - generic [ref=e32]: Insurance
+    - option "Healthcare" [ref=e33]:
+      - generic [ref=e35]: Healthcare
+    - option "Personal Care" [ref=e36]:
+      - generic [ref=e38]: Personal Care
+    - option "Clothing" [ref=e39]:
+      - generic [ref=e41]: Clothing
+    - option "Entertainment" [ref=e42]:
+      - generic [ref=e44]: Entertainment
+    - option "Subscriptions" [ref=e45]:
+      - generic [ref=e47]: Subscriptions
+    - option "Education" [ref=e48]:
+      - generic [ref=e50]: Education
+    - option "Childcare" [ref=e51]:
+      - generic [ref=e53]: Childcare
+    - option "Pets" [ref=e54]:
+      - generic [ref=e56]: Pets
+    - option "Gifts" [ref=e57]:
+      - generic [ref=e59]: Gifts
+    - option "Donations" [ref=e60]:
+      - generic [ref=e62]: Donations
+    - option "Travel" [ref=e63]:
+      - generic [ref=e65]: Travel
+    - option "Home Improvement" [ref=e66]:
+      - generic [ref=e68]: Home Improvement
+    - option "Electronics" [ref=e69]:
+      - generic [ref=e71]: Electronics
+    - option "Salary" [ref=e72]:
+      - generic [ref=e74]: Salary
+    - option "Freelance" [ref=e75]:
+      - generic [ref=e77]: Freelance
+    - option "Investment Income" [ref=e78]:
+      - generic [ref=e80]: Investment Income
+    - option "Refund" [ref=e81]:
+      - generic [ref=e83]: Refund
+    - option "Transfer" [ref=e84]:
+      - generic [ref=e86]: Transfer
+    - option "Loan Payment" [ref=e87]:
+      - generic [ref=e89]: Loan Payment
+    - option "Credit Card Payment" [ref=e90]:
+      - generic [ref=e92]: Credit Card Payment
+    - option "Other" [ref=e93]:
+      - generic [ref=e95]: Other
+    - img [ref=e97]
+```

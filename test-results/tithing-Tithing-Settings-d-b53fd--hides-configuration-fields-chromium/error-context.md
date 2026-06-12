@@ -1,0 +1,239 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - link "PersonalLedgr" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e6]:
+        - link "Dashboard" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - text: Dashboard
+        - link "Transactions" [ref=e13] [cursor=pointer]:
+          - /url: /transactions
+          - img [ref=e14]
+          - text: Transactions
+        - link "Accounts" [ref=e17] [cursor=pointer]:
+          - /url: /accounts
+          - img [ref=e18]
+          - text: Accounts
+        - link "Loans" [ref=e20] [cursor=pointer]:
+          - /url: /loans
+          - img [ref=e21]
+          - text: Loans
+        - link "Recurring Bills" [ref=e27] [cursor=pointer]:
+          - /url: /recurring
+          - img [ref=e28]
+          - text: Recurring Bills
+        - link "Calendar" [ref=e32] [cursor=pointer]:
+          - /url: /calendar
+          - img [ref=e33]
+          - text: Calendar
+        - link "Payment Tracker" [ref=e35] [cursor=pointer]:
+          - /url: /payments
+          - img [ref=e36]
+          - text: Payment Tracker
+        - link "Budgets" [ref=e40] [cursor=pointer]:
+          - /url: /budgets
+          - img [ref=e41]
+          - text: Budgets
+        - link "Reports" [ref=e44] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e45]
+          - text: Reports
+        - link "Import" [ref=e47] [cursor=pointer]:
+          - /url: /import
+          - img [ref=e48]
+          - text: Import
+        - link "Settings" [ref=e52] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e53]
+          - text: Settings
+        - link "Getting Started" [ref=e56] [cursor=pointer]:
+          - /url: /guide
+          - img [ref=e57]
+          - text: Getting Started
+      - generic [ref=e59]:
+        - button "DU Demo User" [ref=e60]:
+          - generic [ref=e61]: DU
+          - generic [ref=e62]: Demo User
+        - button "Toggle theme" [ref=e63]:
+          - img
+          - generic [ref=e64]: Toggle theme
+    - generic [ref=e65]:
+      - banner [ref=e66]:
+        - heading "Settings" [level=1] [ref=e67]
+        - generic [ref=e68]:
+          - img [ref=e69]
+          - combobox [ref=e71]:
+            - generic: "2026"
+            - img
+      - main [ref=e72]:
+        - generic [ref=e73]:
+          - heading "Settings" [level=1] [ref=e74]
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]:
+                - img [ref=e78]
+                - text: Account & Profile
+              - generic [ref=e81]: Manage your name, avatar, and password
+            - link "Go to Profile" [ref=e83] [cursor=pointer]:
+              - /url: /profile
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - img [ref=e87]
+                - text: Appearance
+              - generic [ref=e93]: Toggle between light and dark mode
+            - generic [ref=e94]:
+              - button "Toggle theme" [ref=e95]:
+                - img
+                - generic [ref=e96]: Toggle theme
+              - generic [ref=e97]: light mode
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - img [ref=e101]
+                - text: Categories
+              - generic [ref=e104]: Manage transaction categories. Built-in categories cannot be removed.
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - heading "Built-in Categories" [level=4] [ref=e107]
+                - generic [ref=e108]:
+                  - generic [ref=e109]: Housing
+                  - generic [ref=e110]: Utilities
+                  - generic [ref=e111]: Groceries
+                  - generic [ref=e112]: Dining Out
+                  - generic [ref=e113]: Transportation
+                  - generic [ref=e114]: Gas
+                  - generic [ref=e115]: Insurance
+                  - generic [ref=e116]: Healthcare
+                  - generic [ref=e117]: Personal Care
+                  - generic [ref=e118]: Clothing
+                  - generic [ref=e119]: Entertainment
+                  - generic [ref=e120]: Subscriptions
+                  - generic [ref=e121]: Education
+                  - generic [ref=e122]: Childcare
+                  - generic [ref=e123]: Pets
+                  - generic [ref=e124]: Gifts
+                  - generic [ref=e125]: Donations
+                  - generic [ref=e126]: Travel
+                  - generic [ref=e127]: Home Improvement
+                  - generic [ref=e128]: Electronics
+                  - generic [ref=e129]: Salary
+                  - generic [ref=e130]: Freelance
+                  - generic [ref=e131]: Investment Income
+                  - generic [ref=e132]: Refund
+                  - generic [ref=e133]: Transfer
+                  - generic [ref=e134]: Loan Payment
+                  - generic [ref=e135]: Credit Card Payment
+                  - generic [ref=e136]: Other
+              - generic [ref=e137]:
+                - heading "Custom Categories" [level=4] [ref=e138]
+                - generic [ref=e140]:
+                  - generic [ref=e141]: E2E Cat 1781195776762
+                  - button [ref=e142]:
+                    - img
+                  - button [ref=e143]:
+                    - img
+              - generic [ref=e144]:
+                - textbox "New category name..." [ref=e145]
+                - button "Add" [disabled]:
+                  - img
+                  - text: Add
+          - generic [ref=e146]:
+            - generic [ref=e148]:
+              - img [ref=e149]
+              - text: Disclaimer
+            - generic [ref=e152]:
+              - paragraph [ref=e153]:
+                - strong [ref=e154]: PersonalLedgr
+                - text: is provided "as is" without warranty of any kind, express or implied.
+              - heading "No Financial Advice" [level=3] [ref=e155]
+              - paragraph [ref=e156]:
+                - text: This software is
+                - strong [ref=e157]: not
+                - text: a substitute for professional financial, tax, or legal advice. Nothing in this application should be interpreted as financial guidance or a recommendation to take any specific financial action.
+              - heading "No Liability for Data Accuracy" [level=3] [ref=e158]
+              - paragraph [ref=e159]:
+                - text: The developer is
+                - strong [ref=e160]: not responsible
+                - text: "for:"
+              - list [ref=e161]:
+                - listitem [ref=e162]:
+                  - strong [ref=e163]: Data loss
+                  - text: — including but not limited to database corruption, failed backups, migration errors, or accidental deletion
+                - listitem [ref=e164]:
+                  - strong [ref=e165]: Inaccurate calculations
+                  - text: — interest accrual, amortization schedules, APR calculations, balance tracking, and budget figures are approximations and may not match your financial institution's figures exactly
+                - listitem [ref=e166]:
+                  - strong [ref=e167]: Misreported balances
+                  - text: — stored balances may drift from actual bank balances due to timing, manual entry errors, import discrepancies, or synchronization issues
+                - listitem [ref=e168]:
+                  - strong [ref=e169]: Double-counted or missing transactions
+                  - text: — while the application is designed to prevent double-counting, no system is infallible
+                - listitem [ref=e170]:
+                  - strong [ref=e171]: Incorrect interest or payment projections
+                  - text: — extra payment calculators, payoff date estimates, and interest projections are for informational purposes only
+              - heading "User Responsibility" [level=3] [ref=e172]
+              - paragraph [ref=e173]: "Users are solely responsible for:"
+              - list [ref=e174]:
+                - listitem [ref=e175]: Verifying all financial data independently against their bank and financial institution statements
+                - listitem [ref=e176]: Maintaining their own backups of critical financial records
+                - listitem [ref=e177]: Making their own informed financial decisions
+                - listitem [ref=e178]: Ensuring the accuracy of manually entered data
+                - listitem [ref=e179]: Reviewing imported and auto-synced transactions for correctness
+              - heading "No Warranty" [level=3] [ref=e180]
+              - paragraph [ref=e181]: THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+              - heading "Use at Your Own Risk" [level=3] [ref=e182]
+              - paragraph [ref=e183]: By using PersonalLedgr, you acknowledge that you have read and understood this disclaimer and agree to use the software at your own risk.
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - img [ref=e187]
+                - text: Tithing
+              - generic [ref=e189]: Track estimated vs actual tithing based on your income.
+            - generic [ref=e190]:
+              - generic [ref=e191]:
+                - switch "Enable Tithing Tracking" [active] [ref=e192]
+                - generic [ref=e193]: Enable Tithing Tracking
+              - button "Save" [ref=e194]
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - generic [ref=e197]:
+                - img [ref=e198]
+                - text: Recalculate Balances
+              - generic [ref=e200]: Compare stored account balances against the sum of all transactions to detect drift.
+            - button "Check Balances" [ref=e202]
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - generic [ref=e205]:
+                - img [ref=e206]
+                - text: Seed Data
+              - generic [ref=e210]: Load demo data for testing or wipe all finance data.
+            - generic [ref=e211]:
+              - button "Load Demo Data" [ref=e212]
+              - button "Wipe All Data" [ref=e213]
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e216]:
+                - img [ref=e217]
+                - text: Data Export
+              - generic [ref=e220]: Download your finance data as JSON (all data) or CSV (transactions only).
+            - generic [ref=e221]:
+              - button "Export JSON" [ref=e222]
+              - button "Export CSV" [ref=e223]
+      - contentinfo [ref=e224]:
+        - text: PersonalLedgr is provided as-is. Not financial advice.
+        - link "See Disclaimer for details." [ref=e225] [cursor=pointer]:
+          - /url: /settings#disclaimer
+  - generic [ref=e226]:
+    - heading "Command Palette" [level=2] [ref=e227]
+    - paragraph [ref=e228]: Search for a command to run...
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e234] [cursor=pointer]:
+    - img [ref=e235]
+  - alert [ref=e238]
+```
