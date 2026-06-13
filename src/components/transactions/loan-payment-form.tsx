@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { recordLoanPayment } from "@/actions/loan-payments"
+import { formatCurrency } from "@/lib/utils"
 
 interface AccountOption {
   id: string
@@ -49,6 +50,10 @@ interface LoanPaymentFormProps {
   onSuccess: () => void
   accounts: AccountOption[]
   loanAccounts: LoanAccountOption[]
+  /** Pre-select a loan account when the dialog opens (e.g. from the Payment Tracker grid). */
+  defaultLoanAccountId?: string
+  /** Pre-fill the payment date (YYYY-MM-DD), e.g. to match the month clicked in the grid. */
+  defaultDate?: string
 }
 
 function round2(n: number): number {
@@ -61,6 +66,8 @@ export function LoanPaymentForm({
   onSuccess,
   accounts,
   loanAccounts,
+  defaultLoanAccountId,
+  defaultDate,
 }: LoanPaymentFormProps) {
   const [loanAccountId, setLoanAccountId] = useState("")
   const [fromAccountId, setFromAccountId] = useState("")
@@ -91,18 +98,25 @@ export function LoanPaymentForm({
     }
   }, [fromAccountId, loanAccountId, accounts, loanAccounts, descriptionTouched])
 
-  // Default from-account to first checking account
+  // Reset on open: pre-select the loan/date when provided (Payment Tracker grid),
+  // otherwise default to no loan and today's date. Pre-fill the amount from the
+  // pre-selected loan here too — the selectedLoan pre-fill effect below only runs
+  // when the loan id *changes*, so reopening the same loan would otherwise leave
+  // the amount blank.
   useEffect(() => {
     if (open) {
       const firstChecking = accounts.find((a) => a.type === "CHECKING")
-      setLoanAccountId("")
+      const presetLoan = defaultLoanAccountId
+        ? loanAccounts.find((a) => a.id === defaultLoanAccountId)
+        : undefined
+      setLoanAccountId(defaultLoanAccountId ?? "")
       setFromAccountId(firstChecking?.id ?? "")
-      setAmount("")
-      setDate(new Date().toISOString().split("T")[0])
+      setAmount(presetLoan ? String(presetLoan.loan.monthlyPayment) : "")
+      setDate(defaultDate ?? new Date().toISOString().split("T")[0])
       setDescription("")
       setDescriptionTouched(false)
     }
-  }, [open, accounts])
+  }, [open, accounts, loanAccounts, defaultLoanAccountId, defaultDate])
 
   // Calculate preview split
   const preview = useMemo(() => {
@@ -110,7 +124,9 @@ export function LoanPaymentForm({
     if (!selectedLoan || !parsedAmount || parsedAmount <= 0) return null
 
     const loanBalance = Math.abs(selectedLoan.balance)
-    const monthlyInterest = round2(loanBalance * selectedLoan.loan.interestRate / 12)
+    // interestRate is stored as a percentage (e.g. 6 = 6%), matching the server
+    // split in recordLoanPayment — divide by 100 before computing monthly interest.
+    const monthlyInterest = round2((loanBalance * selectedLoan.loan.interestRate) / 100 / 12)
 
     if (parsedAmount <= monthlyInterest) {
       return { interest: round2(parsedAmount), principal: 0 }
@@ -120,10 +136,6 @@ export function LoanPaymentForm({
 
   function formatAccountLabel(account: AccountOption) {
     return account.owner ? `${account.name} (${account.owner})` : account.name
-  }
-
-  function formatCurrency(n: number) {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n)
   }
 
   async function handleSubmit(e: React.FormEvent) {

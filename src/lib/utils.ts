@@ -34,8 +34,15 @@ export function formatCurrencySigned(amount: number): string {
 
 // ── Date Helpers ─────────────────────────────────────────────────────
 
-/** Convert date-only values to local calendar dates without UTC timezone drift. */
-function toDisplayDate(date: Date | string): Date {
+/**
+ * Convert date-only values to local calendar dates without UTC timezone drift.
+ *
+ * A bare `YYYY-MM-DD` (or midnight-UTC ISO) string becomes LOCAL midnight rather
+ * than UTC midnight, so it reads back as the intended calendar day under local
+ * `getMonth()`/`getDate()`. Also used on write paths (e.g. recording a payment)
+ * to keep a date input in the month the user picked.
+ */
+export function toDisplayDate(date: Date | string): Date {
   if (typeof date === "string") {
     const dateOnlyMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/)
     if (dateOnlyMatch) {

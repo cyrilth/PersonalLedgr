@@ -11,7 +11,10 @@ import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
-import { PaymentTrackerGrid } from "@/components/payments/payment-tracker-grid"
+import {
+  PaymentTrackerGrid,
+  type FlatAccount,
+} from "@/components/payments/payment-tracker-grid"
 import {
   getPaymentObligations,
   type PaymentObligation,
@@ -51,26 +54,25 @@ function PaymentsSkeleton() {
 
 export default function PaymentsPage() {
   const [obligations, setObligations] = useState<PaymentObligation[]>([])
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
+  const [accounts, setAccounts] = useState<FlatAccount[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  // `silent` skips the full-page skeleton — used for background refreshes after
+  // a payment is recorded (the grid handles its own in-place loading state).
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const [obligationsData, accountsData] = await Promise.all([
         getPaymentObligations(),
         getAccountsFlat(),
       ])
       setObligations(obligationsData)
-      setAccounts(accountsData.map((a: { id: string; name: string }) => ({
-        id: a.id,
-        name: a.name,
-      })))
+      setAccounts(accountsData)
     } catch (err) {
       console.error("Failed to load payment data:", err)
       toast.error("Failed to load payment data")
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -87,7 +89,11 @@ export default function PaymentsPage() {
       {loading ? (
         <PaymentsSkeleton />
       ) : (
-        <PaymentTrackerGrid obligations={obligations} accounts={accounts} />
+        <PaymentTrackerGrid
+          obligations={obligations}
+          accounts={accounts}
+          onRefresh={() => fetchData(true)}
+        />
       )}
     </div>
   )

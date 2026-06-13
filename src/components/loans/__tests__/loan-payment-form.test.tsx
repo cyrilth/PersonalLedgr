@@ -32,6 +32,8 @@ const mockAccounts = [
   { id: "sav-1", name: "Savings", type: "SAVINGS", owner: null, balance: 15000 },
 ]
 
+// interestRate is stored as a PERCENTAGE (6 = 6%), matching getAccountsFlat
+// and the server split — not a decimal fraction.
 const mockLoanAccounts = [
   {
     id: "loan-1",
@@ -39,7 +41,7 @@ const mockLoanAccounts = [
     type: "LOAN",
     owner: null,
     balance: -12000,
-    loan: { interestRate: 0.06, monthlyPayment: 350 },
+    loan: { interestRate: 6, monthlyPayment: 350 },
   },
   {
     id: "loan-2",
@@ -47,7 +49,7 @@ const mockLoanAccounts = [
     type: "LOAN",
     owner: null,
     balance: -25000,
-    loan: { interestRate: 0.04, monthlyPayment: 280 },
+    loan: { interestRate: 4, monthlyPayment: 280 },
   },
 ]
 
@@ -154,5 +156,59 @@ describe("LoanPaymentForm", () => {
   it("displays the description about automatic interest/principal split", () => {
     renderForm()
     expect(screen.getByText(/interest and principal are split automatically/i)).toBeInTheDocument()
+  })
+
+  it("pre-selects the loan and pre-fills date/amount when defaults are provided", async () => {
+    // Simulates opening from the Payment Tracker grid for a specific loan + month.
+    renderForm({ defaultLoanAccountId: "loan-1", defaultDate: "2026-03-15" })
+
+    // Date is anchored to the clicked month, not today.
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-03-15")
+
+    // Amount auto-fills from the pre-selected loan's monthly payment ($350),
+    // which in turn makes the principal/interest preview appear.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Amount")).toHaveValue(350)
+    })
+    expect(screen.getByText("Payment Breakdown")).toBeInTheDocument()
+  })
+
+  it("defaults date to today and no loan when no defaults are provided", () => {
+    renderForm()
+    const today = new Date().toISOString().split("T")[0]
+    expect(screen.getByLabelText("Date")).toHaveValue(today)
+    expect(screen.queryByText("Payment Breakdown")).not.toBeInTheDocument()
+  })
+
+  it("computes the preview split treating interestRate as a percentage (÷100)", async () => {
+    // loan-1: balance $12,000 at 6%/yr → monthly interest = 12000*6/100/12 = $60,
+    // principal = 350 - 60 = $290. If the ÷100 is dropped, interest would be
+    // $6,000 (> payment) and the split would collapse to interest=$350/principal=$0.
+    renderForm({ defaultLoanAccountId: "loan-1", defaultDate: "2026-03-15" })
+    await waitFor(() => expect(screen.getByText("Payment Breakdown")).toBeInTheDocument())
+    expect(screen.getByText("$60.00")).toBeInTheDocument()
+    expect(screen.getByText("$290.00")).toBeInTheDocument()
+  })
+
+  it("re-fills the amount when reopening the same pre-selected loan", async () => {
+    // Reproduces the grid flow: open for loan-1, close, then click the same
+    // cell again. The loan id never changes, so the selectedLoan pre-fill effect
+    // won't re-run — the reset effect must restore the amount itself.
+    const baseProps = {
+      onOpenChange: vi.fn(),
+      onSuccess: vi.fn(),
+      accounts: mockAccounts,
+      loanAccounts: mockLoanAccounts,
+      defaultLoanAccountId: "loan-1",
+      defaultDate: "2026-03-15",
+    }
+    const { rerender } = render(<LoanPaymentForm open={true} {...baseProps} />)
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveValue(350))
+
+    // Close, then reopen for the same loan/month.
+    rerender(<LoanPaymentForm open={false} {...baseProps} />)
+    rerender(<LoanPaymentForm open={true} {...baseProps} />)
+
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveValue(350))
   })
 })

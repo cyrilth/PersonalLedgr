@@ -8,7 +8,7 @@
  * 12 monthly cells showing payment status.
  */
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
@@ -35,11 +35,8 @@ import {
 } from "@/components/ui/tooltip"
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
@@ -50,7 +47,19 @@ import {
 } from "@/actions/payment-tracker"
 import { deleteBillPayment } from "@/actions/bill-payments"
 import { PaymentDialog } from "@/components/recurring/payment-dialog"
+import { LoanPaymentForm } from "@/components/transactions/loan-payment-form"
 import { formatCurrency, cn } from "@/lib/utils"
+
+// ── Account shape (mirrors getAccountsFlat's return) ─────────────────
+
+export interface FlatAccount {
+  id: string
+  name: string
+  type: string
+  balance: number
+  owner: string | null
+  loan: { interestRate: number; monthlyPayment: number } | null
+}
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -237,10 +246,23 @@ function SectionHeader({ icon: Icon, label, count }: {
 
 interface PaymentTrackerGridProps {
   obligations: PaymentObligation[]
-  accounts: { id: string; name: string }[]
+  accounts: FlatAccount[]
+  /**
+   * Re-fetch obligations + accounts from the server (owned by the page). Called
+   * after a payment so balance-based previews and paid-off/auto-deactivated
+   * loans reflect the new state, not stale props.
+   */
+  onRefresh?: () => void | Promise<void>
 }
 
-export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGridProps) {
+/** Build a YYYY-MM-DD date for a grid cell, anchored on the obligation's due day. */
+function monthCellDate(year: number, month: number, dueDay: number | null): string {
+  const lastDay = new Date(year, month, 0).getDate()
+  const day = Math.min(Math.max(dueDay ?? 1, 1), lastDay)
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+}
+
+export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: PaymentTrackerGridProps) {
   const router = useRouter()
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear())
   const [payments, setPayments] = useState<Record<string, PaymentRecord[]>>({})
@@ -252,6 +274,28 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
     month: number
     year: number
   } | null>(null)
+
+  // Loan payment dialog state (loan/mortgage/BNPL recorded inline, like bills)
+  const [loanPaymentTarget, setLoanPaymentTarget] = useState<{
+    loanAccountId: string
+    date: string
+  } | null>(null)
+
+  // Loan/mortgage accounts in the shape LoanPaymentForm expects. Memoized so
+  // the array keeps a stable identity across renders — LoanPaymentForm's reset
+  // effect keys on it, and a fresh array each render would re-fire that effect
+  // (wiping in-progress input) whenever the grid re-renders with the dialog open.
+  const loanAccountOptions = useMemo(
+    () => accounts.filter((a) => a.loan !== null).map((a) => ({ ...a, loan: a.loan! })),
+    [accounts]
+  )
+
+  // Valid funding sources for a payment — exclude liabilities you can't pay
+  // *from* (loans/mortgages), matching the Transactions loan-payment form.
+  const sourceAccounts = useMemo(
+    () => accounts.filter((a) => !["LOAN", "MORTGAGE"].includes(a.type)),
+    [accounts]
+  )
 
   // Delete payment confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -293,6 +337,13 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
     fetchPayments()
   }, [fetchPayments])
 
+  // Refresh after any mutation: reload payment records AND ask the page to
+  // reload obligations + account balances, so loan previews and paid-off rows
+  // aren't computed from stale props.
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchPayments(), onRefresh?.()])
+  }, [fetchPayments, onRefresh])
+
   function navigateYear(direction: number) {
     setCurrentYear((prev) => prev + direction)
   }
@@ -305,8 +356,8 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
     if (state === "na") return
 
     if (state === "paid") {
-      // Only bills support delete from the grid
       if (ob.type === "bill") {
+        // Bills support delete/manage from the grid.
         const obPayments = payments[ob.id] || []
         const matchingPayments = obPayments.filter(
           (p) => p.month === monthYear.month && p.year === monthYear.year
@@ -325,6 +376,10 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
             monthLabel: `${MONTH_ABBR[monthYear.month - 1]} ${monthYear.year}`,
           })
         }
+      } else if (ob.type === "loan") {
+        // A loan month may only be PARTIALLY paid (any payment marks the cell
+        // paid), so allow recording another payment for the same month.
+        openLoanPayment(ob, monthYear)
       }
       return
     }
@@ -333,11 +388,19 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
     if (ob.type === "bill") {
       setPaymentDialog({ obligation: ob, month: monthYear.month, year: monthYear.year })
     } else if (ob.type === "loan") {
-      router.push(`/loans/${ob.loanId}`)
+      openLoanPayment(ob, monthYear)
     } else if (ob.type === "credit_card") {
       const accountId = ob.accountId
       router.push(`/accounts/${accountId}`)
     }
+  }
+
+  /** Open the inline loan-payment dialog for a loan obligation + clicked month. */
+  function openLoanPayment(ob: PaymentObligation, monthYear: MonthYear) {
+    setLoanPaymentTarget({
+      loanAccountId: ob.accountId,
+      date: monthCellDate(monthYear.year, monthYear.month, ob.dueDay),
+    })
   }
 
   async function handleDeletePayment(paymentId: string) {
@@ -353,7 +416,7 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
           payments: deleteTarget.payments.filter((p) => p.id !== paymentId),
         })
       }
-      fetchPayments()
+      refreshAll()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to remove payment"
       toast.error(message)
@@ -428,13 +491,16 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
                     <p className="text-xs text-muted-foreground">Click to record or link payment</p>
                   )}
                   {state !== "na" && state !== "paid" && ob.type === "loan" && (
-                    <p className="text-xs text-muted-foreground">Click to go to loan</p>
+                    <p className="text-xs text-muted-foreground">Click to record payment</p>
                   )}
                   {state !== "na" && state !== "paid" && ob.type === "credit_card" && (
                     <p className="text-xs text-muted-foreground">Click to go to account</p>
                   )}
                   {state === "paid" && ob.type === "bill" && (
                     <p className="text-xs text-muted-foreground">Click to manage payments</p>
+                  )}
+                  {state === "paid" && ob.type === "loan" && (
+                    <p className="text-xs text-muted-foreground">Click to record another payment</p>
                   )}
                 </TooltipContent>
               </Tooltip>
@@ -555,7 +621,7 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
         onOpenChange={(open) => {
           if (!open) setPaymentDialog(null)
         }}
-        onSuccess={fetchPayments}
+        onSuccess={refreshAll}
         bill={
           paymentDialog && dialogBill
             ? {
@@ -571,6 +637,19 @@ export function PaymentTrackerGrid({ obligations, accounts }: PaymentTrackerGrid
         month={paymentDialog?.month ?? 1}
         year={paymentDialog?.year ?? 2026}
         accounts={accounts}
+      />
+
+      {/* Record loan/mortgage/BNPL payment dialog (pre-selected loan + month) */}
+      <LoanPaymentForm
+        open={!!loanPaymentTarget}
+        onOpenChange={(open) => {
+          if (!open) setLoanPaymentTarget(null)
+        }}
+        onSuccess={refreshAll}
+        accounts={sourceAccounts}
+        loanAccounts={loanAccountOptions}
+        defaultLoanAccountId={loanPaymentTarget?.loanAccountId}
+        defaultDate={loanPaymentTarget?.date}
       />
 
       {/* Delete payment confirmation */}

@@ -33,6 +33,9 @@ vi.mock("@/db", () => {
       account: {
         findFirst: vi.fn(),
       },
+      transaction: {
+        aggregate: vi.fn(),
+      },
       $transaction: vi.fn((fn: (tx: typeof txClient) => unknown) => fn(txClient)),
       _txClient: txClient,
     },
@@ -49,6 +52,7 @@ import { recordLoanPayment } from "../loan-payments"
 
 const mockGetSession = vi.mocked(auth.api.getSession)
 const mockAccountFindFirst = vi.mocked(prisma.account.findFirst)
+const mockTransactionAggregate = vi.mocked(prisma.transaction.aggregate)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const txClient = (prisma as any)._txClient as {
@@ -132,6 +136,10 @@ beforeEach(() => {
     return Promise.resolve(null)
   }) as never)
 
+  // Default: no principal applied after the payment date, so the balance at the
+  // payment date equals the current balance (current-dated payment).
+  mockTransactionAggregate.mockResolvedValue({ _sum: { amount: null } } as never)
+
   // Default tx client return values
   let callCount = 0
   txClient.transaction.create.mockImplementation(() => {
@@ -199,6 +207,19 @@ describe("recordLoanPayment", () => {
     }) as never)
 
     await expect(recordLoanPayment(validInput)).rejects.toThrow("Account does not have a loan record")
+  })
+
+  it("throws when the source account is itself a loan/mortgage", async () => {
+    mockAccountFindFirst.mockImplementation(((args: { where: { id: string } }) => {
+      // Source account is a MORTGAGE — paying a loan from another liability
+      if (args.where.id === "acc-1") return Promise.resolve({ ...mockFromAccount, type: "MORTGAGE" })
+      if (args.where.id === "loan-1") return Promise.resolve(mockLoanAccount)
+      return Promise.resolve(null)
+    }) as never)
+
+    await expect(recordLoanPayment(validInput)).rejects.toThrow(
+      "Cannot pay a loan from another loan or mortgage account"
+    )
   })
 
   it("same-account check runs before account lookup", async () => {
@@ -348,13 +369,38 @@ describe("recordLoanPayment", () => {
 
     expect(txClient.interestLog.create).toHaveBeenCalledWith({
       data: {
-        date: new Date("2026-02-15"),
+        // YYYY-MM-DD is parsed as LOCAL midnight (Feb = month index 1).
+        date: new Date(2026, 1, 15),
         amount: 1000,
         type: "CHARGED",
         userId: "user-1",
         accountId: "loan-1",
       },
     })
+  })
+
+  it("computes interest from the balance owed at the payment date for back-dated payments", async () => {
+    // Current balance is -$200,000, but $30,000 of principal was applied AFTER
+    // the payment date, so the balance owed at that date was $230,000.
+    // Monthly interest = 230000 * 6/100 / 12 = $1,150 (not $1,000 off current).
+    mockTransactionAggregate.mockResolvedValue({ _sum: { amount: decimal(30000) } } as never)
+
+    const result = await recordLoanPayment({ ...validInput, amount: 2000 })
+
+    expect(result.interestAmount).toBe(1150)
+    expect(result.principalAmount).toBe(850)
+  })
+
+  it("parses a YYYY-MM-DD payment date as local time, not UTC", async () => {
+    // A 1st-of-month date must stay in that month locally — UTC-midnight
+    // parsing would shift it to the previous month west of UTC, and the
+    // ledger groups loan payments by local getMonth().
+    await recordLoanPayment({ ...validInput, date: "2026-03-01", amount: 1199.10 })
+
+    const logged = txClient.interestLog.create.mock.calls[0][0].data.date as Date
+    expect(logged.getFullYear()).toBe(2026)
+    expect(logged.getMonth()).toBe(2) // March
+    expect(logged.getDate()).toBe(1)
   })
 
   // ── Atomicity ───────────────────────────────────────────────────────

@@ -15,6 +15,7 @@
 import { headers } from "next/headers"
 import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
+import { toDisplayDate } from "@/lib/utils"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -64,10 +65,18 @@ export async function recordLoanPayment(data: {
   if (!loanAccount) throw new Error("Loan account not found")
   if (!loanAccount.loan) throw new Error("Account does not have a loan record")
 
+  // A loan/mortgage can't fund a payment — that would corrupt both balances.
+  // The UI filters these out; this is defense-in-depth for the write path.
+  if (fromAccount.type === "LOAN" || fromAccount.type === "MORTGAGE") {
+    throw new Error("Cannot pay a loan from another loan or mortgage account")
+  }
+
   const isBNPL = loanAccount.loan.loanType === "BNPL"
   const isPayday = loanAccount.loan.loanType === "PAYDAY"
   const annualRate = toNumber(loanAccount.loan.interestRate)
-  const paymentDate = new Date(data.date)
+  // A bare YYYY-MM-DD date input is parsed as LOCAL midnight (not UTC) so the
+  // payment lands in the month the user picked when grouped by local getMonth().
+  const paymentDate = toDisplayDate(data.date)
   const description = data.description || (isPayday ? "Payday Loan Payment" : isBNPL ? "BNPL Payment" : "Loan Payment")
 
   if (isPayday) {
@@ -261,7 +270,21 @@ export async function recordLoanPayment(data: {
   // Standard loan payment (or BNPL with interest) — existing logic.
   // interestRate is stored as a percentage (e.g. 6 = 6%), so divide by 100.
   const loanBalance = Math.abs(toNumber(loanAccount.balance))
-  const monthlyInterest = round2(loanBalance * (annualRate / 100) / 12)
+
+  // Interest accrues on the balance owed AT the payment date. For a payment
+  // dated today this equals the current balance; for a back-dated catch-up
+  // payment we add back the principal applied AFTER that date (interest entries
+  // never move the balance), so the split reflects what was actually owed then.
+  const laterPrincipal = await prisma.transaction.aggregate({
+    where: {
+      accountId: data.loanAccountId,
+      type: "LOAN_PRINCIPAL",
+      date: { gt: paymentDate },
+    },
+    _sum: { amount: true },
+  })
+  const balanceAtDate = round2(loanBalance + toNumber(laterPrincipal._sum.amount ?? 0))
+  const monthlyInterest = round2((balanceAtDate * (annualRate / 100)) / 12)
 
   let interestAmount: number
   let principalAmount: number
