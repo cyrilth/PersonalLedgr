@@ -447,6 +447,9 @@ yarn-debug.log*
 *.pem
 .vercel
 
+# Claude Code local settings
+.claude/settings.local.json
+
 /src/generated/prisma
 
 playwright-screenshots/
