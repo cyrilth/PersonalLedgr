@@ -841,9 +841,11 @@ export async function getBalanceHistory(
     ? new Date(year, 11, 31, 23, 59, 59, 999)
     : undefined
 
+  // Only balance-impacting transactions count toward the stored balance, so the
+  // history must walk back through the same set (excludes a loan's LOAN_INTEREST).
   const transactions = await prisma.transaction.findMany({
     where: {
-      accountId,
+      ...balanceTransactionWhere(account),
       date: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
     },
     select: { date: true, amount: true },
@@ -882,7 +884,7 @@ export async function getBalanceHistory(
     // the balance at end of that year
     const afterYearTxns = await prisma.transaction.aggregate({
       where: {
-        accountId,
+        ...balanceTransactionWhere(account),
         date: { gt: endDate! },
       },
       _sum: { amount: true },

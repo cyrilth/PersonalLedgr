@@ -30,7 +30,7 @@ import {
 } from "recharts"
 
 import { getLoan, calculateTotalInterestPaid, deleteLoan } from "@/actions/loans"
-import { calculateTotalInterestRemaining, calculatePaydayFee, calculatePaydayAPR } from "@/lib/calculations"
+import { calculateTotalInterestRemaining, calculatePaydayFee, calculatePaydayAPR, splitScheduledInterest } from "@/lib/calculations"
 import { LoanForm } from "@/components/loans/loan-form"
 import { AmortizationTable } from "@/components/loans/amortization-table"
 import { ExtraPaymentCalc } from "@/components/loans/extra-payment-calc"
@@ -39,6 +39,7 @@ import {
   formatDate,
   formatAmount,
   getAmountColor,
+  currentPaymentPeriod,
 } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import { LOAN_TYPE_LABELS } from "@/lib/constants"
@@ -172,12 +173,11 @@ export default function LoanDetailPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [loanData, paid] = await Promise.all([
+      const [loanData, loggedPaid] = await Promise.all([
         getLoan(id),
         calculateTotalInterestPaid(id),
       ])
       setLoan(loanData)
-      setInterestPaid(paid)
 
       // Calculate remaining interest from current balance and schedule
       const remaining = calculateTotalInterestRemaining(
@@ -186,6 +186,24 @@ export default function LoanDetailPage() {
         loanData.monthlyPayment
       )
       setInterestRemaining(remaining)
+
+      // Interest paid to date: prefer actual logged interest. When a loan was
+      // imported mid-life (no payment history logged), fall back to an estimate
+      // derived from the origination amortization schedule so the summary and
+      // donut reflect real progress instead of $0.00.
+      if (loggedPaid > 0) {
+        setInterestPaid(loggedPaid)
+      } else {
+        const elapsed = currentPaymentPeriod(loanData.startDate)
+        const { paid } = splitScheduledInterest(
+          loanData.originalBalance,
+          loanData.interestRate,
+          loanData.monthlyPayment,
+          loanData.termMonths,
+          elapsed
+        )
+        setInterestPaid(paid)
+      }
     } catch (err) {
       console.error("Failed to load loan:", err)
       toast.error("Failed to load loan")
@@ -579,7 +597,7 @@ export default function LoanDetailPage() {
             </CardHeader>
             <CardContent>
               <AmortizationTable
-                balance={loan.balance}
+                originalBalance={loan.originalBalance}
                 apr={loan.interestRate}
                 monthlyPayment={loan.monthlyPayment}
                 termMonths={loan.termMonths}

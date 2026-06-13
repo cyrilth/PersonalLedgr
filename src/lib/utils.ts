@@ -100,6 +100,37 @@ export function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
 }
 
+/**
+ * 1-based current payment period for a loan: the number of full monthly periods
+ * elapsed since the start date, plus one for the in-progress period.
+ *
+ * Compares day-of-month, not just year/month — a period only counts once its
+ * monthly anniversary has actually been reached. E.g. a loan starting Jan 31,
+ * viewed on Feb 1, is still in period 1 (no payment due yet), not period 2.
+ * Used to highlight the current amortization row and to estimate interest paid
+ * to date for loans imported with no logged payment history.
+ *
+ * Month-end anniversaries are clamped to the last day of the current month, so
+ * a loan due on the 31st counts its anniversary on Feb 28 (or Feb 29 in a leap
+ * year), not only in months long enough to contain the 31st.
+ *
+ * @param startDate - The loan/account start (origination) date
+ * @param now - Reference "today" (defaults to the current date)
+ * @returns 1-based current payment period (can be <= 0 for a future start date)
+ */
+export function currentPaymentPeriod(date: Date | string, now: Date = new Date()): number {
+  const start = toDisplayDate(date)
+  let months =
+    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
+  // Clamp the anniversary day to the current month's last day (day 0 of the next
+  // month), so month-end start days register in shorter months.
+  const lastDayOfNowMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const anniversaryDay = Math.min(start.getDate(), lastDayOfNowMonth)
+  // The monthly anniversary hasn't been reached yet this month.
+  if (now.getDate() < anniversaryDay) months -= 1
+  return months + 1
+}
+
 // ── Transaction Amount Helpers ───────────────────────────────────────
 
 import { INCOME_TYPES, SPENDING_TYPES } from "./constants"

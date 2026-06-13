@@ -8,6 +8,7 @@ import {
   getMonthKey,
   startOfMonth,
   endOfMonth,
+  currentPaymentPeriod,
   generateId,
 } from "@/lib/utils"
 
@@ -135,6 +136,79 @@ describe("endOfMonth", () => {
   it("handles February in a leap year", () => {
     const result = endOfMonth(new Date(2028, 1, 10)) // Feb 2028
     expect(result.getDate()).toBe(29)
+  })
+})
+
+describe("currentPaymentPeriod", () => {
+  it("returns 1 on the start date itself (no payment due yet)", () => {
+    const start = new Date(2022, 6, 29) // Jul 29, 2022
+    expect(currentPaymentPeriod(start, new Date(2022, 6, 29))).toBe(1)
+  })
+
+  it("counts the period once the monthly anniversary is reached", () => {
+    const start = new Date(2022, 6, 29) // Jul 29
+    // Aug 29 = first anniversary → still period 1's payment just due, period 2 begins
+    expect(currentPaymentPeriod(start, new Date(2022, 7, 29))).toBe(2)
+  })
+
+  it("does NOT advance before the anniversary day (the off-by-one bug)", () => {
+    const start = new Date(2022, 6, 29) // Jul 29
+    // Aug 1: a new calendar month, but Jul-29 anniversary not yet reached → still period 1
+    expect(currentPaymentPeriod(start, new Date(2022, 7, 1))).toBe(1)
+  })
+
+  it("matches the real mortgage scenario: Jul 29 2022 viewed Jun 12 2026 → 47", () => {
+    const start = new Date(2022, 6, 29) // Jul 29, 2022
+    // Day 12 < start day 29, so the June anniversary (29th) hasn't hit → 46 paid, in period 47
+    expect(currentPaymentPeriod(start, new Date(2026, 5, 12))).toBe(47)
+  })
+
+  it("returns 48 once that month's anniversary passes", () => {
+    const start = new Date(2022, 6, 29)
+    // Jun 30 2026 is past the 29th → period advances to 48
+    expect(currentPaymentPeriod(start, new Date(2026, 5, 30))).toBe(48)
+  })
+
+  it("handles a day-of-month at or after the start day", () => {
+    const start = new Date(2022, 0, 10) // Jan 10
+    // Feb 15: past the 10th anniversary → period 2
+    expect(currentPaymentPeriod(start, new Date(2022, 1, 15))).toBe(2)
+    // Feb 5: before the 10th → still period 1
+    expect(currentPaymentPeriod(start, new Date(2022, 1, 5))).toBe(1)
+  })
+
+  it("respects date-only string start dates without UTC drift", () => {
+    // Stored as midnight-UTC ISO (Prisma date-only convention)
+    expect(currentPaymentPeriod("2022-07-29T00:00:00.000Z", new Date(2026, 5, 12))).toBe(47)
+  })
+
+  // ── Month-end anniversary clamping (start day 29–31 in shorter months) ──
+
+  it("clamps a Jan-31 anniversary to the last day of February", () => {
+    const start = new Date(2022, 0, 31) // Jan 31
+    // Feb 27: anniversary (clamped to 28) not yet reached → still period 1
+    expect(currentPaymentPeriod(start, new Date(2022, 1, 27))).toBe(1)
+    // Feb 28: clamped anniversary reached → period 2 (was incorrectly 1 before)
+    expect(currentPaymentPeriod(start, new Date(2022, 1, 28))).toBe(2)
+  })
+
+  it("clamps to Feb 29 in a leap year", () => {
+    const start = new Date(2024, 0, 31) // Jan 31, 2024 (leap)
+    expect(currentPaymentPeriod(start, new Date(2024, 1, 28))).toBe(1) // before the 29th
+    expect(currentPaymentPeriod(start, new Date(2024, 1, 29))).toBe(2) // leap-day anniversary
+  })
+
+  it("clamps a 31-start anniversary in a 30-day month", () => {
+    const start = new Date(2022, 2, 31) // Mar 31
+    expect(currentPaymentPeriod(start, new Date(2022, 3, 29))).toBe(1) // Apr 29, before clamp
+    expect(currentPaymentPeriod(start, new Date(2022, 3, 30))).toBe(2) // Apr 30, clamped anniversary
+  })
+
+  it("does not over-clamp in a month long enough for the start day", () => {
+    const start = new Date(2022, 0, 31) // Jan 31
+    // March has 31 days, so no clamping applies
+    expect(currentPaymentPeriod(start, new Date(2022, 2, 30))).toBe(2) // Mar 30, before the 31st
+    expect(currentPaymentPeriod(start, new Date(2022, 2, 31))).toBe(3) // Mar 31 anniversary
   })
 })
 

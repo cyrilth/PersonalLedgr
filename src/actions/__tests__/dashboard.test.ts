@@ -157,6 +157,76 @@ describe("getNetWorth", () => {
     expect(result.liabilities).toBe(0)
     expect(result.change).toBe(0)
   })
+
+  it("reconstructs end-of-year balances for a past year", async () => {
+    // Mortgage imported as a single opening-balance snapshot dated after the
+    // selected year: rolling it back to end-of-2022 removes that snapshot, so
+    // it reads as $0 (the app has no record of it existing in 2022). Checking
+    // had no later transactions, so it keeps its current balance.
+    mockAccountFindMany.mockResolvedValue([
+      { id: "m1", balance: decimal(-577159.79), type: "MORTGAGE" },
+      { id: "c1", balance: decimal(5000), type: "CHECKING" },
+    ] as never)
+    mockTransactionFindMany
+      // after-year transactions (rolls balances back to Dec 31, 2022)
+      .mockResolvedValueOnce([
+        { amount: decimal(-577159.79), accountId: "m1" },
+      ] as never)
+      // December 2022 transactions (drives the "vs last month" change)
+      .mockResolvedValueOnce([] as never)
+
+    const result = await getNetWorth(2022)
+
+    expect(result.assets).toBe(5000)
+    expect(result.liabilities).toBe(0)
+    expect(result.netWorth).toBe(5000)
+    expect(result.change).toBe(0)
+  })
+
+  it("uses end-of-year date filters for a past year", async () => {
+    mockAccountFindMany.mockResolvedValue([] as never)
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getNetWorth(2022)
+
+    // First transaction query rolls back everything dated AFTER the year.
+    const firstCall = mockTransactionFindMany.mock.calls[0][0] as {
+      where: { date: { gt: Date } }
+    }
+    expect(firstCall.where.date.gt).toEqual(new Date(2022, 11, 31, 23, 59, 59, 999))
+  })
+
+  it("excludes non-balance loan interest from the past-year rollback and December delta", async () => {
+    mockAccountFindMany.mockResolvedValue([] as never)
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getNetWorth(2022)
+
+    // Both the rollback (call 0) and the December-delta (call 1) queries must
+    // skip LOAN_INTEREST on loan/mortgage accounts — those never move the
+    // stored balance, so counting them would corrupt the reconstruction.
+    const expectedExclusion = {
+      type: "LOAN_INTEREST",
+      account: { type: { in: ["LOAN", "MORTGAGE"] } },
+    }
+    for (const i of [0, 1]) {
+      const call = mockTransactionFindMany.mock.calls[i][0] as { where: { NOT: unknown } }
+      expect(call.where.NOT).toEqual(expectedExclusion)
+    }
+  })
+
+  it("excludes non-balance loan interest from the current-year month delta", async () => {
+    mockAccountFindMany.mockResolvedValue([] as never)
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getNetWorth(2026) // current year
+
+    const call = mockTransactionFindMany.mock.calls[0][0] as { where: { NOT: unknown } }
+    expect(call.where.NOT).toEqual({
+      type: "LOAN_INTEREST",
+      account: { type: { in: ["LOAN", "MORTGAGE"] } },
+    })
+  })
 })
 
 // ── getMonthlyIncomeExpense ───────────────────────────────────────────────────

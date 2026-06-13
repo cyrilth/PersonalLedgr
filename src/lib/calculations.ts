@@ -250,6 +250,42 @@ export function calculateTotalInterestRemaining(
   return Math.round(total * 100) / 100
 }
 
+/**
+ * Splits the lifetime interest of an origination-based amortization schedule
+ * into the portion already paid and the portion remaining, using elapsed time.
+ *
+ * Months strictly before `elapsedMonths` are treated as already paid; the
+ * current period and everything after are treated as remaining. This is used
+ * to estimate interest paid to date for loans that were imported mid-life with
+ * no logged payment history (where the actual paid amount is unknown).
+ *
+ * @param originalBalance - The loan's original (origination) balance
+ * @param apr - Annual percentage rate (e.g., 6.5 for 6.5%)
+ * @param monthlyPayment - Regular monthly payment amount
+ * @param termMonths - Full original term in months
+ * @param elapsedMonths - 1-based current payment period (months since start)
+ * @returns Estimated interest { paid, remaining }, each rounded to cents
+ */
+export function splitScheduledInterest(
+  originalBalance: number,
+  apr: number,
+  monthlyPayment: number,
+  termMonths: number,
+  elapsedMonths: number
+): { paid: number; remaining: number } {
+  const schedule = generateAmortizationSchedule(originalBalance, apr, monthlyPayment, termMonths)
+  let paid = 0
+  let remaining = 0
+  for (const row of schedule) {
+    if (row.month < elapsedMonths) paid += row.interest
+    else remaining += row.interest
+  }
+  return {
+    paid: Math.round(paid * 100) / 100,
+    remaining: Math.round(remaining * 100) / 100,
+  }
+}
+
 // ── Payday Loan Calculations ────────────────────────────────────────
 
 /** Calculate the flat fee for a payday loan given principal and fee-per-$100. */

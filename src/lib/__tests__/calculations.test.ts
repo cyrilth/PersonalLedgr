@@ -10,6 +10,7 @@ import {
   generateAmortizationSchedule,
   calculateExtraPaymentImpact,
   calculateTotalInterestRemaining,
+  splitScheduledInterest,
 } from "@/lib/calculations"
 
 // ── toNumber ────────────────────────────────────────────────────────
@@ -420,5 +421,40 @@ describe("calculateTotalInterestRemaining", () => {
     const result = calculateTotalInterestRemaining(100000, 7.25, 682.18)
     const decimals = result.toString().split(".")[1]
     expect(!decimals || decimals.length <= 2).toBe(true)
+  })
+})
+
+// ── splitScheduledInterest ──────────────────────────────────────────
+
+describe("splitScheduledInterest", () => {
+  it("paid + remaining equals lifetime interest", () => {
+    const lifetime = calculateTotalInterestRemaining(628900, 3.25, 2737.01)
+    const { paid, remaining } = splitScheduledInterest(628900, 3.25, 2737.01, 360, 48)
+    // Allow a cent of rounding drift across the per-row rounding.
+    expect(Math.abs(paid + remaining - lifetime)).toBeLessThanOrEqual(0.5)
+  })
+
+  it("treats only months before the current period as paid", () => {
+    // At month 1 (brand new loan) nothing has been paid yet.
+    const fresh = splitScheduledInterest(628900, 3.25, 2737.01, 360, 1)
+    expect(fresh.paid).toBe(0)
+    expect(fresh.remaining).toBeGreaterThan(0)
+  })
+
+  it("estimates a sensible paid amount mid-life", () => {
+    // ~47 payments into a 3.25% mortgage: early payments are interest-heavy,
+    // so paid-to-date interest should be a meaningful five-figure sum.
+    const { paid, remaining } = splitScheduledInterest(628900, 3.25, 2737.01, 360, 48)
+    expect(paid).toBeGreaterThan(60000)
+    expect(paid).toBeLessThan(90000)
+    expect(remaining).toBeGreaterThan(paid)
+  })
+
+  it("rounds both portions to cents", () => {
+    const { paid, remaining } = splitScheduledInterest(100000, 7.25, 682.18, 360, 24)
+    for (const v of [paid, remaining]) {
+      const decimals = v.toString().split(".")[1]
+      expect(!decimals || decimals.length <= 2).toBe(true)
+    }
   })
 })

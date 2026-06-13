@@ -987,6 +987,43 @@ describe("getBalanceHistory", () => {
       expect(entry.date).toMatch(/^\d{4}-\d{2}$/)
     })
   })
+
+  it("excludes LOAN_INTEREST when reconstructing a loan/mortgage balance", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeAccount({ type: "MORTGAGE", balance: decimal(-500000) }) as never
+    )
+    mockTransactionFindMany.mockResolvedValue([] as never)
+    mockTransactionAggregate.mockResolvedValue({ _sum: { amount: decimal(0) } } as never)
+
+    // Past year triggers both the findMany (monthly totals) and aggregate (rollback)
+    await getBalanceHistory("acc-1", { year: 2022 })
+
+    // Both queries must exclude LOAN_INTEREST so the rolled-back balance only
+    // reflects principal-affecting transactions.
+    const findManyWhere = mockTransactionFindMany.mock.calls[0][0] as {
+      where: { type?: { not?: string } }
+    }
+    expect(findManyWhere.where.type).toEqual({ not: "LOAN_INTEREST" })
+
+    const aggregateWhere = mockTransactionAggregate.mock.calls[0][0] as {
+      where: { type?: { not?: string } }
+    }
+    expect(aggregateWhere.where.type).toEqual({ not: "LOAN_INTEREST" })
+  })
+
+  it("does NOT filter transaction types for non-loan accounts", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeAccount({ type: "CHECKING", balance: decimal(1000) }) as never
+    )
+    mockTransactionFindMany.mockResolvedValue([] as never)
+
+    await getBalanceHistory("acc-1", { months: 12 })
+
+    const findManyWhere = mockTransactionFindMany.mock.calls[0][0] as {
+      where: { type?: unknown }
+    }
+    expect(findManyWhere.where.type).toBeUndefined()
+  })
 })
 
 // ── getAccountTransactions ──────────────────────────────────────────────────

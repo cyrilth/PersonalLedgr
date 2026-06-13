@@ -36,16 +36,38 @@ function toNumber(d: unknown): number {
   return Number(d)
 }
 
+/**
+ * Filter fragment that excludes transactions which do NOT move an account's
+ * stored balance, mirroring `balanceTransactionWhere` in accounts.ts: a
+ * loan/mortgage's LOAN_INTEREST entries are reportable spending but never
+ * reduce principal, so they must be left out of any net-worth/balance math.
+ */
+const EXCLUDE_NON_BALANCE_INTEREST = {
+  NOT: {
+    type: "LOAN_INTEREST" as const,
+    account: { type: { in: ["LOAN", "MORTGAGE"] as ("LOAN" | "MORTGAGE")[] } },
+  },
+}
+
 // ── Server Actions ───────────────────────────────────────────────────
 
 /**
- * Returns the user's current net worth broken down by assets and liabilities,
- * plus the change from last month.
+ * Returns the user's net worth broken down by assets and liabilities, plus the
+ * change versus the prior month, for the selected year.
  *
  * - Assets = CHECKING + SAVINGS balances
  * - Liabilities = CREDIT_CARD + LOAN + MORTGAGE balances (stored as negative)
- * - Month-over-month change is derived by reversing the current month's
- *   transaction deltas from the stored balances.
+ * - For the current (or a future) year, this is the live snapshot: current
+ *   stored balances, with the change derived by reversing this month's deltas.
+ * - For a PAST year, balances are reconstructed as of Dec 31 of that year by
+ *   removing every transaction dated after year-end from the current stored
+ *   balance, and the change is that December's net delta.
+ *
+ * NOTE: Reconstruction can only walk back through recorded transactions. An
+ * account imported as a single opening-balance snapshot has no transactions
+ * before its import date, so it will read as $0 for years prior to that import
+ * rather than its real historical balance. Accurate history requires backfilled
+ * transactions (or backdating the opening balance to the account's start date).
  */
 export async function getNetWorth(year: number) {
   const userId = await requireUserId()
@@ -53,16 +75,75 @@ export async function getNetWorth(year: number) {
   // Fetch all active account balances (these are stored/snapshotted values)
   const accounts = await prisma.account.findMany({
     where: { userId, isActive: true },
-    select: { balance: true, type: true },
+    select: { id: true, balance: true, type: true },
   })
 
+  const now = new Date()
+  const isPastYear = year < now.getFullYear()
+
+  if (isPastYear) {
+    // ── Reconstruct end-of-year balances ──────────────────────────────
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999)
+    const startOfDecember = new Date(year, 11, 1)
+
+    // Remove the effect of every transaction dated after the selected year to
+    // roll each account's current balance back to its end-of-year value.
+    const afterYearTransactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gt: endOfYear },
+        account: { isActive: true },
+        ...EXCLUDE_NON_BALANCE_INTEREST,
+      },
+      select: { amount: true, accountId: true },
+    })
+
+    const afterByAccount: Record<string, number> = {}
+    for (const t of afterYearTransactions) {
+      afterByAccount[t.accountId] = (afterByAccount[t.accountId] ?? 0) + toNumber(t.amount)
+    }
+
+    const { assets, liabilities, netWorth } = computeNetWorth(
+      accounts.map((a) => ({
+        balance: toNumber(a.balance) - (afterByAccount[a.id] ?? 0),
+        type: a.type,
+      }))
+    )
+
+    // "vs last month" within a past year = that December's net delta.
+    const decemberTransactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: startOfDecember, lte: endOfYear },
+        account: { isActive: true },
+        ...EXCLUDE_NON_BALANCE_INTEREST,
+      },
+      select: { amount: true },
+    })
+
+    let monthDelta = 0
+    for (const t of decemberTransactions) {
+      monthDelta += toNumber(t.amount)
+    }
+
+    const previousNetWorth = netWorth - monthDelta
+
+    return {
+      netWorth,
+      assets,
+      liabilities,
+      previousNetWorth,
+      change: netWorth - previousNetWorth,
+    }
+  }
+
+  // ── Current/future year: live snapshot ──────────────────────────────
   const { assets, liabilities, netWorth } = computeNetWorth(
     accounts.map((a) => ({ balance: toNumber(a.balance), type: a.type }))
   )
 
   // To estimate last month's net worth, sum all transaction amounts in the
   // current month and subtract from current totals (reversing the delta).
-  const now = new Date()
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
   const currentMonthTransactions = await prisma.transaction.findMany({
@@ -70,6 +151,7 @@ export async function getNetWorth(year: number) {
       userId,
       date: { gte: startOfCurrentMonth },
       account: { isActive: true },
+      ...EXCLUDE_NON_BALANCE_INTEREST,
     },
     select: { amount: true, type: true, account: { select: { type: true } } },
   })
