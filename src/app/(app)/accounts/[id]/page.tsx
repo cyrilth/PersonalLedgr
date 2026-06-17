@@ -355,7 +355,7 @@ export default function AccountDetailPage() {
               <div>
                 <dt className="text-muted-foreground">Interest Rate</dt>
                 <dd className="font-medium">
-                  {(account.loan.interestRate * 100).toFixed(2)}%
+                  {account.loan.interestRate.toFixed(2)}%
                 </dd>
               </div>
               <div>
