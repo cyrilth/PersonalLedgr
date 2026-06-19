@@ -27,6 +27,7 @@ vi.mock("../../db", () => {
     account: { updateMany: vi.fn() }, // conditional, balance-guarded debit
     loan: { findUnique: vi.fn(), updateMany: vi.fn() }, // fresh re-read + atomic claim
     interestLog: { create: vi.fn() }, // present so we can assert it is NOT used
+    $queryRaw: vi.fn(), // SELECT … FOR NO KEY UPDATE lock on the account row (CR-6)
   }
   return {
     prisma: {
@@ -53,6 +54,7 @@ const txClient = (prisma as unknown as {
     account: { updateMany: ReturnType<typeof vi.fn> }
     loan: { findUnique: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> }
     interestLog: { create: ReturnType<typeof vi.fn> }
+    $queryRaw: ReturnType<typeof vi.fn>
   }
 })._txClient
 
@@ -109,6 +111,9 @@ function primeLoan(overrides: Parameters<typeof makeDeferredLoan>[0] = {}) {
   const loan = makeDeferredLoan(overrides)
   mockLoanFindMany.mockResolvedValue([loan] as never)
   txClient.loan.findUnique.mockResolvedValue(loan as never)
+  // The FOR NO KEY UPDATE lock reads the live balance; with no concurrent writer it
+  // matches the fresh re-read. Tests simulating a race override this separately.
+  txClient.$queryRaw.mockResolvedValue([{ balance: loan.account.balance }] as never)
   return loan
 }
 
@@ -119,6 +124,8 @@ beforeEach(() => {
   txClient.loan.findUnique.mockResolvedValue(makeDeferredLoan() as never) // fresh re-read default
   txClient.loan.updateMany.mockResolvedValue({ count: 1 }) // claim succeeds by default
   txClient.interestLog.create.mockResolvedValue({})
+  // Locked balance matches the default fresh re-read (-30000) unless overridden.
+  txClient.$queryRaw.mockResolvedValue([{ balance: new Decimal(-30000) }] as never)
 })
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -153,19 +160,58 @@ describe("runLoanDefermentAccrual", () => {
     // The debit only matches while the account is still negative (concurrent-payoff guard).
     expect(updateCall.where.balance).toEqual({ lt: 0 })
     expect(updateCall.data.balance.decrement).toBe(150)
+
+    // The account row is locked FOR NO KEY UPDATE before computing/debiting interest, so
+    // the computed and debited balance can't diverge under a concurrent writer.
+    expect(txClient.$queryRaw).toHaveBeenCalledOnce()
+    const lockSql = (txClient.$queryRaw.mock.calls[0][0] as string[]).join("?")
+    expect(lockSql).toMatch(/FOR NO KEY UPDATE/i)
   })
 
   it("computes interest from the in-transaction re-read, not the stale snapshot", async () => {
     // The findMany snapshot says -30000, but a payment landed first, so the fresh
-    // re-read inside the transaction returns -20000. Interest follows the fresh
-    // value: 20000 × 6%/12 = $100 (not 30000 × 6%/12 = $150).
+    // re-read (and the FOR NO KEY UPDATE lock) inside the transaction see -20000. Interest
+    // follows the fresh value: 20000 × 6%/12 = $100 (not 30000 × 6%/12 = $150).
     mockLoanFindMany.mockResolvedValue([makeDeferredLoan({ balance: -30000 })] as never)
     txClient.loan.findUnique.mockResolvedValue(makeDeferredLoan({ balance: -20000 }) as never)
+    txClient.$queryRaw.mockResolvedValue([{ balance: new Decimal(-20000) }] as never)
 
     await runLoanDefermentAccrual()
 
     expect(txClient.transaction.create.mock.calls[0][0].data.amount).toBe(-100)
     expect(txClient.account.updateMany.mock.calls[0][0].data.balance.decrement).toBe(100)
+  })
+
+  it("computes interest from the FOR NO KEY UPDATE-locked balance after a concurrent partial paydown (CR-6)", async () => {
+    // The fresh re-read still sees -30000 (it read before the concurrent payment
+    // committed), but the FOR NO KEY UPDATE lock observes the post-payment live balance of
+    // -10000. The charge must follow the LOCKED balance — 10000 × 6%/12 = $50 — not
+    // the stale 30000 × 6%/12 = $150, so a near-full paydown can't be charged a
+    // large interest amount computed from the pre-payment balance.
+    mockLoanFindMany.mockResolvedValue([makeDeferredLoan({ balance: -30000 })] as never)
+    txClient.loan.findUnique.mockResolvedValue(makeDeferredLoan({ balance: -30000 }) as never)
+    txClient.$queryRaw.mockResolvedValue([{ balance: new Decimal(-10000) }] as never)
+
+    await runLoanDefermentAccrual()
+
+    expect(txClient.transaction.create.mock.calls[0][0].data.amount).toBe(-50)
+    expect(txClient.account.updateMany.mock.calls[0][0].data.balance.decrement).toBe(50)
+  })
+
+  it("aborts before debiting when the FOR NO KEY UPDATE-locked balance is non-negative (CR-6 full payoff)", async () => {
+    // The month is claimed, but the locked read sees a zeroed balance — a payment
+    // committed between the snapshot read and the lock. The accrual must abort at
+    // the lock check (before computing or debiting), rolling the claim back, rather
+    // than charging interest or resurrecting the paid-off loan.
+    primeLoan()
+    txClient.$queryRaw.mockResolvedValue([{ balance: new Decimal(0) }] as never)
+
+    // Swallowed as a benign skip — must not reject.
+    await expect(runLoanDefermentAccrual()).resolves.toBeUndefined()
+
+    expect(txClient.loan.updateMany).toHaveBeenCalledOnce() // the month was claimed...
+    expect(txClient.account.updateMany).not.toHaveBeenCalled() // ...but no debit attempted...
+    expect(txClient.transaction.create).not.toHaveBeenCalled() // ...and no charge posted
   })
 
   it("catches up missed months in one compounded charge after an outage", async () => {

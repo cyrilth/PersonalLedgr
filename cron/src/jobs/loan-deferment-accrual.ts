@@ -8,8 +8,7 @@
  *   1. Re-reads the loan + account UNDER the transaction and recomputes the
  *      accrual window from the fresh start date / deferment length / watermark,
  *      so an edit committed between the snapshot query and the charge can't move
- *      money on stale data. It capitalizes |balance| × (interestRate / 100 / 12)
- *      for each whole month still owed, catching up months missed during a cron
+ *      money on stale data. It catches up whole months missed during a cron
  *      outage (compounded) — including the FINAL deferment month even if the run
  *      resumes after the window has ended. A loan with no prior accrual takes
  *      only the current month (its elapsed deferment is already in the balance).
@@ -18,17 +17,31 @@
  *      (e.g. the scheduled job and a manual CRON_RUN_NOW pass), can never
  *      double-capitalize. Under PostgreSQL Read Committed the row lock
  *      serializes racing transactions, so exactly one matches the claim.
- *   3. Conditionally GROWS THE DEBT with an `account.updateMany` guarded on the
- *      account still being negative. The loan-row claim in step 2 only proves the
- *      account was negative at claim time; a concurrent payoff could zero it
- *      between the balance read and here, and a plain relative decrement would
- *      then resurrect a paid-off loan to -interest. Guarding the debit on
- *      `balance < 0` re-checks the live balance under the row lock: zero rows
- *      matched ⇒ the account was paid off ⇒ throw to roll the whole transaction
- *      back (the watermark claim and the charge revert together).
- *   4. Posts an INTEREST_CHARGED transaction (negative = grows the debt). Created
- *      only after the conditional debit succeeds, so a rolled-back accrual leaves
- *      no charge behind.
+ *   3. LOCKS the account row with `SELECT … FOR NO KEY UPDATE` and computes the
+ *      interest ( |balance| × interestRate / 100 / 12, compounded per caught-up
+ *      month ) from that LIVE, locked balance — NOT the snapshot read in step 1.
+ *      Holding the row lock until commit serializes every other balance writer
+ *      (payment form, recalculate, sibling crons), so the balance interest is
+ *      computed on is exactly the balance it is debited from: a concurrent partial
+ *      paydown that lands between the snapshot read and the debit can no longer
+ *      leave a charge sized to the larger pre-payment balance. A non-negative
+ *      locked balance means a concurrent payoff (full OR partial-to-zero) — throw
+ *      to roll the whole transaction back (the watermark claim reverts with it).
+ *      Lock mode is NO KEY UPDATE, not FOR UPDATE (CR-8): inserting a Transaction
+ *      takes a `FOR KEY SHARE` lock on the referenced Account row, which conflicts
+ *      with `FOR UPDATE` — so a stronger lock could deadlock a concurrent writer
+ *      that inserts its ledger row before updating the balance. NO KEY UPDATE
+ *      still conflicts with balance updates (the column we read) and with recalc's
+ *      lock, so the serialization holds, but it does NOT conflict with FK KEY
+ *      SHARE inserts. It is also the correct strength: the cron must serialize
+ *      against balance WRITES, not balance-neutral ledger INSERTS.
+ *   4. GROWS THE DEBT with an `account.updateMany`, still guarded on the account
+ *      being negative as harmless defence-in-depth (the NO KEY UPDATE lock already
+ *      makes the computed and debited figures identical, and already aborted a
+ *      paid-off account in step 3).
+ *   5. Posts an INTEREST_CHARGED transaction (negative = grows the debt). Created
+ *      only after the debit succeeds, so a rolled-back accrual leaves no charge
+ *      behind.
  *
  * Why INTEREST_CHARGED and not LOAN_INTEREST: loan/mortgage balance
  * recalculation excludes LOAN_INTEREST (it never moves principal), so using it
@@ -60,8 +73,9 @@ function round2(n: number): number {
 
 /**
  * Thrown to abort (and roll back) an accrual when the account is no longer
- * negative — i.e. a concurrent payment paid the loan off between our balance read
- * and the debit. Caught and treated as a benign SKIP, not a failure.
+ * negative — i.e. a concurrent payment paid the loan off (in full, or down to
+ * zero) between our snapshot read and the locked recompute/debit. Caught and
+ * treated as a benign SKIP, not a failure.
  */
 class ConcurrentPayoffError extends Error {
   constructor(loanId: string) {
@@ -216,10 +230,28 @@ export async function runLoanDefermentAccrual(): Promise<void> {
         })
         if (claim.count !== 1) return null // already claimed this month, or no longer eligible
 
+        // Lock the account row and recompute interest from the LIVE, locked
+        // balance — not the (possibly stale) balance read at findUnique above. The
+        // snapshot guard only proves the sign at read time; a partial paydown that
+        // lands between the read and the debit would otherwise leave interest
+        // computed on the larger pre-payment balance while the decrement hits the
+        // smaller live one (CR-6). Holding this row lock until commit serializes
+        // every other balance writer (payment form, recalculate, sibling crons),
+        // so the balance interest is computed on is exactly the balance it is
+        // applied to. A non-negative locked balance means a concurrent payoff (full
+        // OR partial-to-zero) — abort, which also subsumes the CR-1 resurrection
+        // guard. NO KEY UPDATE (not FOR UPDATE) so the lock doesn't deadlock FK KEY
+        // SHARE locks taken by concurrent ledger inserts — see the module doc (CR-8).
+        const locked = await tx.$queryRaw<{ balance: unknown }[]>`
+          SELECT balance FROM "Account" WHERE id = ${loan.accountId} FOR NO KEY UPDATE
+        `
+        const liveBalance = Number(locked[0]?.balance ?? 0)
+        if (liveBalance >= 0) throw new ConcurrentPayoffError(loan.id)
+
         const rate = Number(fresh.interestRate) // percentage, e.g. 6.5
 
-        // Compound each caught-up month onto the running balance.
-        let runningBalance = Math.abs(balance)
+        // Compound each caught-up month onto the running (locked) balance.
+        let runningBalance = Math.abs(liveBalance)
         let totalInterest = 0
         for (let k = 0; k < months; k++) {
           const monthInterest = round2(runningBalance * (rate / 100 / 12))
@@ -229,11 +261,10 @@ export async function runLoanDefermentAccrual(): Promise<void> {
         }
         if (totalInterest <= 0) return { interest: 0, months: 0 }
 
-        // Grow the debt — but ONLY while the account is still negative. The loan
-        // claim above proved the account was negative at claim time; guarding the
-        // decrement on `balance < 0` makes Postgres re-check the LIVE balance under
-        // the row lock, so a concurrent payoff that zeroed it since the read yields
-        // zero matched rows instead of resurrecting a paid-off loan to -interest.
+        // Grow the debt. The NO KEY UPDATE lock above already serializes concurrent
+        // balance writers (so the computed and debited figures are identical) and
+        // already aborted a paid-off account; the `balance < 0` guard here is
+        // harmless defence-in-depth.
         const debit = await tx.account.updateMany({
           where: {
             id: loan.accountId,
@@ -262,7 +293,7 @@ export async function runLoanDefermentAccrual(): Promise<void> {
             type: "INTEREST_CHARGED",
             category: "Interest",
             source: "SYSTEM",
-            notes: `Interest accrued and capitalized during deferment at ${rate}% over ${months} month(s), from balance $${Math.abs(balance).toFixed(2)}`,
+            notes: `Interest accrued and capitalized during deferment at ${rate}% over ${months} month(s), from balance $${Math.abs(liveBalance).toFixed(2)}`,
             userId: fresh.account.userId,
             accountId: loan.accountId,
           },

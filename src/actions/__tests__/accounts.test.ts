@@ -20,11 +20,13 @@ vi.mock("@/db", () => {
       findMany: vi.fn(),
       updateMany: vi.fn(),
       create: vi.fn(),
+      aggregate: vi.fn(), // CR-7: recalc aggregates inside the FOR NO KEY UPDATE-locked txn
     },
     account: {
       update: vi.fn(),
       delete: vi.fn(),
     },
+    $queryRaw: vi.fn(), // CR-7: SELECT … FOR NO KEY UPDATE lock on the account row
   }
   return {
     prisma: {
@@ -88,7 +90,6 @@ const mockTransactionAggregate = vi.mocked(prisma.transaction.aggregate)
 const mockTransactionCount = vi.mocked(prisma.transaction.count)
 const mockCCUpsert = vi.mocked(prisma.creditCardDetails.upsert)
 const mockLoanUpsert = vi.mocked(prisma.loan.upsert)
-const mock$Transaction = vi.mocked(prisma.$transaction)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTx = (prisma as any)._mockTx
 
@@ -828,20 +829,50 @@ describe("confirmRecalculate", () => {
     await expect(confirmRecalculate("acc-1")).rejects.toThrow("Unauthorized")
   })
 
-  it("applies the recalculated balance", async () => {
+  it("applies the recalculated balance under a FOR NO KEY UPDATE-locked transaction", async () => {
     mockAccountFindFirst.mockResolvedValue(makeAccount() as never)
-    mockTransactionAggregate.mockResolvedValue({
-      _sum: { amount: decimal(1050) },
-    } as never)
-    mockAccountUpdate.mockResolvedValue({} as never)
+    mockTx.$queryRaw.mockResolvedValue([{ id: "acc-1" }])
+    mockTx.transaction.aggregate.mockResolvedValue({ _sum: { amount: decimal(1050) } })
+    mockTx.account.update.mockResolvedValue({})
 
     const result = await confirmRecalculate("acc-1")
 
-    expect(mockAccountUpdate).toHaveBeenCalledWith({
+    // The account row is locked FOR NO KEY UPDATE before aggregating + overwriting (CR-7),
+    // and the write goes through the transaction client (not a bare prisma.update).
+    expect(mockTx.$queryRaw).toHaveBeenCalledOnce()
+    const lockSql = (mockTx.$queryRaw.mock.calls[0][0] as string[]).join("?")
+    expect(lockSql).toMatch(/FOR NO KEY UPDATE/i)
+    expect(mockTx.account.update).toHaveBeenCalledWith({
       where: { id: "acc-1" },
       data: { balance: 1050 },
     })
     expect(result.balance).toBe(1050)
+  })
+
+  it("locks before it aggregates so the sum reflects writes committed first (CR-7)", async () => {
+    // The lock is taken before the aggregate, so the recomputed sum sees any
+    // writer (e.g. the deferment cron's INTEREST_CHARGED) that committed before
+    // recalc acquired the lock — here the in-lock aggregate returns the
+    // post-charge total, which is what gets written. Order: lock → aggregate → write.
+    mockAccountFindFirst.mockResolvedValue(makeAccount({ type: "LOAN" }) as never)
+    const callOrder: string[] = []
+    mockTx.$queryRaw.mockImplementation(async () => {
+      callOrder.push("lock")
+      return [{ id: "acc-1" }]
+    })
+    mockTx.transaction.aggregate.mockImplementation(async () => {
+      callOrder.push("aggregate")
+      return { _sum: { amount: decimal(-30150) } }
+    })
+    mockTx.account.update.mockImplementation(async () => {
+      callOrder.push("update")
+      return {}
+    })
+
+    const result = await confirmRecalculate("acc-1")
+
+    expect(callOrder).toEqual(["lock", "aggregate", "update"])
+    expect(result.balance).toBe(-30150)
   })
 })
 
@@ -907,22 +938,48 @@ describe("confirmRecalculateAll", () => {
       { id: "acc-1", balance: decimal(1000) },
       { id: "acc-2", balance: decimal(5000) },
     ] as never)
-    mockTransactionAggregate
-      .mockResolvedValueOnce({ _sum: { amount: decimal(1000) } } as never) // no drift
-      .mockResolvedValueOnce({ _sum: { amount: decimal(4900) } } as never) // drift
-    mockAccountUpdate.mockResolvedValue({} as never)
+    // Live locked balance per account matches the snapshot here, so drift is
+    // decided purely by the aggregate (acc-1 matches → skip, acc-2 differs → write).
+    mockTx.$queryRaw
+      .mockResolvedValueOnce([{ balance: decimal(1000) }])
+      .mockResolvedValueOnce([{ balance: decimal(5000) }])
+    mockTx.transaction.aggregate
+      .mockResolvedValueOnce({ _sum: { amount: decimal(1000) } }) // no drift
+      .mockResolvedValueOnce({ _sum: { amount: decimal(4900) } }) // drift
+    mockTx.account.update.mockResolvedValue({})
 
     const results = await confirmRecalculateAll()
 
-    // Only acc-2 should have been updated
-    expect(mockAccountUpdate).toHaveBeenCalledTimes(1)
-    expect(mockAccountUpdate).toHaveBeenCalledWith({
+    // Only acc-2 should have been updated — through the transaction client.
+    expect(mockTx.account.update).toHaveBeenCalledTimes(1)
+    expect(mockTx.account.update).toHaveBeenCalledWith({
       where: { id: "acc-2" },
       data: { balance: 4900 },
     })
+    // Each account was locked FOR NO KEY UPDATE before its aggregate.
+    expect(mockTx.$queryRaw).toHaveBeenCalledTimes(2)
+    const lockSql = (mockTx.$queryRaw.mock.calls[0][0] as string[]).join("?")
+    expect(lockSql).toMatch(/FOR NO KEY UPDATE/i)
 
     expect(results[0]).toMatchObject({ accountId: "acc-1", corrected: false })
     expect(results[1]).toMatchObject({ accountId: "acc-2", corrected: true, balance: 4900 })
+  })
+
+  it("decides drift from the LIVE locked balance, not the pre-lock snapshot (CR-7)", async () => {
+    // The findMany snapshot shows 1000, but by the time the row is locked a
+    // concurrent writer has moved the live balance to 1050 — which matches the
+    // aggregate. Drift must be computed against the live 1050 (⇒ no overwrite),
+    // not the stale snapshot 1000 (which would have written and clobbered nothing
+    // here, but in the cron case would re-introduce drift).
+    mockAccountFindMany.mockResolvedValue([{ id: "acc-1", balance: decimal(1000) }] as never)
+    mockTx.$queryRaw.mockResolvedValueOnce([{ balance: decimal(1050) }])
+    mockTx.transaction.aggregate.mockResolvedValueOnce({ _sum: { amount: decimal(1050) } })
+    mockTx.account.update.mockResolvedValue({})
+
+    const results = await confirmRecalculateAll()
+
+    expect(mockTx.account.update).not.toHaveBeenCalled()
+    expect(results[0]).toMatchObject({ accountId: "acc-1", corrected: false, balance: 1050 })
   })
 })
 

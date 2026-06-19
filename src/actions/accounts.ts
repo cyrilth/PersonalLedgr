@@ -587,6 +587,28 @@ export async function recalculateBalance(id: string) {
  *
  * Re-sums balance-impacting transactions and overwrites the stored balance.
  * Called after the user reviews the drift from recalculateBalance().
+ *
+ * The aggregate (read) and the absolute overwrite (write) run inside one
+ * transaction that first locks the Account row `FOR NO KEY UPDATE`. This
+ * serialises the read-compute-write against concurrent balance writers (the
+ * loan-deferment cron, the payment form, sibling crons). Without the lock the
+ * aggregate could snapshot before another writer's in-flight transaction commits,
+ * and the later absolute `account.update` would then clobber that writer's
+ * committed balance change with a stale total — e.g. silently dropping a
+ * just-capitalized INTEREST_CHARGED from the balance while it stays in the ledger
+ * (CR-7). With the row lock held, the cron and recalc mutually exclude on the
+ * account, so whichever runs second re-aggregates against the other's committed
+ * result.
+ *
+ * Lock mode is `FOR NO KEY UPDATE`, not `FOR UPDATE` (CR-8): inserting a
+ * Transaction takes a `FOR KEY SHARE` lock on the referenced Account row (FK), and
+ * `FOR UPDATE` conflicts with `KEY SHARE` — so a recalc could deadlock a writer
+ * that inserts its ledger row before updating the balance. `FOR NO KEY UPDATE`
+ * still conflicts with balance updates (the column we read) and with the cron's
+ * lock, so the serialisation above is preserved, but it does NOT conflict with FK
+ * `KEY SHARE` inserts — removing the deadlock. The weaker mode stays correct
+ * because concurrent balance writers use relative deltas, which re-apply on top of
+ * recalc's committed sum once they win the (still-serialised) lock.
  */
 export async function confirmRecalculate(id: string) {
   const userId = await requireUserId()
@@ -594,16 +616,25 @@ export async function confirmRecalculate(id: string) {
   const account = await prisma.account.findFirst({ where: { id, userId } })
   if (!account) throw new Error("Account not found")
 
-  const result = await prisma.transaction.aggregate({
-    where: balanceTransactionWhere(account),
-    _sum: { amount: true },
-  })
+  const calculated = await prisma.$transaction(async (tx) => {
+    // Lock the row first so the aggregate below and the overwrite reflect — and
+    // commit against — the same serialised view of the account. NO KEY UPDATE
+    // (not FOR UPDATE) so this doesn't deadlock FK KEY SHARE locks from ledger
+    // inserts — see the JSDoc above (CR-8).
+    await tx.$queryRaw`SELECT id FROM "Account" WHERE id = ${id} FOR NO KEY UPDATE`
 
-  const calculated = toNumber(result._sum.amount ?? 0)
+    const result = await tx.transaction.aggregate({
+      where: balanceTransactionWhere(account),
+      _sum: { amount: true },
+    })
+    const sum = toNumber(result._sum.amount ?? 0)
 
-  await prisma.account.update({
-    where: { id },
-    data: { balance: calculated },
+    await tx.account.update({
+      where: { id },
+      data: { balance: sum },
+    })
+
+    return sum
   })
 
   return { balance: calculated }
@@ -652,6 +683,13 @@ export async function recalculateAllBalances() {
  *
  * Only updates accounts where the stored balance differs from the transaction sum.
  * Returns each account's new balance and whether it was corrected.
+ *
+ * Each account's recompute runs in its own `FOR NO KEY UPDATE`-locked transaction
+ * — the same serialisation as confirmRecalculate (CR-7/CR-8) — so a concurrent
+ * writer's committed balance change can't be clobbered by a stale absolute
+ * overwrite, while FK `KEY SHARE` inserts don't deadlock against it. The drift
+ * check uses the LIVE locked balance (not the pre-lock findMany snapshot), so the
+ * skip-when-unchanged optimisation reflects the account's current state.
  */
 export async function confirmRecalculateAll() {
   const userId = await requireUserId()
@@ -663,23 +701,32 @@ export async function confirmRecalculateAll() {
 
   const results = await Promise.all(
     accounts.map(async (account) => {
-      const result = await prisma.transaction.aggregate({
-        where: balanceTransactionWhere(account),
-        _sum: { amount: true },
+      const { calculated, corrected } = await prisma.$transaction(async (tx) => {
+        // NO KEY UPDATE (not FOR UPDATE) so the lock serialises balance writers
+        // without deadlocking FK KEY SHARE locks from ledger inserts (CR-8).
+        const locked = await tx.$queryRaw<{ balance: unknown }[]>`
+          SELECT balance FROM "Account" WHERE id = ${account.id} FOR NO KEY UPDATE
+        `
+        const stored = toNumber(locked[0]?.balance ?? account.balance)
+
+        const result = await tx.transaction.aggregate({
+          where: balanceTransactionWhere(account),
+          _sum: { amount: true },
+        })
+        const calc = toNumber(result._sum.amount ?? 0)
+        const drift = computeDrift(stored, calc)
+
+        if (drift !== 0) {
+          await tx.account.update({
+            where: { id: account.id },
+            data: { balance: calc },
+          })
+        }
+
+        return { calculated: calc, corrected: drift !== 0 }
       })
 
-      const calculated = toNumber(result._sum.amount ?? 0)
-      const stored = toNumber(account.balance)
-      const drift = computeDrift(stored, calculated)
-
-      if (drift !== 0) {
-        await prisma.account.update({
-          where: { id: account.id },
-          data: { balance: calculated },
-        })
-      }
-
-      return { accountId: account.id, balance: calculated, corrected: drift !== 0 }
+      return { accountId: account.id, balance: calculated, corrected }
     })
   )
 
