@@ -40,6 +40,7 @@ export interface PaymentObligation {
   startYear?: number          // loan start year
   termMonths?: number         // loan term
   isVariableAmount?: boolean  // bills only
+  minimumPayment?: number     // credit cards only — computed minimum due
   // For bill payment dialog
   billId?: string             // RecurringBill.id (only for bills)
   loanId?: string             // Loan.id (only for loans, used for navigation)
@@ -145,14 +146,24 @@ export async function getPaymentObligations(): Promise<PaymentObligation[]> {
   // Map credit cards
   for (const a of ccAccounts) {
     if (!a.creditCardDetails) continue
+    const statementBalance = toNumber(a.creditCardDetails.lastStatementBalance)
+    const minPct = toNumber(a.creditCardDetails.minimumPaymentPct)
+    const minFloor = toNumber(a.creditCardDetails.minimumPaymentFloor)
+    // Minimum due: the greater of the percentage or the floor, but never more
+    // than the statement balance itself (you can't owe a minimum above the balance).
+    const minimumPayment =
+      statementBalance <= 0
+        ? 0
+        : Math.min(statementBalance, Math.max(minFloor, statementBalance * minPct))
     obligations.push({
       id: `cc-${a.id}`,
       name: a.name,
       type: "credit_card",
-      expectedAmount: toNumber(a.creditCardDetails.lastStatementBalance),
+      expectedAmount: statementBalance,
       dueDay: a.creditCardDetails.paymentDueDay,
       frequency: "MONTHLY",
       accountId: a.id,
+      minimumPayment,
     })
   }
 

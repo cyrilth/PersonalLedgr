@@ -9,7 +9,6 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
   ChevronRight,
@@ -48,6 +47,7 @@ import {
 import { deleteBillPayment } from "@/actions/bill-payments"
 import { PaymentDialog } from "@/components/recurring/payment-dialog"
 import { LoanPaymentForm } from "@/components/transactions/loan-payment-form"
+import { CreditCardPaymentDialog } from "@/components/payments/credit-card-payment-dialog"
 import { formatCurrency, cn } from "@/lib/utils"
 
 // ── Account shape (mirrors getAccountsFlat's return) ─────────────────
@@ -263,7 +263,6 @@ function monthCellDate(year: number, month: number, dueDay: number | null): stri
 }
 
 export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: PaymentTrackerGridProps) {
-  const router = useRouter()
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear())
   const [payments, setPayments] = useState<Record<string, PaymentRecord[]>>({})
   const [loading, setLoading] = useState(true)
@@ -281,6 +280,14 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
     date: string
   } | null>(null)
 
+  // Credit-card payment dialog state (recorded inline as a TRANSFER, like bills/loans)
+  const [ccPaymentTarget, setCcPaymentTarget] = useState<{
+    obligation: PaymentObligation
+    month: number
+    year: number
+    date: string
+  } | null>(null)
+
   // Loan/mortgage accounts in the shape LoanPaymentForm expects. Memoized so
   // the array keeps a stable identity across renders — LoanPaymentForm's reset
   // effect keys on it, and a fresh array each render would re-fire that effect
@@ -294,6 +301,14 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
   // *from* (loans/mortgages), matching the Transactions loan-payment form.
   const sourceAccounts = useMemo(
     () => accounts.filter((a) => !["LOAN", "MORTGAGE"].includes(a.type)),
+    [accounts]
+  )
+
+  // Funding sources for a credit-card payment — asset accounts only. Also
+  // excludes other credit cards so a card bill is paid from a deposit account,
+  // not another card.
+  const ccSourceAccounts = useMemo(
+    () => accounts.filter((a) => !["LOAN", "MORTGAGE", "CREDIT_CARD"].includes(a.type)),
     [accounts]
   )
 
@@ -380,6 +395,9 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
         // A loan month may only be PARTIALLY paid (any payment marks the cell
         // paid), so allow recording another payment for the same month.
         openLoanPayment(ob, monthYear)
+      } else if (ob.type === "credit_card") {
+        // A card month may have a partial payment, so allow another one.
+        openCcPayment(ob, monthYear)
       }
       return
     }
@@ -390,8 +408,7 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
     } else if (ob.type === "loan") {
       openLoanPayment(ob, monthYear)
     } else if (ob.type === "credit_card") {
-      const accountId = ob.accountId
-      router.push(`/accounts/${accountId}`)
+      openCcPayment(ob, monthYear)
     }
   }
 
@@ -399,6 +416,16 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
   function openLoanPayment(ob: PaymentObligation, monthYear: MonthYear) {
     setLoanPaymentTarget({
       loanAccountId: ob.accountId,
+      date: monthCellDate(monthYear.year, monthYear.month, ob.dueDay),
+    })
+  }
+
+  /** Open the inline credit-card payment dialog for a CC obligation + clicked month. */
+  function openCcPayment(ob: PaymentObligation, monthYear: MonthYear) {
+    setCcPaymentTarget({
+      obligation: ob,
+      month: monthYear.month,
+      year: monthYear.year,
       date: monthCellDate(monthYear.year, monthYear.month, ob.dueDay),
     })
   }
@@ -494,12 +521,15 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
                     <p className="text-xs text-muted-foreground">Click to record payment</p>
                   )}
                   {state !== "na" && state !== "paid" && ob.type === "credit_card" && (
-                    <p className="text-xs text-muted-foreground">Click to go to account</p>
+                    <p className="text-xs text-muted-foreground">Click to record payment</p>
                   )}
                   {state === "paid" && ob.type === "bill" && (
                     <p className="text-xs text-muted-foreground">Click to manage payments</p>
                   )}
                   {state === "paid" && ob.type === "loan" && (
+                    <p className="text-xs text-muted-foreground">Click to record another payment</p>
+                  )}
+                  {state === "paid" && ob.type === "credit_card" && (
                     <p className="text-xs text-muted-foreground">Click to record another payment</p>
                   )}
                 </TooltipContent>
@@ -515,6 +545,24 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
   const dialogBill = paymentDialog?.obligation
   const dialogBillAccount = dialogBill
     ? accounts.find((a) => a.id === dialogBill.accountId)
+    : null
+
+  // Build the credit-card dialog's card payload from the clicked obligation. The
+  // card balance is stored negative (a liability), so amount owed = -balance.
+  const ccDialogOb = ccPaymentTarget?.obligation ?? null
+  const ccDialogAccount = ccDialogOb
+    ? accounts.find((a) => a.id === ccDialogOb.accountId)
+    : null
+  const ccDialogCard = ccDialogOb
+    ? {
+        accountId: ccDialogOb.accountId,
+        name: ccDialogOb.name,
+        statementBalance: ccDialogOb.expectedAmount,
+        currentBalance: ccDialogAccount
+          ? Math.max(0, -ccDialogAccount.balance)
+          : 0,
+        minimumPayment: ccDialogOb.minimumPayment ?? 0,
+      }
     : null
 
   return (
@@ -650,6 +698,20 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
         loanAccounts={loanAccountOptions}
         defaultLoanAccountId={loanPaymentTarget?.loanAccountId}
         defaultDate={loanPaymentTarget?.date}
+      />
+
+      {/* Record credit-card payment dialog (transfer into the card) */}
+      <CreditCardPaymentDialog
+        open={!!ccPaymentTarget}
+        onOpenChange={(open) => {
+          if (!open) setCcPaymentTarget(null)
+        }}
+        onSuccess={refreshAll}
+        card={ccDialogCard}
+        month={ccPaymentTarget?.month ?? 1}
+        year={ccPaymentTarget?.year ?? currentYear}
+        defaultDate={ccPaymentTarget?.date ?? ""}
+        fromAccounts={ccSourceAccounts}
       />
 
       {/* Delete payment confirmation */}

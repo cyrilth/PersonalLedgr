@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { AlertTriangle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createTransfer } from "@/actions/transfers"
+import { formatCurrency } from "@/lib/utils"
 
 interface AccountOption {
   id: string
@@ -82,10 +84,17 @@ export function TransferWizard({ open, onOpenChange, onSuccess, accounts }: Tran
     return account.owner ? `${account.name} (${account.owner})` : account.name
   }
 
+  const toAccount = accounts.find((a) => a.id === toAccountId)
+  const parsedAmount = parseFloat(amount)
+  // Soft overpayment guard: when transferring into a liability (negative
+  // balance — e.g. a credit card or loan), warn if the amount exceeds what's
+  // owed. Overpaying is allowed (it leaves a credit balance), so we only relabel.
+  const amountOwed = toAccount && toAccount.balance < 0 ? -toAccount.balance : 0
+  const isOverpayment =
+    amountOwed > 0 && !isNaN(parsedAmount) && parsedAmount > amountOwed
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-
-    const parsedAmount = parseFloat(amount)
 
     if (!fromAccountId || !toAccountId) {
       toast.error("Please select both accounts")
@@ -199,12 +208,27 @@ export function TransferWizard({ open, onOpenChange, onSuccess, accounts }: Tran
             />
           </div>
 
+          {isOverpayment && toAccount && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {formatCurrency(parsedAmount)} is more than the{" "}
+                {formatCurrency(amountOwed)} owed on {toAccount.name}. This will
+                leave a credit balance.
+              </span>
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Transferring..." : "Create Transfer"}
+              {saving
+                ? "Transferring..."
+                : isOverpayment
+                  ? "Transfer anyway"
+                  : "Create Transfer"}
             </Button>
           </DialogFooter>
         </form>
