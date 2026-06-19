@@ -28,12 +28,21 @@ vi.mock("@/lib/auth", () => ({
 // Mock Prisma client with a nested mockTx for interactive transaction testing.
 // _mockTx is exposed so tests can assert on calls made inside $transaction callbacks.
 vi.mock("@/db", () => {
+  // account.update / loan.update are shared between the top-level client and the
+  // transaction client, so assertions hold whether a write runs directly or
+  // inside $transaction (updateLoan now wraps both writes in one transaction).
+  const accountUpdate = vi.fn()
+  const loanUpdate = vi.fn()
   const mockTx = {
     account: {
       create: vi.fn(),
+      update: accountUpdate,
     },
     transaction: {
       create: vi.fn(),
+    },
+    loan: {
+      update: loanUpdate,
     },
   }
   return {
@@ -42,10 +51,10 @@ vi.mock("@/db", () => {
         findMany: vi.fn(),
         findFirst: vi.fn(),
         create: vi.fn(),
-        update: vi.fn(),
+        update: accountUpdate,
       },
       loan: {
-        update: vi.fn(),
+        update: loanUpdate,
       },
       interestLog: {
         aggregate: vi.fn(),
@@ -451,6 +460,46 @@ describe("createLoan", () => {
     )
   })
 
+  it("baselines lastDefermentAccrual at creation for a deferred loan", async () => {
+    mockTx.account.create.mockResolvedValue({
+      id: "acc-new",
+      loan: { id: "loan-new" },
+    } as never)
+
+    await createLoan({ ...validData, defermentMonths: 12, interestOnlyMonths: 6 })
+
+    const createArg = mockTx.account.create.mock.calls[0][0]
+    expect(createArg.data.loan.create.defermentMonths).toBe(12)
+    // Baseline watermark set so the cron can recover a missed first run.
+    expect(createArg.data.loan.create.lastDefermentAccrual).toBeInstanceOf(Date)
+  })
+
+  it("leaves lastDefermentAccrual null for a loan with no deferment", async () => {
+    mockTx.account.create.mockResolvedValue({
+      id: "acc-new",
+      loan: { id: "loan-new" },
+    } as never)
+
+    await createLoan(validData)
+
+    const createArg = mockTx.account.create.mock.calls[0][0]
+    expect(createArg.data.loan.create.lastDefermentAccrual).toBeNull()
+  })
+
+  it("baselines a future-start deferred loan's watermark to the start date, not now", async () => {
+    mockTx.account.create.mockResolvedValue({
+      id: "acc-new",
+      loan: { id: "loan-new" },
+    } as never)
+
+    const futureStart = "2099-01-01"
+    await createLoan({ ...validData, startDate: futureStart, defermentMonths: 12 })
+
+    const createArg = mockTx.account.create.mock.calls[0][0]
+    // Must not predate origination, or the cron would post phantom pre-origination months.
+    expect(createArg.data.loan.create.lastDefermentAccrual).toEqual(new Date(futureStart))
+  })
+
   it("trims loan name", async () => {
     mockTx.account.create.mockResolvedValue({
       id: "acc-new",
@@ -532,6 +581,19 @@ describe("updateLoan", () => {
     await updateLoan("loan-1", { name: "Renamed" })
 
     expect(mockAccountUpdate).toHaveBeenCalled()
+    expect(mockLoanUpdate).not.toHaveBeenCalled()
+  })
+
+  it("validates phase bounds before any write (atomic edit)", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
+
+    // An out-of-range deferment alongside a name change must reject without
+    // committing the name change.
+    await expect(
+      updateLoan("loan-1", { name: "Renamed", defermentMonths: 9999 })
+    ).rejects.toThrow(/Deferment period must be between/)
+
+    expect(mockAccountUpdate).not.toHaveBeenCalled()
     expect(mockLoanUpdate).not.toHaveBeenCalled()
   })
 

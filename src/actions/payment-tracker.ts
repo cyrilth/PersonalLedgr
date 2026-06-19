@@ -39,6 +39,8 @@ export interface PaymentObligation {
   startMonth?: number         // loan start month (1-12)
   startYear?: number          // loan start year
   termMonths?: number         // loan term
+  defermentMonths?: number    // loans only — no-payment deferment phase (Option B)
+  interestOnlyMonths?: number // loans only — interest-only phase before repayment
   isVariableAmount?: boolean  // bills only
   minimumPayment?: number     // credit cards only — computed minimum due
   // For bill payment dialog
@@ -139,6 +141,8 @@ export async function getPaymentObligations(): Promise<PaymentObligation[]> {
       startMonth: startDate.getMonth() + 1,
       startYear: startDate.getFullYear(),
       termMonths: a.loan.termMonths,
+      defermentMonths: a.loan.defermentMonths ?? 0,
+      interestOnlyMonths: a.loan.interestOnlyMonths ?? 0,
       loanId: a.loan.id,
     })
   }

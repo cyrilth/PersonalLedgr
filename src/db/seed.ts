@@ -129,6 +129,23 @@ export async function seed(userId: string, prisma?: PrismaClient) {
     },
   })
 
+  // Private (SoFi-style) student loan still in its in-school deferment phase —
+  // demonstrates phased repayment: 12mo deferment (interest accrues + capitalizes,
+  // unsubsidized) → 12mo interest-only → full amortization.
+  // Started 4 months ago, so the current balance already reflects ~4 months of
+  // capitalized deferment interest: 22000 × (1 + 0.0899/12)^4 ≈ 22666.71. Keeping
+  // the stored balance consistent with the elapsed deferment is what lets the
+  // amortization table, the interest-remaining stat, and the balance agree.
+  const sofiStudentLoanAcct = await prisma.account.create({
+    data: {
+      id: cuid(),
+      name: "SoFi Student Loan",
+      type: "LOAN",
+      balance: -22666.71,
+      userId,
+    },
+  })
+
   const cdAccount = await prisma.account.create({
     data: {
       id: cuid(),
@@ -249,9 +266,25 @@ export async function seed(userId: string, prisma?: PrismaClient) {
         startDate: monthsAgo(36),
         monthlyPayment: 480.0,
       },
+      {
+        id: cuid(),
+        accountId: sofiStudentLoanAcct.id,
+        loanType: "STUDENT",
+        originalBalance: 22000.0,
+        interestRate: 8.99,
+        termMonths: 120, // 10-year repayment term (begins AFTER the phases — Option B)
+        startDate: monthsAgo(4), // 4 months into a 12-month deferment
+        monthlyPayment: 305.0, // eventual full payment on the capitalized balance
+        defermentMonths: 12, // in-school: no payment due, interest capitalizes
+        interestOnlyMonths: 12, // then interest-only before full repayment
+        subsidized: false, // private loan — interest accrues + capitalizes
+        // Watermark baselined to now: the ~4 elapsed months are already in the
+        // capitalized balance above, so the cron accrues only going forward.
+        lastDefermentAccrual: monthsAgo(0),
+      },
     ],
   })
-  console.log("[seed] Created 3 loans")
+  console.log("[seed] Created 4 loans")
 
   // ── Transactions (6 months) ─────────────────────────────────────
 

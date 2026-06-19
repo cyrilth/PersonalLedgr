@@ -203,6 +203,14 @@ model Loan {
   extraPaymentAmount Decimal  @default(0) @db.Decimal(12, 2)
   paymentDueDay      Int?     // day of month payment is due (1-31)
 
+  // Student/personal loan phased repayment (Option B: `termMonths` is the full
+  // amortization term that begins AFTER deferment + interest-only, so total loan
+  // life = defermentMonths + interestOnlyMonths + termMonths).
+  defermentMonths      Int?      // phase 1: months with no payment due (in-school/grace)
+  interestOnlyMonths   Int?      // phase 2: months paying interest only (principal flat)
+  subsidized           Boolean   @default(false) // true = interest does NOT accrue during deferment (federal subsidized); false = unsubsidized/private (accrues + capitalizes)
+  lastDefermentAccrual DateTime? // cron watermark: last date deferment interest was capitalized (idempotency)
+
   // BNPL-specific fields
   totalInstallments      Int?                // total number of payments (e.g., 4)
   completedInstallments  Int                 @default(0) // payments made so far

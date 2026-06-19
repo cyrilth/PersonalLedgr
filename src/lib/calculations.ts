@@ -123,6 +123,35 @@ export interface ExtraPaymentImpact {
 }
 
 /**
+ * Phased-repayment prefix for a loan schedule (student/personal loans).
+ *
+ * Option B semantics: these phases run BEFORE the regular amortization term, so
+ * total loan life = defermentMonths + interestOnlyMonths + the amortization term.
+ */
+export interface LoanPhaseOptions {
+  /** Phase 1: months with no payment due (in-school deferment / grace period). */
+  defermentMonths?: number
+  /** Phase 2: months paying interest only, with principal held flat. */
+  interestOnlyMonths?: number
+  /**
+   * When true the loan is subsidized — interest does NOT accrue during deferment
+   * (the balance stays flat). When false (default, e.g. private/unsubsidized
+   * loans like SoFi) interest accrues and capitalizes into the balance each
+   * deferment month.
+   */
+  subsidized?: boolean
+}
+
+/**
+ * Hard ceiling on each phase length (deferment, interest-only). These loops have
+ * no payoff-based early exit, so an absurd persisted value would otherwise make
+ * the schedule — and every page that renders it — iterate without bound. 600
+ * months = 50 years, far beyond any real phase, so clamping here is invisible to
+ * legitimate loans while making a fat-fingered value harmless.
+ */
+export const MAX_PHASE_MONTHS = 600
+
+/**
  * Splits a single monthly payment into principal and interest portions.
  *
  * Uses standard amortization math: monthly interest = |balance| * (apr / 100 / 12).
@@ -157,23 +186,70 @@ export function calculatePaymentSplit(
  * reducing the balance until it reaches zero or remainingMonths is exhausted.
  * The final payment is adjusted to exactly pay off the remaining balance.
  *
+ * When `options` describes a deferment and/or interest-only prefix, those
+ * phases are emitted first (Option B): deferment months have a $0 payment (with
+ * interest capitalizing into the balance unless the loan is subsidized),
+ * interest-only months pay just the accruing interest with principal held flat,
+ * and only then does `remainingMonths` of regular amortization begin — on the
+ * possibly-larger capitalized balance. With no options the output is identical
+ * to a plain amortization schedule.
+ *
  * @param balance - Current outstanding balance (positive or negative; abs value used)
  * @param apr - Annual percentage rate (e.g., 6.5 for 6.5%)
  * @param monthlyPayment - Regular monthly payment amount
- * @param remainingMonths - Maximum number of months to generate
+ * @param remainingMonths - Maximum number of amortization (phase 3) months to generate
+ * @param options - Optional deferment / interest-only prefix (LoanPhaseOptions)
  * @returns Array of AmortizationRow entries, one per month until payoff or term end
  */
 export function generateAmortizationSchedule(
   balance: number,
   apr: number,
   monthlyPayment: number,
-  remainingMonths: number
+  remainingMonths: number,
+  options: LoanPhaseOptions = {}
 ): AmortizationRow[] {
   const schedule: AmortizationRow[] = []
   let remaining = Math.abs(balance)
   const monthlyRate = apr / 100 / 12
 
-  for (let month = 1; month <= remainingMonths && remaining > 0.005; month++) {
+  // Clamp to a sane ceiling so an out-of-range persisted value can't make these
+  // (early-exit-free) phase loops run away. See MAX_PHASE_MONTHS.
+  const defermentMonths = Math.min(MAX_PHASE_MONTHS, Math.max(0, Math.floor(options.defermentMonths ?? 0)))
+  const interestOnlyMonths = Math.min(MAX_PHASE_MONTHS, Math.max(0, Math.floor(options.interestOnlyMonths ?? 0)))
+  const subsidized = options.subsidized ?? false
+
+  let month = 1
+
+  // Phase 1 — deferment: no payment is due. On unsubsidized loans the accruing
+  // interest capitalizes into the balance each month (balance grows); subsidized
+  // loans stay flat. A $0-payment row with interest accruing mirrors how a real
+  // in-school deferment statement reads.
+  for (let i = 0; i < defermentMonths; i++, month++) {
+    const interest = subsidized ? 0 : Math.round(remaining * monthlyRate * 100) / 100
+    if (!subsidized) remaining = Math.round((remaining + interest) * 100) / 100
+    schedule.push({
+      month,
+      payment: 0,
+      principal: 0,
+      interest,
+      remainingBalance: remaining,
+    })
+  }
+
+  // Phase 2 — interest-only: pay just the accruing interest; principal is flat.
+  for (let i = 0; i < interestOnlyMonths && remaining > 0.005; i++, month++) {
+    const interest = Math.round(remaining * monthlyRate * 100) / 100
+    schedule.push({
+      month,
+      payment: interest,
+      principal: 0,
+      interest,
+      remainingBalance: remaining,
+    })
+  }
+
+  // Phase 3 — regular amortization over the remaining term.
+  for (let i = 0; i < remainingMonths && remaining > 0.005; i++, month++) {
     const interest = Math.round(remaining * monthlyRate * 100) / 100
 
     // Final payment: cap at remaining balance + interest to avoid overpaying
@@ -237,17 +313,53 @@ export function calculateExtraPaymentImpact(
  * @param balance - Current outstanding balance
  * @param apr - Annual percentage rate
  * @param monthlyPayment - Regular monthly payment amount
+ * @param options - Optional remaining deferment / interest-only phases (from today)
  * @returns Total interest remaining over the life of the loan, rounded to cents
  */
 export function calculateTotalInterestRemaining(
   balance: number,
   apr: number,
-  monthlyPayment: number
+  monthlyPayment: number,
+  options: LoanPhaseOptions = {}
 ): number {
   const MAX_MONTHS = 600
-  const schedule = generateAmortizationSchedule(balance, apr, monthlyPayment, MAX_MONTHS)
+  const schedule = generateAmortizationSchedule(balance, apr, monthlyPayment, MAX_MONTHS, options)
   const total = schedule.reduce((sum, row) => sum + row.interest, 0)
   return Math.round(total * 100) / 100
+}
+
+/**
+ * Given a loan's start date and its ORIGINAL deferment / interest-only phase
+ * lengths, returns how many months of each phase remain as of `asOf`.
+ *
+ * Used to project interest/payoff forward from today (the current balance)
+ * rather than from origination: e.g. a 12-month deferment that started 5 months
+ * ago has 7 deferment months left, with the full interest-only phase still ahead.
+ *
+ * @param startDate - The loan's origination date
+ * @param defermentMonths - Original deferment length in months
+ * @param interestOnlyMonths - Original interest-only length in months
+ * @param asOf - The reference date (defaults to now)
+ * @returns Remaining { defermentMonths, interestOnlyMonths } from `asOf` forward
+ */
+export function remainingLoanPhases(
+  startDate: Date | string,
+  defermentMonths: number,
+  interestOnlyMonths: number,
+  asOf: Date = new Date()
+): { defermentMonths: number; interestOnlyMonths: number } {
+  const start = new Date(startDate)
+  // Whole calendar months elapsed since origination.
+  const elapsed =
+    (asOf.getFullYear() - start.getFullYear()) * 12 +
+    (asOf.getMonth() - start.getMonth())
+  const def = Math.max(0, Math.floor(defermentMonths || 0))
+  const io = Math.max(0, Math.floor(interestOnlyMonths || 0))
+  const elapsedNonNeg = Math.max(0, elapsed)
+  return {
+    defermentMonths: Math.max(0, def - elapsedNonNeg),
+    interestOnlyMonths: Math.max(0, io - Math.max(0, elapsedNonNeg - def)),
+  }
 }
 
 /**
@@ -262,8 +374,9 @@ export function calculateTotalInterestRemaining(
  * @param originalBalance - The loan's original (origination) balance
  * @param apr - Annual percentage rate (e.g., 6.5 for 6.5%)
  * @param monthlyPayment - Regular monthly payment amount
- * @param termMonths - Full original term in months
+ * @param termMonths - Full original amortization term in months
  * @param elapsedMonths - 1-based current payment period (months since start)
+ * @param options - Optional ORIGINAL deferment / interest-only phases (from origination)
  * @returns Estimated interest { paid, remaining }, each rounded to cents
  */
 export function splitScheduledInterest(
@@ -271,14 +384,21 @@ export function splitScheduledInterest(
   apr: number,
   monthlyPayment: number,
   termMonths: number,
-  elapsedMonths: number
+  elapsedMonths: number,
+  options: LoanPhaseOptions = {}
 ): { paid: number; remaining: number } {
-  const schedule = generateAmortizationSchedule(originalBalance, apr, monthlyPayment, termMonths)
+  const schedule = generateAmortizationSchedule(originalBalance, apr, monthlyPayment, termMonths, options)
   let paid = 0
   let remaining = 0
   for (const row of schedule) {
-    if (row.month < elapsedMonths) paid += row.interest
-    else remaining += row.interest
+    if (row.month < elapsedMonths) {
+      // Only interest that was actually paid counts toward "paid". Deferment
+      // rows carry capitalized interest with a $0 payment (charged, not paid),
+      // so they're excluded; interest-only and amortization rows count.
+      if (row.payment > 0) paid += row.interest
+    } else {
+      remaining += row.interest
+    }
   }
   return {
     paid: Math.round(paid * 100) / 100,

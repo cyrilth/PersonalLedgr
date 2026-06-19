@@ -17,6 +17,7 @@
 import { headers } from "next/headers"
 import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
+import { MAX_PHASE_MONTHS } from "@/lib/calculations"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -58,6 +59,10 @@ export interface LoanSummary {
   paymentDueDay: number | null
   owner: string | null
   isActive: boolean
+  // Phased repayment (student/personal loans)
+  defermentMonths: number | null
+  interestOnlyMonths: number | null
+  subsidized: boolean
   // BNPL-specific fields
   totalInstallments: number | null
   completedInstallments: number
@@ -136,6 +141,9 @@ export async function getLoans(): Promise<LoanSummary[]> {
       paymentDueDay: a.loan!.paymentDueDay,
       owner: a.owner,
       isActive: a.isActive,
+      defermentMonths: a.loan!.defermentMonths,
+      interestOnlyMonths: a.loan!.interestOnlyMonths,
+      subsidized: a.loan!.subsidized,
       totalInstallments: a.loan!.totalInstallments,
       completedInstallments: a.loan!.completedInstallments,
       installmentFrequency: a.loan!.installmentFrequency,
@@ -218,6 +226,9 @@ export async function getLoan(id: string): Promise<LoanDetail> {
     paymentDueDay: account.loan.paymentDueDay,
     owner: account.owner,
     isActive: account.isActive,
+    defermentMonths: account.loan.defermentMonths,
+    interestOnlyMonths: account.loan.interestOnlyMonths,
+    subsidized: account.loan.subsidized,
     totalInstallments: account.loan.totalInstallments,
     completedInstallments: account.loan.completedInstallments,
     installmentFrequency: account.loan.installmentFrequency,
@@ -271,6 +282,10 @@ export async function createLoan(data: {
   monthlyPayment: number
   extraPaymentAmount?: number
   paymentDueDay?: number
+  // Phased repayment (student/personal loans)
+  defermentMonths?: number
+  interestOnlyMonths?: number
+  subsidized?: boolean
   // BNPL-specific
   totalInstallments?: number
   installmentFrequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY"
@@ -307,6 +322,12 @@ export async function createLoan(data: {
   } else {
     if (data.termMonths <= 0) throw new Error("Term must be positive")
     if (data.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+    if (data.defermentMonths != null && (data.defermentMonths < 0 || data.defermentMonths > MAX_PHASE_MONTHS)) {
+      throw new Error(`Deferment period must be between 0 and ${MAX_PHASE_MONTHS} months`)
+    }
+    if (data.interestOnlyMonths != null && (data.interestOnlyMonths < 0 || data.interestOnlyMonths > MAX_PHASE_MONTHS)) {
+      throw new Error(`Interest-only period must be between 0 and ${MAX_PHASE_MONTHS} months`)
+    }
   }
 
   // Payday: calculate derived fields
@@ -332,6 +353,18 @@ export async function createLoan(data: {
       ? -data.balance
       : data.balance
 
+  // Baseline the deferment-accrual watermark to the LATER of now and the start
+  // date. A deferred loan created BEFORE its start date must not leave the
+  // watermark before origination — that would make the cron's catch-up math treat
+  // pre-origination months as missed deferment and post phantom interest. Null
+  // for non-deferred loans (a null watermark means "no baseline" to the cron).
+  const creationNow = new Date()
+  const loanStart = new Date(data.startDate)
+  const defermentBaseline =
+    !isBNPL && !isPayday && (data.defermentMonths ?? 0) > 0
+      ? (loanStart > creationNow ? loanStart : creationNow)
+      : null
+
   const result = await prisma.$transaction(async (tx) => {
     const account = await tx.account.create({
       data: {
@@ -350,6 +383,16 @@ export async function createLoan(data: {
             monthlyPayment: isPayday ? paydayTotalRepayment : data.monthlyPayment,
             extraPaymentAmount: isPayday ? 0 : (data.extraPaymentAmount ?? 0),
             paymentDueDay: isPayday ? null : (data.paymentDueDay ?? null),
+            // Phased repayment — only meaningful for standard loans/mortgages
+            defermentMonths: (isBNPL || isPayday) ? null : (data.defermentMonths ?? null),
+            interestOnlyMonths: (isBNPL || isPayday) ? null : (data.interestOnlyMonths ?? null),
+            subsidized: (isBNPL || isPayday) ? false : (data.subsidized ?? false),
+            // Baseline the deferment-accrual watermark (see defermentBaseline
+            // above). Pins the entered balance as "current as of origination" so
+            // the cron accrues only going forward (no double-count of an imported
+            // balance) AND can recover a missed first run, without treating
+            // pre-origination months as deferment for future-start loans.
+            lastDefermentAccrual: defermentBaseline,
             // BNPL-specific fields
             totalInstallments: isBNPL ? data.totalInstallments : (isPayday ? 1 : null),
             completedInstallments: 0,
@@ -411,6 +454,10 @@ export async function updateLoan(
     monthlyPayment?: number
     extraPaymentAmount?: number
     paymentDueDay?: number | null
+    // Phased repayment (student/personal loans)
+    defermentMonths?: number | null
+    interestOnlyMonths?: number | null
+    subsidized?: boolean
     // BNPL-specific
     totalInstallments?: number
     installmentFrequency?: "WEEKLY" | "BIWEEKLY" | "MONTHLY"
@@ -434,17 +481,26 @@ export async function updateLoan(
 
   if (!account || !account.loan) throw new Error("Loan not found")
 
-  // Update account-level fields
+  // Validate all incoming fields BEFORE any write so an out-of-range value can't
+  // leave a partial edit. The account and loan writes then run together in one
+  // transaction so they commit (or roll back) atomically.
+  if (
+    data.defermentMonths != null &&
+    (data.defermentMonths < 0 || data.defermentMonths > MAX_PHASE_MONTHS)
+  ) {
+    throw new Error(`Deferment period must be between 0 and ${MAX_PHASE_MONTHS} months`)
+  }
+  if (
+    data.interestOnlyMonths != null &&
+    (data.interestOnlyMonths < 0 || data.interestOnlyMonths > MAX_PHASE_MONTHS)
+  ) {
+    throw new Error(`Interest-only period must be between 0 and ${MAX_PHASE_MONTHS} months`)
+  }
+
+  // Build account-level update (written below, atomically with the loan update).
   const accountUpdate: Record<string, unknown> = {}
   if (data.name !== undefined) accountUpdate.name = data.name.trim()
   if (data.owner !== undefined) accountUpdate.owner = data.owner || null
-
-  if (Object.keys(accountUpdate).length > 0) {
-    await prisma.account.update({
-      where: { id: account.id },
-      data: accountUpdate,
-    })
-  }
 
   // Update loan-specific fields
   const loanUpdate: Record<string, unknown> = {}
@@ -454,6 +510,9 @@ export async function updateLoan(
   if (data.monthlyPayment !== undefined) loanUpdate.monthlyPayment = data.monthlyPayment
   if (data.extraPaymentAmount !== undefined) loanUpdate.extraPaymentAmount = data.extraPaymentAmount
   if (data.paymentDueDay !== undefined) loanUpdate.paymentDueDay = data.paymentDueDay
+  if (data.defermentMonths !== undefined) loanUpdate.defermentMonths = data.defermentMonths
+  if (data.interestOnlyMonths !== undefined) loanUpdate.interestOnlyMonths = data.interestOnlyMonths
+  if (data.subsidized !== undefined) loanUpdate.subsidized = data.subsidized
   if (data.totalInstallments !== undefined) loanUpdate.totalInstallments = data.totalInstallments
   if (data.installmentFrequency !== undefined) loanUpdate.installmentFrequency = data.installmentFrequency
   if (data.nextPaymentDate !== undefined) loanUpdate.nextPaymentDate = data.nextPaymentDate ? new Date(data.nextPaymentDate) : null
@@ -464,12 +523,16 @@ export async function updateLoan(
   if (data.lenderName !== undefined) loanUpdate.lenderName = data.lenderName || null
   if (data.dueDate !== undefined) loanUpdate.dueDate = data.dueDate ? new Date(data.dueDate) : null
 
-  if (Object.keys(loanUpdate).length > 0) {
-    await prisma.loan.update({
-      where: { id },
-      data: loanUpdate,
-    })
-  }
+  // Apply both updates atomically so a validation/DB failure can't persist a
+  // partial edit (e.g. a renamed account with stale loan fields).
+  await prisma.$transaction(async (tx) => {
+    if (Object.keys(accountUpdate).length > 0) {
+      await tx.account.update({ where: { id: account.id }, data: accountUpdate })
+    }
+    if (Object.keys(loanUpdate).length > 0) {
+      await tx.loan.update({ where: { id }, data: loanUpdate })
+    }
+  })
 
   return { success: true }
 }

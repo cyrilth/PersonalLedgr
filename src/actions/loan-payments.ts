@@ -33,6 +33,11 @@ function toNumber(d: unknown): number {
   return Number(d)
 }
 
+/** Whole calendar months from `start` to `date` (negative if `date` precedes it). */
+function monthsElapsed(start: Date, date: Date): number {
+  return (date.getFullYear() - start.getFullYear()) * 12 + (date.getMonth() - start.getMonth())
+}
+
 // ── Server Actions ───────────────────────────────────────────────────
 
 export async function recordLoanPayment(data: {
@@ -78,6 +83,27 @@ export async function recordLoanPayment(data: {
   // payment lands in the month the user picked when grouped by local getMonth().
   const paymentDate = toDisplayDate(data.date)
   const description = data.description || (isPayday ? "Payday Loan Payment" : isBNPL ? "BNPL Payment" : "Loan Payment")
+
+  // Deferment guard: while a loan is in its no-payment deferment phase it is
+  // "not due", and the monthly accrual cron capitalizes that phase's interest
+  // assuming nothing is paid into it. A payment dated inside [startDate, startDate
+  // + defermentMonths) would double-count that interest (capitalized by the cron
+  // AND paid here) and skew the cron's catch-up base, so reject it. Calendar-month
+  // indexed to match the payment grid, remainingLoanPhases, and the cron itself.
+  const defermentMonths = loanAccount.loan.defermentMonths ?? 0
+  if (defermentMonths > 0) {
+    const loanStart = new Date(loanAccount.loan.startDate)
+    const monthIdx = monthsElapsed(loanStart, paymentDate)
+    if (monthIdx >= 0 && monthIdx < defermentMonths) {
+      const dueFrom = new Date(loanStart.getFullYear(), loanStart.getMonth() + defermentMonths, 1)
+      throw new Error(
+        `This loan is in its deferment period — no payment is due until ${dueFrom.toLocaleDateString(
+          "en-US",
+          { month: "long", year: "numeric" },
+        )}. Payments dated during deferment aren't supported.`,
+      )
+    }
+  }
 
   if (isPayday) {
     // Payday loan — flat fee, single balloon payment

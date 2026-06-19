@@ -30,7 +30,7 @@ import {
 } from "recharts"
 
 import { getLoan, calculateTotalInterestPaid, deleteLoan } from "@/actions/loans"
-import { calculateTotalInterestRemaining, calculatePaydayFee, calculatePaydayAPR, splitScheduledInterest } from "@/lib/calculations"
+import { calculateTotalInterestRemaining, calculatePaydayFee, calculatePaydayAPR, splitScheduledInterest, remainingLoanPhases } from "@/lib/calculations"
 import { LoanForm } from "@/components/loans/loan-form"
 import { AmortizationTable } from "@/components/loans/amortization-table"
 import { ExtraPaymentCalc } from "@/components/loans/extra-payment-calc"
@@ -179,11 +179,19 @@ export default function LoanDetailPage() {
       ])
       setLoan(loanData)
 
-      // Calculate remaining interest from current balance and schedule
+      // Calculate remaining interest from current balance and schedule. For
+      // phased loans, project only the deferment/interest-only months that are
+      // still ahead (the elapsed ones already affected the current balance).
+      const remainingPhases = remainingLoanPhases(
+        loanData.startDate,
+        loanData.defermentMonths ?? 0,
+        loanData.interestOnlyMonths ?? 0
+      )
       const remaining = calculateTotalInterestRemaining(
         loanData.balance,
         loanData.interestRate,
-        loanData.monthlyPayment
+        loanData.monthlyPayment,
+        { ...remainingPhases, subsidized: loanData.subsidized }
       )
       setInterestRemaining(remaining)
 
@@ -200,7 +208,12 @@ export default function LoanDetailPage() {
           loanData.interestRate,
           loanData.monthlyPayment,
           loanData.termMonths,
-          elapsed
+          elapsed,
+          {
+            defermentMonths: loanData.defermentMonths ?? 0,
+            interestOnlyMonths: loanData.interestOnlyMonths ?? 0,
+            subsidized: loanData.subsidized,
+          }
         )
         setInterestPaid(paid)
       }
@@ -602,6 +615,9 @@ export default function LoanDetailPage() {
                 monthlyPayment={loan.monthlyPayment}
                 termMonths={loan.termMonths}
                 startDate={loan.startDate}
+                defermentMonths={loan.defermentMonths ?? 0}
+                interestOnlyMonths={loan.interestOnlyMonths ?? 0}
+                subsidized={loan.subsidized}
               />
             </CardContent>
           </Card>
@@ -700,6 +716,9 @@ export default function LoanDetailPage() {
                 extraPaymentAmount: loan.extraPaymentAmount,
                 paymentDueDay: loan.paymentDueDay,
                 owner: loan.owner,
+                defermentMonths: loan.defermentMonths,
+                interestOnlyMonths: loan.interestOnlyMonths,
+                subsidized: loan.subsidized,
                 totalInstallments: loan.totalInstallments,
                 completedInstallments: loan.completedInstallments,
                 installmentFrequency: loan.installmentFrequency,

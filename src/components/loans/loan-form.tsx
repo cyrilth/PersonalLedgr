@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -54,6 +55,10 @@ interface LoanEditData {
   extraPaymentAmount: number
   paymentDueDay: number | null
   owner: string | null
+  // Phased repayment (student/personal loans)
+  defermentMonths?: number | null
+  interestOnlyMonths?: number | null
+  subsidized?: boolean
   // BNPL-specific
   totalInstallments?: number | null
   completedInstallments?: number
@@ -101,6 +106,10 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
   const [paymentDueDay, setPaymentDueDay] = useState("")
   const [owner, setOwner] = useState("")
   const [saving, setSaving] = useState(false)
+  // Phased-repayment state (student/personal loans)
+  const [defermentMonths, setDefermentMonths] = useState("")
+  const [interestOnlyMonths, setInterestOnlyMonths] = useState("")
+  const [subsidized, setSubsidized] = useState(false)
   // BNPL-specific state
   const [totalInstallments, setTotalInstallments] = useState("4")
   const [installmentFrequency, setInstallmentFrequency] = useState<"WEEKLY" | "BIWEEKLY" | "MONTHLY">("BIWEEKLY")
@@ -134,6 +143,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
         setExtraPayment(editData.extraPaymentAmount.toString())
         setPaymentDueDay(editData.paymentDueDay?.toString() ?? "")
         setOwner(editData.owner ?? "")
+        setDefermentMonths(editData.defermentMonths?.toString() ?? "")
+        setInterestOnlyMonths(editData.interestOnlyMonths?.toString() ?? "")
+        setSubsidized(editData.subsidized ?? false)
         // Infer account type from loan type
         setAccountType(editData.loanType === "MORTGAGE" ? "MORTGAGE" : "LOAN")
         // BNPL fields
@@ -159,6 +171,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
         setExtraPayment("0")
         setPaymentDueDay("")
         setOwner("")
+        setDefermentMonths("")
+        setInterestOnlyMonths("")
+        setSubsidized(false)
         setTotalInstallments("4")
         setInstallmentFrequency("BIWEEKLY")
         setNextPaymentDate(toDateInputValue(new Date()))
@@ -233,6 +248,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
           monthlyPayment: parseFloat(monthlyPayment) || 0,
           extraPaymentAmount: parseFloat(extraPayment) || 0,
           paymentDueDay: paymentDueDay ? parseInt(paymentDueDay) : null,
+          defermentMonths: defermentMonths ? parseInt(defermentMonths) : null,
+          interestOnlyMonths: interestOnlyMonths ? parseInt(interestOnlyMonths) : null,
+          subsidized,
           ...(isBNPL ? {
             totalInstallments: parseInt(totalInstallments) || 4,
             installmentFrequency: installmentFrequency,
@@ -313,6 +331,9 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
           monthlyPayment: parseFloat(monthlyPayment) || 0,
           extraPaymentAmount: parseFloat(extraPayment) || 0,
           paymentDueDay: paymentDueDay ? parseInt(paymentDueDay) : undefined,
+          defermentMonths: defermentMonths ? parseInt(defermentMonths) : undefined,
+          interestOnlyMonths: interestOnlyMonths ? parseInt(interestOnlyMonths) : undefined,
+          subsidized,
         })
         toast.success("Loan created")
       }
@@ -687,6 +708,68 @@ export function LoanForm({ open, onOpenChange, onSuccess, editData, accounts = [
                     Day of month the payment is due (1-31)
                   </p>
                 </div>
+
+                {/* Phased repayment — deferment & interest-only (student loans) */}
+                <div className="space-y-2">
+                  <Label htmlFor="loan-deferment">Deferment Period (months, optional)</Label>
+                  <Input
+                    id="loan-deferment"
+                    type="number"
+                    min="0"
+                    max="600"
+                    value={defermentMonths}
+                    onChange={(e) => setDefermentMonths(e.target.value)}
+                    placeholder="e.g. 12"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Months with no payment due (e.g. while in school). The repayment
+                    term begins after this and any interest-only period.
+                  </p>
+                  {parseInt(defermentMonths) > 0 && !isEdit && (
+                    <p className="text-muted-foreground text-xs">
+                      Adding a loan that started in the past? Make sure{" "}
+                      <strong>Current Balance</strong> above already includes the
+                      interest accrued during deferment — projections assume it does.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="loan-interest-only">Interest-Only Period (months, optional)</Label>
+                  <Input
+                    id="loan-interest-only"
+                    type="number"
+                    min="0"
+                    max="600"
+                    value={interestOnlyMonths}
+                    onChange={(e) => setInterestOnlyMonths(e.target.value)}
+                    placeholder="e.g. 6"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Months paying interest only before full payments begin.
+                  </p>
+                </div>
+
+                {parseInt(defermentMonths) > 0 && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="loan-subsidized"
+                      checked={subsidized}
+                      onCheckedChange={(c) => setSubsidized(c === true)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="loan-subsidized" className="font-normal">
+                        Subsidized — no interest during deferment
+                      </Label>
+                      <p className="text-muted-foreground text-xs">
+                        Federal subsidized loans don&apos;t accrue interest while
+                        deferred. Leave off for private/unsubsidized loans (e.g.
+                        SoFi), where interest accrues and capitalizes into the balance.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

@@ -110,15 +110,39 @@ function isObligationDueInMonth(
       return true
     }
 
+    const deferment = ob.defermentMonths ?? 0
+    const interestOnly = ob.interestOnlyMonths ?? 0
     const startMonthIndex = (ob.startYear * 12) + (ob.startMonth - 1)
     const currentMonthIndex = (year * 12) + (month - 1)
-    const endMonthIndex = startMonthIndex + ob.termMonths
+    // Option B: no payment is due during the deferment phase. Payments run from
+    // the end of deferment through the interest-only + full-repayment window.
+    const dueStartIndex = startMonthIndex + deferment
+    const endMonthIndex = startMonthIndex + deferment + interestOnly + ob.termMonths
 
-    return currentMonthIndex >= startMonthIndex && currentMonthIndex < endMonthIndex
+    return currentMonthIndex >= dueStartIndex && currentMonthIndex < endMonthIndex
   }
 
   // Credit cards: always due monthly
   return true
+}
+
+/**
+ * Which repayment phase a calendar month falls in for a loan obligation, using
+ * the Option-B layout: deferment months, then interest-only months, then full
+ * repayment — all measured from the loan's start month.
+ */
+function loanPhaseForMonth(
+  ob: PaymentObligation,
+  my: MonthYear
+): "deferment" | "interest_only" | "repayment" {
+  if (ob.startMonth === undefined || ob.startYear === undefined) return "repayment"
+  const deferment = ob.defermentMonths ?? 0
+  const interestOnly = ob.interestOnlyMonths ?? 0
+  const monthIndex =
+    my.year * 12 + (my.month - 1) - (ob.startYear * 12 + (ob.startMonth - 1))
+  if (monthIndex < deferment) return "deferment"
+  if (monthIndex < deferment + interestOnly) return "interest_only"
+  return "repayment"
 }
 
 type CellState = "paid" | "overdue" | "current" | "future" | "na"
@@ -278,6 +302,7 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
   const [loanPaymentTarget, setLoanPaymentTarget] = useState<{
     loanAccountId: string
     date: string
+    defaultAmount?: number
   } | null>(null)
 
   // Credit-card payment dialog state (recorded inline as a TRANSFER, like bills/loans)
@@ -414,9 +439,26 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
 
   /** Open the inline loan-payment dialog for a loan obligation + clicked month. */
   function openLoanPayment(ob: PaymentObligation, monthYear: MonthYear) {
+    // During an interest-only month, suggest just the accruing interest so the
+    // recorded payment doesn't silently reduce principal. Other months keep the
+    // dialog's default (the loan's monthly payment). Only do this for the
+    // current/past month: for a FUTURE interest-only month the live balance
+    // hasn't yet capitalized the remaining deferment interest, so a
+    // current-balance estimate would understate what's actually due then.
+    let defaultAmount: number | undefined
+    const currentMonthIdx = now.getFullYear() * 12 + now.getMonth()
+    const cellMonthIdx = monthYear.year * 12 + (monthYear.month - 1)
+    if (cellMonthIdx <= currentMonthIdx && loanPhaseForMonth(ob, monthYear) === "interest_only") {
+      const account = accounts.find((a) => a.id === ob.accountId)
+      if (account?.loan) {
+        defaultAmount =
+          Math.round(Math.abs(account.balance) * (account.loan.interestRate / 100 / 12) * 100) / 100
+      }
+    }
     setLoanPaymentTarget({
       loanAccountId: ob.accountId,
       date: monthCellDate(monthYear.year, monthYear.month, ob.dueDay),
+      defaultAmount,
     })
   }
 
@@ -698,6 +740,7 @@ export function PaymentTrackerGrid({ obligations, accounts, onRefresh }: Payment
         loanAccounts={loanAccountOptions}
         defaultLoanAccountId={loanPaymentTarget?.loanAccountId}
         defaultDate={loanPaymentTarget?.date}
+        defaultAmount={loanPaymentTarget?.defaultAmount}
       />
 
       {/* Record credit-card payment dialog (transfer into the card) */}

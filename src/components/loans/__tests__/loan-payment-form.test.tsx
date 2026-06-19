@@ -173,6 +173,19 @@ describe("LoanPaymentForm", () => {
     expect(screen.getByText("Payment Breakdown")).toBeInTheDocument()
   })
 
+  it("pre-fills the interest-only amount when defaultAmount is provided", async () => {
+    // The Payment Tracker passes the interest-only amount for an interest-only
+    // month; it should win over the loan's monthly payment ($350). loan-1 at
+    // $12,000 / 6% has a monthly interest of $60.
+    renderForm({ defaultLoanAccountId: "loan-1", defaultDate: "2026-03-15", defaultAmount: 60 })
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Amount")).toHaveValue(60)
+    })
+    // $60 equals the month's interest, so the split is all interest, no principal.
+    expect(screen.getByText("Payment Breakdown")).toBeInTheDocument()
+  })
+
   it("defaults date to today and no loan when no defaults are provided", () => {
     renderForm()
     const today = new Date().toISOString().split("T")[0]

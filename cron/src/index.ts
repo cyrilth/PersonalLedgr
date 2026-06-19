@@ -19,6 +19,7 @@ import { runSavingsInterest } from "./jobs/interest-savings.js"
 import { runRecurringBills } from "./jobs/recurring-bills.js"
 import { runBnplPayments } from "./jobs/bnpl-payments.js"
 import { runPaydayPayments } from "./jobs/payday-payments.js"
+import { runLoanDefermentAccrual } from "./jobs/loan-deferment-accrual.js"
 
 /**
  * Bootstraps the cron container: connects to the database, registers all
@@ -33,6 +34,7 @@ import { runPaydayPayments } from "./jobs/payday-payments.js"
  *   - `0 0 * * *`  — statement-close (daily CC statement cycle processing)
  *   - `0 0 * * *`  — apr-expiration (daily expired APR rate cleanup)
  *   - `0 0 1 * *`  — interest-savings (monthly savings APY payout)
+ *   - `0 2 1 * *`  — loan-deferment-accrual (monthly deferment interest capitalization)
  *   - `0 6 * * *`  — recurring-bills (daily bill auto-generation)
  *
  * @throws Exits with code 1 if database connection or job registration fails.
@@ -81,6 +83,16 @@ async function main() {
   })
   console.log("[cron] Registered: interest-savings (monthly 1st midnight)")
 
+  // Monthly on the 1st at 2 AM — capitalize deferment interest on deferred loans
+  cron.schedule("0 2 1 * *", async () => {
+    try {
+      await runLoanDefermentAccrual()
+    } catch (err) {
+      console.error("[cron] Unhandled error in runLoanDefermentAccrual:", err)
+    }
+  })
+  console.log("[cron] Registered: loan-deferment-accrual (monthly 1st 2 AM)")
+
   // Daily at 6 AM — recurring bill auto-generation
   cron.schedule("0 6 * * *", async () => {
     try {
@@ -126,6 +138,7 @@ async function main() {
     await runRecurringBills()
     await runBnplPayments()
     await runPaydayPayments()
+    await runLoanDefermentAccrual()
     console.log("[cron] All jobs completed.")
     await prisma.$disconnect()
     process.exit(0)

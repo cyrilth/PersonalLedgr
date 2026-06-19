@@ -11,6 +11,7 @@ import {
   calculateExtraPaymentImpact,
   calculateTotalInterestRemaining,
   splitScheduledInterest,
+  remainingLoanPhases,
 } from "@/lib/calculations"
 
 // ── toNumber ────────────────────────────────────────────────────────
@@ -356,6 +357,158 @@ describe("generateAmortizationSchedule", () => {
     expect(schedule[0].month).toBe(1)
     expect(schedule[1].month).toBe(2)
   })
+
+  it("is unchanged when phase options are omitted or all zero", () => {
+    const plain = generateAmortizationSchedule(10000, 6, 500, 60)
+    const empty = generateAmortizationSchedule(10000, 6, 500, 60, {})
+    const zeros = generateAmortizationSchedule(10000, 6, 500, 60, {
+      defermentMonths: 0,
+      interestOnlyMonths: 0,
+      subsidized: false,
+    })
+    expect(empty).toEqual(plain)
+    expect(zeros).toEqual(plain)
+  })
+})
+
+// ── phased schedules (deferment + interest-only) ────────────────────
+
+describe("generateAmortizationSchedule — phased repayment", () => {
+  it("capitalizes interest into the balance during unsubsidized deferment", () => {
+    // $10,000 at 12% APR (1%/month), 3 months deferment, then amortize.
+    const schedule = generateAmortizationSchedule(10000, 12, 500, 360, {
+      defermentMonths: 3,
+    })
+    // Deferment rows: $0 payment, interest accrues onto the balance.
+    expect(schedule[0]).toMatchObject({ month: 1, payment: 0, principal: 0, interest: 100 })
+    expect(schedule[0].remainingBalance).toBe(10100)
+    expect(schedule[1].remainingBalance).toBe(10201)
+    expect(schedule[2].remainingBalance).toBe(10303.01)
+    // Amortization begins at month 4 on the capitalized balance.
+    expect(schedule[3].month).toBe(4)
+    expect(schedule[3].payment).toBeGreaterThan(0)
+    expect(schedule[3].principal).toBeGreaterThan(0)
+  })
+
+  it("keeps the balance flat during subsidized deferment", () => {
+    const schedule = generateAmortizationSchedule(10000, 12, 500, 360, {
+      defermentMonths: 3,
+      subsidized: true,
+    })
+    for (let i = 0; i < 3; i++) {
+      expect(schedule[i]).toMatchObject({ payment: 0, principal: 0, interest: 0 })
+      expect(schedule[i].remainingBalance).toBe(10000)
+    }
+    // Amortization starts on the original (un-grown) balance.
+    expect(schedule[3].month).toBe(4)
+    expect(schedule[3].interest).toBe(100)
+  })
+
+  it("pays only interest with flat principal during the interest-only phase", () => {
+    const schedule = generateAmortizationSchedule(10000, 12, 500, 360, {
+      interestOnlyMonths: 4,
+    })
+    for (let i = 0; i < 4; i++) {
+      expect(schedule[i]).toMatchObject({ payment: 100, principal: 0, interest: 100 })
+      expect(schedule[i].remainingBalance).toBe(10000)
+    }
+    // Full amortization begins at month 5.
+    expect(schedule[4].month).toBe(5)
+    expect(schedule[4].principal).toBeGreaterThan(0)
+  })
+
+  it("clamps absurd deferment/interest-only counts so calculations can't run away", () => {
+    const schedule = generateAmortizationSchedule(10000, 6, 500, 60, {
+      defermentMonths: 1_000_000,
+      interestOnlyMonths: 1_000_000,
+    })
+    // Each phase is capped (at MAX_PHASE_MONTHS = 600) rather than building a
+    // multi-million-row array. Deferment rows are the $0-payment ones.
+    const defermentRows = schedule.filter((r) => r.payment === 0).length
+    expect(defermentRows).toBe(600)
+    expect(schedule.length).toBeLessThan(1300) // 600 deferment + 600 IO + a little
+  })
+
+  it("runs deferment, then interest-only, then amortization with continuous months", () => {
+    const schedule = generateAmortizationSchedule(10000, 12, 500, 360, {
+      defermentMonths: 2,
+      interestOnlyMonths: 2,
+    })
+    // Phase 1 — deferment (balance grows)
+    expect(schedule[0].payment).toBe(0)
+    expect(schedule[1].payment).toBe(0)
+    expect(schedule[1].remainingBalance).toBeGreaterThan(10000)
+    // Phase 2 — interest-only (balance flat at the capitalized amount)
+    expect(schedule[2].payment).toBeGreaterThan(0)
+    expect(schedule[2].principal).toBe(0)
+    expect(schedule[3].remainingBalance).toBe(schedule[2].remainingBalance)
+    // Phase 3 — amortization
+    expect(schedule[4].principal).toBeGreaterThan(0)
+    // Months are 1..N with no gaps.
+    schedule.forEach((row, i) => expect(row.month).toBe(i + 1))
+  })
+})
+
+describe("calculateTotalInterestRemaining — phased", () => {
+  it("unsubsidized deferment increases total interest (capitalization)", () => {
+    const base = calculateTotalInterestRemaining(10000, 12, 500)
+    const deferred = calculateTotalInterestRemaining(10000, 12, 500, { defermentMonths: 12 })
+    expect(deferred).toBeGreaterThan(base)
+  })
+
+  it("subsidized deferment adds no extra interest", () => {
+    const base = calculateTotalInterestRemaining(10000, 12, 500)
+    const subsidized = calculateTotalInterestRemaining(10000, 12, 500, {
+      defermentMonths: 12,
+      subsidized: true,
+    })
+    expect(subsidized).toBe(base)
+  })
+
+  it("interest-only months add exactly their accrued interest", () => {
+    // 6 interest-only months at 12% on $10k = 6 × $100 = $600 extra, since the
+    // balance is unchanged when full amortization begins.
+    const base = calculateTotalInterestRemaining(10000, 12, 500)
+    const io = calculateTotalInterestRemaining(10000, 12, 500, { interestOnlyMonths: 6 })
+    expect(Math.round((io - base) * 100) / 100).toBe(600)
+  })
+})
+
+// ── remainingLoanPhases ─────────────────────────────────────────────
+
+describe("remainingLoanPhases", () => {
+  const start = new Date(2026, 0, 1) // Jan 2026
+
+  it("returns the full phases at origination", () => {
+    expect(remainingLoanPhases(start, 12, 6, new Date(2026, 0, 1))).toEqual({
+      defermentMonths: 12,
+      interestOnlyMonths: 6,
+    })
+  })
+
+  it("burns down deferment first", () => {
+    // 5 months in: 7 deferment months left, interest-only untouched.
+    expect(remainingLoanPhases(start, 12, 6, new Date(2026, 5, 1))).toEqual({
+      defermentMonths: 7,
+      interestOnlyMonths: 6,
+    })
+  })
+
+  it("starts the interest-only countdown once deferment ends", () => {
+    // 14 months in (Jan 2026 → Mar 2027): deferment done, 2 interest-only
+    // months elapsed → 4 left.
+    expect(remainingLoanPhases(start, 12, 6, new Date(2027, 2, 1))).toEqual({
+      defermentMonths: 0,
+      interestOnlyMonths: 4,
+    })
+  })
+
+  it("returns zero for both once fully past the phased prefix", () => {
+    expect(remainingLoanPhases(start, 12, 6, new Date(2028, 0, 1))).toEqual({
+      defermentMonths: 0,
+      interestOnlyMonths: 0,
+    })
+  })
 })
 
 // ── calculateExtraPaymentImpact ─────────────────────────────────────
@@ -456,5 +609,28 @@ describe("splitScheduledInterest", () => {
       const decimals = v.toString().split(".")[1]
       expect(!decimals || decimals.length <= 2).toBe(true)
     }
+  })
+
+  it("excludes capitalized deferment interest from the paid bucket", () => {
+    // 6 months into an unsubsidized 12-month deferment: those elapsed months
+    // accrued interest with $0 payments (capitalized, not paid), so nothing has
+    // actually been paid yet.
+    const { paid } = splitScheduledInterest(20000, 8.99, 305, 120, 6, {
+      defermentMonths: 12,
+      interestOnlyMonths: 12,
+      subsidized: false,
+    })
+    expect(paid).toBe(0)
+  })
+
+  it("counts elapsed interest-only payments as paid (they have a real payment)", () => {
+    // 4 months past a 2-month deferment → 2 interest-only months elapsed. Those
+    // rows pay interest, so they DO count toward paid.
+    const { paid } = splitScheduledInterest(20000, 8.99, 305, 120, 5, {
+      defermentMonths: 2,
+      interestOnlyMonths: 12,
+      subsidized: false,
+    })
+    expect(paid).toBeGreaterThan(0)
   })
 })

@@ -60,6 +60,12 @@ interface AmortizationTableProps {
   monthlyPayment: number
   termMonths: number
   startDate: Date
+  /** Phase 1: months of no-payment deferment before repayment (optional). */
+  defermentMonths?: number
+  /** Phase 2: months of interest-only payments before repayment (optional). */
+  interestOnlyMonths?: number
+  /** Subsidized loans don't accrue interest during deferment (optional). */
+  subsidized?: boolean
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -86,10 +92,18 @@ export function AmortizationTable({
   monthlyPayment,
   termMonths,
   startDate,
+  defermentMonths = 0,
+  interestOnlyMonths = 0,
+  subsidized = false,
 }: AmortizationTableProps) {
   const schedule = useMemo(
-    () => generateAmortizationSchedule(originalBalance, apr, monthlyPayment, termMonths),
-    [originalBalance, apr, monthlyPayment, termMonths]
+    () =>
+      generateAmortizationSchedule(originalBalance, apr, monthlyPayment, termMonths, {
+        defermentMonths,
+        interestOnlyMonths,
+        subsidized,
+      }),
+    [originalBalance, apr, monthlyPayment, termMonths, defermentMonths, interestOnlyMonths, subsidized]
   )
 
   const currentMonth = useMemo(() => currentPaymentPeriod(startDate), [startDate])

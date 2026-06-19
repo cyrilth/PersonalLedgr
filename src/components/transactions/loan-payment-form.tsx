@@ -54,6 +54,11 @@ interface LoanPaymentFormProps {
   defaultLoanAccountId?: string
   /** Pre-fill the payment date (YYYY-MM-DD), e.g. to match the month clicked in the grid. */
   defaultDate?: string
+  /**
+   * Pre-fill the amount for the pre-selected loan — e.g. the interest-only amount
+   * due during an interest-only month. Falls back to the loan's monthly payment.
+   */
+  defaultAmount?: number
 }
 
 function round2(n: number): number {
@@ -68,6 +73,7 @@ export function LoanPaymentForm({
   loanAccounts,
   defaultLoanAccountId,
   defaultDate,
+  defaultAmount,
 }: LoanPaymentFormProps) {
   const [loanAccountId, setLoanAccountId] = useState("")
   const [fromAccountId, setFromAccountId] = useState("")
@@ -79,12 +85,15 @@ export function LoanPaymentForm({
 
   const selectedLoan = loanAccounts.find((a) => a.id === loanAccountId)
 
-  // Pre-fill amount when loan is selected
+  // Pre-fill amount when the selected loan changes. For the loan pre-selected
+  // from the grid, use the phase-aware suggested amount (e.g. the interest-only
+  // amount during an interest-only month) when provided; else the monthly payment.
   useEffect(() => {
-    if (selectedLoan) {
-      setAmount(String(selectedLoan.loan.monthlyPayment))
-    }
-  }, [selectedLoan])
+    if (!selectedLoan) return
+    const useDefault =
+      selectedLoan.id === defaultLoanAccountId && defaultAmount != null && defaultAmount > 0
+    setAmount(String(useDefault ? defaultAmount : selectedLoan.loan.monthlyPayment))
+  }, [selectedLoan, defaultLoanAccountId, defaultAmount])
 
   // Auto-generate description
   useEffect(() => {
@@ -111,12 +120,20 @@ export function LoanPaymentForm({
         : undefined
       setLoanAccountId(defaultLoanAccountId ?? "")
       setFromAccountId(firstChecking?.id ?? "")
-      setAmount(presetLoan ? String(presetLoan.loan.monthlyPayment) : "")
+      setAmount(
+        presetLoan
+          ? String(
+              defaultAmount != null && defaultAmount > 0
+                ? defaultAmount
+                : presetLoan.loan.monthlyPayment
+            )
+          : ""
+      )
       setDate(defaultDate ?? new Date().toISOString().split("T")[0])
       setDescription("")
       setDescriptionTouched(false)
     }
-  }, [open, accounts, loanAccounts, defaultLoanAccountId, defaultDate])
+  }, [open, accounts, loanAccounts, defaultLoanAccountId, defaultDate, defaultAmount])
 
   // Calculate preview split
   const preview = useMemo(() => {

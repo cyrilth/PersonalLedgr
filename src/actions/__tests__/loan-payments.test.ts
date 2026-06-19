@@ -229,6 +229,55 @@ describe("recordLoanPayment", () => {
     expect(mockAccountFindFirst).not.toHaveBeenCalled()
   })
 
+  // ── Deferment guard ─────────────────────────────────────────────────
+
+  /** Point the loan-account lookup at a loan with a deferment phase. */
+  function primeDeferredLoan(opts: { startDate: Date; defermentMonths: number }) {
+    const loan = {
+      ...mockLoanAccount,
+      loan: { ...mockLoanAccount.loan, startDate: opts.startDate, defermentMonths: opts.defermentMonths },
+    }
+    mockAccountFindFirst.mockImplementation(((args: { where: { id: string } }) => {
+      if (args.where.id === "acc-1") return Promise.resolve(mockFromAccount)
+      if (args.where.id === "loan-1") return Promise.resolve(loan)
+      return Promise.resolve(null)
+    }) as never)
+  }
+
+  it("rejects a payment dated inside the loan's deferment window", async () => {
+    // Loan starts Jan 2026 with a 6-month deferment → months [0,6) (Jan–Jun) are
+    // "not due". A Feb 2026 payment (month index 1) lands inside and must be rejected
+    // so the accrual cron isn't double-counted.
+    primeDeferredLoan({ startDate: new Date(2026, 0, 1), defermentMonths: 6 })
+
+    await expect(recordLoanPayment({ ...validInput, date: "2026-02-15" })).rejects.toThrow(
+      /deferment period/i
+    )
+    // Rejected before any write.
+    expect(vi.mocked(prisma.$transaction)).not.toHaveBeenCalled()
+  })
+
+  it("allows a payment dated at the first month past the deferment window", async () => {
+    // 1-month deferment from Jan 2026 → only index 0 (Jan) is deferred. A Feb 2026
+    // payment is index 1, the first due month, so it must go through.
+    primeDeferredLoan({ startDate: new Date(2026, 0, 1), defermentMonths: 1 })
+
+    await expect(
+      recordLoanPayment({ ...validInput, date: "2026-02-15", amount: 1199.10 })
+    ).resolves.toBeDefined()
+    expect(txClient.transaction.create).toHaveBeenCalled()
+  })
+
+  it("does not block a payment dated before the loan start (outside the deferment window)", async () => {
+    // The guard covers [0, defermentMonths) only; a pre-origination date is a
+    // negative index and is left to the normal flow, not the deferment rejection.
+    primeDeferredLoan({ startDate: new Date(2026, 2, 1), defermentMonths: 6 })
+
+    await expect(
+      recordLoanPayment({ ...validInput, date: "2026-02-15", amount: 1199.10 })
+    ).resolves.toBeDefined()
+  })
+
   // ── Interest/Principal Split ────────────────────────────────────────
 
   it("calculates correct principal/interest split", async () => {
