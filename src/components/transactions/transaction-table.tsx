@@ -10,7 +10,8 @@
  */
 
 import { useState } from "react"
-import { Link2, MoreHorizontal, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import { Link2, MoreHorizontal, Percent, Trash2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -21,6 +22,15 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,9 +44,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { getAprRates } from "@/actions/apr-rates"
 import { TRANSACTION_TYPE_LABELS } from "@/lib/constants"
 import type { TransactionType } from "@/lib/constants"
 import { formatDate, getAmountColor, formatAmount, cn } from "@/lib/utils"
+
+interface AprRateSummary {
+  id: string
+  rateType: string
+  apr: number
+  description: string | null
+  isActive?: boolean
+}
 
 interface Transaction {
   id: string
@@ -50,6 +69,8 @@ interface Transaction {
   accountId: string
   account: { id: string; name: string; type: string }
   linkedTransactionId: string | null
+  aprRateId?: string | null
+  aprRate?: AprRateSummary | null
 }
 
 interface TransactionTableProps {
@@ -59,6 +80,11 @@ interface TransactionTableProps {
   onCategoryChange: (id: string, category: string) => void
   categories?: string[]
   onDelete?: (id: string, description: string) => void
+  /**
+   * Assign or clear the per-transaction APR rate on a credit-card transaction.
+   * Pass `null` to clear (fall back to the account's standard rate).
+   */
+  onAprChange?: (id: string, aprRateId: string | null) => void | Promise<void>
 }
 
 export function TransactionTable({
@@ -68,11 +94,83 @@ export function TransactionTable({
   onCategoryChange,
   categories = [],
   onDelete,
+  onAprChange,
 }: TransactionTableProps) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
 
+  // APR-rate editor dialog state (credit-card transactions only)
+  const [aprTarget, setAprTarget] = useState<Transaction | null>(null)
+  const [aprRates, setAprRates] = useState<AprRateSummary[]>([])
+  const [aprValue, setAprValue] = useState<string>("none")
+  const [aprLoading, setAprLoading] = useState(false)
+  const [aprSaving, setAprSaving] = useState(false)
+
   const allSelected =
     transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id))
+
+  async function openAprEditor(t: Transaction) {
+    setAprTarget(t)
+    setAprValue(t.aprRateId ?? "none")
+    setAprRates([])
+    setAprLoading(true)
+    try {
+      const rates = await getAprRates(t.account.id)
+      // Only active rates are assignable — the interest-accrual job ignores
+      // inactive ones and would charge the standard rate instead.
+      setAprRates(rates.filter((r) => r.isActive))
+    } catch {
+      toast.error("Failed to load APR rates")
+    } finally {
+      setAprLoading(false)
+    }
+  }
+
+  async function handleAprSave() {
+    if (!aprTarget || !onAprChange) return
+    setAprSaving(true)
+    try {
+      await onAprChange(aprTarget.id, aprValue === "none" ? null : aprValue)
+      setAprTarget(null)
+    } catch {
+      // The page-level handler surfaces its own error toast.
+    } finally {
+      setAprSaving(false)
+    }
+  }
+
+  /**
+   * True only for credit-card EXPENSE purchases — the one shape the interest
+   * job actually accrues on. Mirrors the server-side applicability rule so the
+   * "Set APR rate" action never appears on payments, refunds, or interest rows.
+   */
+  function canEditApr(t: Transaction) {
+    return !!onAprChange && t.account.type === "CREDIT_CARD" && t.type === "EXPENSE"
+  }
+
+  /**
+   * Small badge shown when a non-standard (promo/intro) rate is attached.
+   * Hidden when the accrual job wouldn't honor the link — an inactive rate, or
+   * a non-expense row — so the badge never misrepresents the interest charged.
+   */
+  function renderAprBadge(t: Transaction) {
+    if (
+      !t.aprRate ||
+      t.aprRate.rateType === "STANDARD" ||
+      t.aprRate.isActive === false ||
+      t.type !== "EXPENSE"
+    ) {
+      return null
+    }
+    return (
+      <Badge
+        variant="secondary"
+        className="text-xs font-normal whitespace-nowrap"
+        title={t.aprRate.description || t.aprRate.rateType}
+      >
+        {(t.aprRate.apr * 100).toFixed(2)}% APR
+      </Badge>
+    )
+  }
 
   function toggleAll() {
     if (allSelected) {
@@ -152,10 +250,11 @@ export function TransactionTable({
                 </div>
 
                 {/* Row 3: Type badge + Category */}
-                <div className="mt-1.5 flex items-center gap-2">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="text-xs font-normal">
                     {TRANSACTION_TYPE_LABELS[t.type as TransactionType] ?? t.type}
                   </Badge>
+                  {renderAprBadge(t)}
                   {editingCategoryId === t.id ? (
                     <Select
                       defaultValue={t.category || ""}
@@ -199,7 +298,7 @@ export function TransactionTable({
               </div>
 
               {/* Actions menu */}
-              {onDelete && (
+              {(onDelete || canEditApr(t)) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
@@ -208,13 +307,21 @@ export function TransactionTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDelete(t.id, t.description)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
+                    {canEditApr(t) && (
+                      <DropdownMenuItem onClick={() => openAprEditor(t)}>
+                        <Percent className="mr-2 h-4 w-4" />
+                        Set APR rate
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDelete(t.id, t.description)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -243,7 +350,7 @@ export function TransactionTable({
               <TableHead className="w-32">Account</TableHead>
               <TableHead className="w-32">Type</TableHead>
               <TableHead className="w-10" />
-              {onDelete && <TableHead className="w-10" />}
+              {(onDelete || onAprChange) && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -311,9 +418,12 @@ export function TransactionTable({
                   {t.account.name}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-xs font-normal whitespace-nowrap">
-                    {TRANSACTION_TYPE_LABELS[t.type as TransactionType] ?? t.type}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className="text-xs font-normal whitespace-nowrap">
+                      {TRANSACTION_TYPE_LABELS[t.type as TransactionType] ?? t.type}
+                    </Badge>
+                    {renderAprBadge(t)}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {t.linkedTransactionId && (
@@ -322,25 +432,35 @@ export function TransactionTable({
                     </span>
                   )}
                 </TableCell>
-                {onDelete && (
+                {(onDelete || onAprChange) && (
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => onDelete(t.id, t.description)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(onDelete || canEditApr(t)) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canEditApr(t) && (
+                            <DropdownMenuItem onClick={() => openAprEditor(t)}>
+                              <Percent className="mr-2 h-4 w-4" />
+                              Set APR rate
+                            </DropdownMenuItem>
+                          )}
+                          {onDelete && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => onDelete(t.id, t.description)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 )}
               </TableRow>
@@ -348,6 +468,54 @@ export function TransactionTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* ── APR rate editor (credit-card transactions) ──────────────── */}
+      <Dialog open={!!aprTarget} onOpenChange={(open) => { if (!open) setAprTarget(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set APR Rate</DialogTitle>
+            <DialogDescription>
+              Choose which APR rate applies to &quot;{aprTarget?.description}&quot;. Select
+              Default to use the card&apos;s standard rate.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-apr">APR Rate</Label>
+            <Select
+              value={aprValue}
+              onValueChange={setAprValue}
+              disabled={aprLoading || aprSaving}
+            >
+              <SelectTrigger id="edit-apr" className="w-full">
+                <SelectValue placeholder={aprLoading ? "Loading rates..." : "Default rate"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Default (standard rate)</SelectItem>
+                {aprRates.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.description || r.rateType} — {(r.apr * 100).toFixed(2)}%
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!aprLoading && aprRates.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No APR rates defined for this card yet. Add one from the account page.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAprTarget(null)} disabled={aprSaving}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleAprSave} disabled={aprLoading || aprSaving}>
+              {aprSaving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

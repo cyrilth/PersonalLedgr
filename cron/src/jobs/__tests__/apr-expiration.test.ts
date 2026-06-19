@@ -219,6 +219,52 @@ describe("runAprExpiration", () => {
     })
   })
 
+  describe("cross-account safety (stale FK scoping)", () => {
+    it("scopes reassignment to the expired rate's own account and EXPENSE rows", async () => {
+      const expiredRate = makeExpiredRate({ id: "rate-1", accountId: "acc-A" })
+      mockAprRateFindMany.mockResolvedValue([expiredRate] as never)
+      txClient.transaction.count.mockResolvedValue(1)
+      txClient.aprRate.findFirst.mockResolvedValue(makeStandardRate({ id: "std-A" }))
+      txClient.transaction.updateMany.mockResolvedValue({ count: 1 })
+
+      await runAprExpiration()
+
+      const where = txClient.transaction.updateMany.mock.calls[0][0].where
+      expect(where.aprRateId).toBe("rate-1")
+      expect(where.accountId).toBe("acc-A")
+      expect(where.type).toBe("EXPENSE")
+    })
+
+    it("scopes the clear path the same way when no STANDARD rate exists", async () => {
+      const expiredRate = makeExpiredRate({ id: "rate-1", accountId: "acc-A" })
+      mockAprRateFindMany.mockResolvedValue([expiredRate] as never)
+      txClient.transaction.count.mockResolvedValue(1)
+      txClient.aprRate.findFirst.mockResolvedValue(null)
+      txClient.transaction.updateMany.mockResolvedValue({ count: 1 })
+
+      await runAprExpiration()
+
+      const call = txClient.transaction.updateMany.mock.calls[0][0]
+      expect(call.where.aprRateId).toBe("rate-1")
+      expect(call.where.accountId).toBe("acc-A")
+      expect(call.where.type).toBe("EXPENSE")
+      expect(call.data.aprRateId).toBeNull()
+    })
+
+    it("scopes the affected-count query to the same account and EXPENSE rows", async () => {
+      const expiredRate = makeExpiredRate({ id: "rate-1", accountId: "acc-A" })
+      mockAprRateFindMany.mockResolvedValue([expiredRate] as never)
+      txClient.transaction.count.mockResolvedValue(0)
+
+      await runAprExpiration()
+
+      const where = txClient.transaction.count.mock.calls[0][0].where
+      expect(where.aprRateId).toBe("rate-1")
+      expect(where.accountId).toBe("acc-A")
+      expect(where.type).toBe("EXPENSE")
+    })
+  })
+
   describe("mixed scenarios", () => {
     it("handles one rate with transactions (reassigned) and one without", async () => {
       const rateWithTx = makeExpiredRate({ id: "rate-1", accountId: "acc-1" })

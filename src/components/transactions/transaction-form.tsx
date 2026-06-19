@@ -154,7 +154,10 @@ export function TransactionForm({
         category: category || undefined,
         notes: notes.trim() || undefined,
         accountId,
-        aprRateId: isCreditCard && aprRateId ? aprRateId : undefined,
+        // APR only applies to credit-card expense purchases. The tab-change
+        // effect already clears aprRateId off the expense tab; gate it here too
+        // so the payload's invariant is explicit and not reliant on that effect.
+        aprRateId: isCreditCard && tab === "expense" && aprRateId ? aprRateId : undefined,
       })
       toast.success(`${type === "INCOME" ? "Income" : "Expense"} recorded`)
       onSuccess()

@@ -95,10 +95,18 @@ export async function runAprExpiration(): Promise<void> {
         data: { isActive: false },
       })
 
-      // 2. Count transactions that reference this rate
-      const affectedCount = await tx.transaction.count({
-        where: { aprRateId: expiredRate.id },
-      })
+      // 2. Count transactions that reference this rate. Scope strictly to rows
+      //    that can legitimately carry it — the rate's OWN account and EXPENSE
+      //    purchases. A legitimate link is always same-account + EXPENSE, so this
+      //    excludes nothing real; it only guards against a historically-corrupted
+      //    cross-account aprRateId (creatable only before write-path validation
+      //    existed) being rewritten when an unrelated account's rate expires.
+      const affectedWhere = {
+        aprRateId: expiredRate.id,
+        accountId: expiredRate.accountId,
+        type: "EXPENSE" as const,
+      }
+      const affectedCount = await tx.transaction.count({ where: affectedWhere })
 
       if (affectedCount === 0) {
         console.log(
@@ -122,7 +130,7 @@ export async function runAprExpiration(): Promise<void> {
       if (standardRate) {
         // Reassign all affected transactions to the standard rate
         const { count } = await tx.transaction.updateMany({
-          where: { aprRateId: expiredRate.id },
+          where: affectedWhere,
           data: { aprRateId: standardRate.id },
         })
 
@@ -135,7 +143,7 @@ export async function runAprExpiration(): Promise<void> {
       } else {
         // No active standard rate — clear the reference
         const { count } = await tx.transaction.updateMany({
-          where: { aprRateId: expiredRate.id },
+          where: affectedWhere,
           data: { aprRateId: null },
         })
 

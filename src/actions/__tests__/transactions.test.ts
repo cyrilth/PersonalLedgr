@@ -37,6 +37,9 @@ vi.mock("@/db", () => {
         count: vi.fn(),
         updateMany: vi.fn(),
       },
+      aprRate: {
+        findFirst: vi.fn(),
+      },
       $transaction: vi.fn((fn: (tx: typeof txClient) => unknown) => fn(txClient)),
       _txClient: txClient,
     },
@@ -63,6 +66,7 @@ const mockCount = vi.mocked(prisma.transaction.count)
 const mockFindFirst = vi.mocked(prisma.transaction.findFirst)
 const mockUpdateMany = vi.mocked(prisma.transaction.updateMany)
 const mockAccountFindFirst = vi.mocked(prisma.account.findFirst)
+const mockAprRateFindFirst = vi.mocked(prisma.aprRate.findFirst)
 const mockPrismaTransaction = vi.mocked(prisma.$transaction)
 
 // Access inner tx client methods for assertion
@@ -99,6 +103,8 @@ function makeTransaction(overrides: Partial<{
   linkedBy: null | { id: string; accountId: string; amount: ReturnType<typeof decimal> }
   billPayment: null | { id: string; month: number; year: number; recurringBill: { name: string } }
   account: { id: string; name: string; type: string }
+  aprRateId: string | null
+  aprRate: null | { id: string; accountId: string; rateType: string; apr: ReturnType<typeof decimal>; description: string | null; isActive: boolean }
 }> = {}) {
   return {
     id: "txn-1",
@@ -116,6 +122,8 @@ function makeTransaction(overrides: Partial<{
     linkedBy: null,
     billPayment: null,
     account: { id: "acc-1", name: "Checking", type: "CHECKING" },
+    aprRateId: null,
+    aprRate: null,
     ...overrides,
   }
 }
@@ -331,6 +339,75 @@ describe("getTransactions", () => {
     expect(t.account).toEqual({ id: "acc-1", name: "Checking", type: "CHECKING" })
   })
 
+  it("maps aprRateId and the linked APR rate summary (Decimal apr → number)", async () => {
+    const txn = makeTransaction({
+      accountId: "acc-1",
+      aprRateId: "apr-1",
+      aprRate: { id: "apr-1", accountId: "acc-1", rateType: "PROMOTIONAL", apr: decimal(0), description: "0% promo", isActive: true },
+    })
+    mockFindMany.mockResolvedValue([txn] as never)
+
+    const result = await getTransactions()
+    const t = result.transactions[0]
+
+    expect(t.aprRateId).toBe("apr-1")
+    expect(t.aprRate).toEqual({
+      id: "apr-1",
+      rateType: "PROMOTIONAL",
+      apr: 0,
+      description: "0% promo",
+      isActive: true,
+    })
+  })
+
+  it("returns null aprRate when no rate is linked", async () => {
+    const result = await getTransactions()
+    expect(result.transactions[0].aprRate).toBeNull()
+    expect(result.transactions[0].aprRateId).toBeNull()
+  })
+
+  it("nulls a linked rate that belongs to a different account (no cross-account leak)", async () => {
+    // Simulates a historically-corrupted FK: the transaction is on acc-1 but its
+    // aprRateId points at a rate living on another account. The read must not
+    // surface that foreign rate's data even though the FK join resolves it.
+    const txn = makeTransaction({
+      accountId: "acc-1",
+      aprRateId: "apr-foreign",
+      aprRate: { id: "apr-foreign", accountId: "acc-OTHER", rateType: "PROMOTIONAL", apr: decimal(0), description: "someone else's promo", isActive: true },
+    })
+    mockFindMany.mockResolvedValue([txn] as never)
+
+    const result = await getTransactions()
+
+    // The id (the user's own field) is still returned, but the rate data is not.
+    expect(result.transactions[0].aprRateId).toBe("apr-foreign")
+    expect(result.transactions[0].aprRate).toBeNull()
+  })
+
+  it("nulls a linked rate that is inactive (accrual ignores it)", async () => {
+    const txn = makeTransaction({
+      accountId: "acc-1",
+      aprRateId: "apr-1",
+      aprRate: { id: "apr-1", accountId: "acc-1", rateType: "PROMOTIONAL", apr: decimal(0), description: "expired promo", isActive: false },
+    })
+    mockFindMany.mockResolvedValue([txn] as never)
+
+    const result = await getTransactions()
+    expect(result.transactions[0].aprRate).toBeNull()
+  })
+
+  it("requests the linked APR rate summary via include", async () => {
+    await getTransactions()
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          aprRate: { select: { id: true, accountId: true, rateType: true, apr: true, description: true, isActive: true } },
+        }),
+      })
+    )
+  })
+
   it("passes same where clause to both findMany and count", async () => {
     await getTransactions({ accountId: "acc-5", category: "Travel" })
 
@@ -464,12 +541,49 @@ describe("createTransaction", () => {
     expect(typeof result.amount).toBe("number")
   })
 
-  it("passes aprRateId through to Prisma when provided", async () => {
+  it("passes aprRateId through to Prisma when provided (validated)", async () => {
+    mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CREDIT_CARD" } as never)
+    mockAprRateFindFirst.mockResolvedValue({ id: "apr-1", accountId: "acc-1" } as never)
+
     await createTransaction({ ...validInput, aprRateId: "apr-1" })
 
+    expect(mockAprRateFindFirst).toHaveBeenCalledWith({
+      where: { id: "apr-1", accountId: "acc-1", isActive: true, account: { userId: "user-1" } },
+    })
     expect(txClient.transaction.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ aprRateId: "apr-1" }),
     })
+  })
+
+  it("rejects an aprRateId on a non-credit-card account", async () => {
+    mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CHECKING" } as never)
+
+    await expect(
+      createTransaction({ ...validInput, aprRateId: "apr-1" })
+    ).rejects.toThrow("APR rates can only be attached to credit card purchases")
+
+    expect(txClient.transaction.create).not.toHaveBeenCalled()
+  })
+
+  it("rejects an aprRateId on a non-expense transaction", async () => {
+    mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CREDIT_CARD" } as never)
+
+    await expect(
+      createTransaction({ ...validInput, type: "INCOME", aprRateId: "apr-1" })
+    ).rejects.toThrow("APR rates can only be attached to credit card purchases")
+
+    expect(txClient.transaction.create).not.toHaveBeenCalled()
+  })
+
+  it("rejects an inactive or foreign aprRateId", async () => {
+    mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CREDIT_CARD" } as never)
+    mockAprRateFindFirst.mockResolvedValue(null as never)
+
+    await expect(
+      createTransaction({ ...validInput, aprRateId: "apr-foreign" })
+    ).rejects.toThrow("APR rate not found or inactive for this account")
+
+    expect(txClient.transaction.create).not.toHaveBeenCalled()
   })
 
   it("stores null aprRateId when not provided", async () => {
@@ -688,6 +802,126 @@ describe("updateTransaction", () => {
     expect(updateCall.data).not.toHaveProperty("amount")
     expect(updateCall.data).not.toHaveProperty("type")
     expect(updateCall.data).not.toHaveProperty("category")
+  })
+
+  // ── Per-transaction APR rate assignment ────────────────────────────────────
+
+  describe("aprRateId", () => {
+    beforeEach(() => {
+      // Default to an assignable context: a credit-card account (queried by the
+      // applicability check) and a valid active rate. The base existingTxn is an
+      // EXPENSE, so assignment succeeds unless a test overrides these.
+      mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CREDIT_CARD" } as never)
+      mockAprRateFindFirst.mockResolvedValue({ id: "apr-1", accountId: "acc-1" } as never)
+    })
+
+    it("assigns the APR rate when a valid rate id is provided", async () => {
+      await updateTransaction("txn-1", { aprRateId: "apr-1" })
+
+      expect(txClient.transaction.update).toHaveBeenCalledWith({
+        where: { id: "txn-1" },
+        data: expect.objectContaining({ aprRateId: "apr-1" }),
+      })
+    })
+
+    it("validates the rate belongs to the account/user and is active", async () => {
+      await updateTransaction("txn-1", { aprRateId: "apr-1" })
+
+      expect(mockAprRateFindFirst).toHaveBeenCalledWith({
+        where: { id: "apr-1", accountId: "acc-1", isActive: true, account: { userId: "user-1" } },
+      })
+    })
+
+    it("validates the rate against the new account when accountId also changes", async () => {
+      mockAccountFindFirst.mockResolvedValue({ id: "acc-2", userId: "user-1", type: "CREDIT_CARD" } as never)
+      mockAprRateFindFirst.mockResolvedValue({ id: "apr-2", accountId: "acc-2" } as never)
+
+      await updateTransaction("txn-1", { accountId: "acc-2", aprRateId: "apr-2" })
+
+      expect(mockAprRateFindFirst).toHaveBeenCalledWith({
+        where: { id: "apr-2", accountId: "acc-2", isActive: true, account: { userId: "user-1" } },
+      })
+    })
+
+    it("throws when the APR rate is not found, not on the account, or inactive", async () => {
+      // A non-matching query (wrong account OR isActive: false) resolves to null.
+      mockAprRateFindFirst.mockResolvedValue(null as never)
+
+      await expect(
+        updateTransaction("txn-1", { aprRateId: "apr-inactive" })
+      ).rejects.toThrow("APR rate not found or inactive for this account")
+
+      expect(txClient.transaction.update).not.toHaveBeenCalled()
+    })
+
+    it("rejects attaching an APR to a non-credit-card account", async () => {
+      mockAccountFindFirst.mockResolvedValue({ id: "acc-1", userId: "user-1", type: "CHECKING" } as never)
+
+      await expect(
+        updateTransaction("txn-1", { aprRateId: "apr-1" })
+      ).rejects.toThrow("APR rates can only be attached to credit card purchases")
+
+      expect(txClient.transaction.update).not.toHaveBeenCalled()
+    })
+
+    it("rejects attaching an APR when the (resulting) type is not an expense", async () => {
+      await expect(
+        updateTransaction("txn-1", { type: "INCOME", aprRateId: "apr-1" })
+      ).rejects.toThrow("APR rates can only be attached to credit card purchases")
+
+      expect(txClient.transaction.update).not.toHaveBeenCalled()
+    })
+
+    it("clears the APR rate when null is provided (without validating)", async () => {
+      await updateTransaction("txn-1", { aprRateId: null })
+
+      expect(mockAprRateFindFirst).not.toHaveBeenCalled()
+      expect(txClient.transaction.update).toHaveBeenCalledWith({
+        where: { id: "txn-1" },
+        data: expect.objectContaining({ aprRateId: null }),
+      })
+    })
+
+    it("clears the APR rate when an empty string is provided", async () => {
+      await updateTransaction("txn-1", { aprRateId: "" })
+
+      expect(mockAprRateFindFirst).not.toHaveBeenCalled()
+      expect(txClient.transaction.update).toHaveBeenCalledWith({
+        where: { id: "txn-1" },
+        data: expect.objectContaining({ aprRateId: null }),
+      })
+    })
+
+    it("clears a stale APR link when the transaction moves to another account", async () => {
+      mockAccountFindFirst.mockResolvedValue({ id: "acc-2", userId: "user-1", type: "CREDIT_CARD" } as never)
+
+      await updateTransaction("txn-1", { accountId: "acc-2" })
+
+      // No explicit rate provided, so no validation — but the old account's link
+      // must be dropped rather than rendered against the new account.
+      expect(mockAprRateFindFirst).not.toHaveBeenCalled()
+      expect(txClient.transaction.update).toHaveBeenCalledWith({
+        where: { id: "txn-1" },
+        data: expect.objectContaining({ aprRateId: null }),
+      })
+    })
+
+    it("clears the APR link when the type changes away from expense", async () => {
+      await updateTransaction("txn-1", { type: "INCOME" })
+
+      expect(txClient.transaction.update).toHaveBeenCalledWith({
+        where: { id: "txn-1" },
+        data: expect.objectContaining({ aprRateId: null }),
+      })
+    })
+
+    it("does not touch aprRateId on an in-place edit that keeps it an expense", async () => {
+      await updateTransaction("txn-1", { description: "No APR change" })
+
+      expect(mockAprRateFindFirst).not.toHaveBeenCalled()
+      const updateCall = txClient.transaction.update.mock.calls[0][0]
+      expect(updateCall.data).not.toHaveProperty("aprRateId")
+    })
   })
 })
 

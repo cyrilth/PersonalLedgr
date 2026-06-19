@@ -147,6 +147,19 @@ export default function TransactionsPage() {
     }
   }
 
+  async function handleAprChange(id: string, aprRateId: string | null) {
+    try {
+      await updateTransaction(id, { aprRateId })
+      toast.success("APR rate updated")
+      // Refetch so the rate badge reflects the new assignment.
+      await fetchTransactions()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update APR rate")
+      console.error(err)
+      throw err
+    }
+  }
+
   async function handleBulkCategorize() {
     if (selectedIds.size === 0 || !bulkCategory) return
     try {
@@ -295,6 +308,7 @@ export default function TransactionsPage() {
           onCategoryChange={handleCategoryChange}
           categories={categories}
           onDelete={handleDeleteRequest}
+          onAprChange={handleAprChange}
         />
       )}
 

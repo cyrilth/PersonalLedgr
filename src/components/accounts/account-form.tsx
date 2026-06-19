@@ -401,6 +401,24 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                   placeholder="e.g. 24.99"
                 />
               </div>
+
+              {/* Opening-balance promo APR guidance — only meaningful when
+                  creating a card that starts with a carried balance. */}
+              {!isEdit && (parseFloat(balance) || 0) !== 0 && (
+                <p className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Promotional APR on this opening balance?
+                  </span>{" "}
+                  The starting balance accrues at the standard Purchase APR by default. To apply a
+                  promo (e.g. 0% intro), save the card, add the promotional rate to it from its
+                  account page, then go to{" "}
+                  <span className="font-medium">
+                    Transactions &rarr; the &ldquo;Opening Balance&rdquo; row &rarr; &hellip; menu
+                    &rarr; &ldquo;Set APR rate&rdquo;
+                  </span>{" "}
+                  to attach it.
+                </p>
+              )}
             </div>
           )}
 

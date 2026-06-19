@@ -234,4 +234,77 @@ describe("TransactionTable", () => {
     expect(screen.getAllByText("Gas Station").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Paycheck").length).toBeGreaterThan(0)
   })
+
+  describe("APR rate badge", () => {
+    const ccAccount = { id: "cc-1", name: "Visa", type: "CREDIT_CARD" }
+
+    it("shows the rate badge for an active non-standard rate", () => {
+      render(
+        <TransactionTable
+          {...defaultProps}
+          transactions={[
+            makeTransaction({
+              account: ccAccount,
+              aprRateId: "apr-1",
+              aprRate: { id: "apr-1", rateType: "PROMOTIONAL", apr: 0, description: "0% promo", isActive: true },
+            }),
+          ]}
+        />
+      )
+      // Rendered in both mobile and desktop views.
+      expect(screen.getAllByText("0.00% APR").length).toBeGreaterThan(0)
+    })
+
+    it("hides the badge when the linked rate is inactive (accrual ignores it)", () => {
+      render(
+        <TransactionTable
+          {...defaultProps}
+          transactions={[
+            makeTransaction({
+              account: ccAccount,
+              aprRateId: "apr-1",
+              aprRate: { id: "apr-1", rateType: "PROMOTIONAL", apr: 0, description: "0% promo", isActive: false },
+            }),
+          ]}
+        />
+      )
+      expect(screen.queryByText("0.00% APR")).not.toBeInTheDocument()
+    })
+
+    it("hides the badge on a non-expense row even with an active promo rate", () => {
+      // A CC refund (INCOME) or payment never accrues, so it must not display a
+      // promo badge even if a rate somehow remained linked.
+      render(
+        <TransactionTable
+          {...defaultProps}
+          transactions={[
+            makeTransaction({
+              type: "INCOME",
+              amount: 100,
+              account: ccAccount,
+              aprRateId: "apr-1",
+              aprRate: { id: "apr-1", rateType: "PROMOTIONAL", apr: 0, description: "0% promo", isActive: true },
+            }),
+          ]}
+        />
+      )
+      expect(screen.queryByText("0.00% APR")).not.toBeInTheDocument()
+    })
+
+    it("does not show a badge for a STANDARD rate", () => {
+      render(
+        <TransactionTable
+          {...defaultProps}
+          transactions={[
+            makeTransaction({
+              account: ccAccount,
+              aprRateId: "apr-1",
+              aprRate: { id: "apr-1", rateType: "STANDARD", apr: 0.2499, description: null, isActive: true },
+            }),
+          ]}
+        />
+      )
+      expect(screen.queryByText(/% APR$/)).not.toBeInTheDocument()
+    })
+  })
 })

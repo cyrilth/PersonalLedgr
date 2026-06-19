@@ -32,6 +32,46 @@ function toNumber(d: unknown): number {
   return Number(d)
 }
 
+/**
+ * Validates that an APR rate may be attached to a transaction, enforcing the
+ * same applicability rules the interest-accrual job uses. Throws on violation.
+ *
+ * A per-transaction APR is only meaningful for a **credit-card EXPENSE** row,
+ * because `interest-cc` only ever processes `type: "EXPENSE"` transactions on
+ * credit-card accounts and only honors a linked rate that is active and lives
+ * on that account. Allowing an APR link on anything else (a payment, refund,
+ * transfer side, interest charge, non-credit-card account, or an inactive/
+ * foreign rate) would store/display a promo the daily job silently ignores.
+ *
+ * Every write path (create and update) must funnel explicit APR assignments
+ * through here so the read side (`getTransactions`) never trusts a link the
+ * write side did not vet.
+ */
+async function assertAssignableAprRate(
+  aprRateId: string,
+  accountId: string,
+  transactionType: string,
+  userId: string
+): Promise<void> {
+  if (transactionType !== "EXPENSE") {
+    throw new Error("APR rates can only be attached to credit card purchases")
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId },
+    select: { type: true },
+  })
+  if (!account || account.type !== "CREDIT_CARD") {
+    throw new Error("APR rates can only be attached to credit card purchases")
+  }
+
+  // Mirror accrual exactly: the rate must belong to this account and be active.
+  const rate = await prisma.aprRate.findFirst({
+    where: { id: aprRateId, accountId, isActive: true, account: { userId } },
+  })
+  if (!rate) throw new Error("APR rate not found or inactive for this account")
+}
+
 // ── Server Actions ───────────────────────────────────────────────────
 
 /**
@@ -98,6 +138,9 @@ export async function getTransactions(filters: {
       where,
       include: {
         account: { select: { id: true, name: true, type: true } },
+        aprRate: {
+          select: { id: true, accountId: true, rateType: true, apr: true, description: true, isActive: true },
+        },
       },
       orderBy: { date: "desc" },
       skip: (page - 1) * pageSize,
@@ -119,6 +162,23 @@ export async function getTransactions(filters: {
       accountId: t.accountId,
       account: t.account,
       linkedTransactionId: t.linkedTransactionId,
+      aprRateId: t.aprRateId,
+      // Treat the joined rate as untrusted: only surface it when it actually
+      // lives on this transaction's own account and is active — exactly what the
+      // interest job honors. This neutralizes any historically-corrupted FK
+      // (a foreign or inactive aprRateId persisted before write-path validation
+      // existed), so the read never leaks another account's rate or shows a dead
+      // promo. The id is the user's own field, so it is still returned as-is.
+      aprRate:
+        t.aprRate && t.aprRate.accountId === t.accountId && t.aprRate.isActive
+          ? {
+              id: t.aprRate.id,
+              rateType: t.aprRate.rateType,
+              apr: toNumber(t.aprRate.apr),
+              description: t.aprRate.description,
+              isActive: t.aprRate.isActive,
+            }
+          : null,
     })),
     total,
     page,
@@ -152,6 +212,12 @@ export async function createTransaction(data: {
     where: { id: data.accountId, userId },
   })
   if (!account) throw new Error("Account not found")
+
+  // An explicit APR link must be validated on this write path too — the read
+  // side surfaces it, so the create path cannot trust an unvetted rate id.
+  if (data.aprRateId) {
+    await assertAssignableAprRate(data.aprRateId, data.accountId, data.type, userId)
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const transaction = await tx.transaction.create({
@@ -211,6 +277,7 @@ export async function updateTransaction(
     category?: string
     notes?: string
     accountId?: string
+    aprRateId?: string | null
   }
 ) {
   const userId = await requireUserId()
@@ -234,6 +301,16 @@ export async function updateTransaction(
     if (!newAccount) throw new Error("Account not found")
   }
 
+  // The transaction type after this update — an explicit new type wins,
+  // otherwise the existing one stands. APR applicability keys off this.
+  const effectiveType = data.type ?? existing.type
+
+  // Validate an explicit APR assignment against the destination account and the
+  // resulting transaction type (must be an active rate on a credit-card expense).
+  if (data.aprRateId) {
+    await assertAssignableAprRate(data.aprRateId, newAccountId, effectiveType, userId)
+  }
+
   // Only include fields that were explicitly provided (partial update)
   const updateData: Record<string, unknown> = {}
   if (data.date !== undefined) updateData.date = new Date(data.date)
@@ -243,6 +320,17 @@ export async function updateTransaction(
   if (data.category !== undefined) updateData.category = data.category || null
   if (data.notes !== undefined) updateData.notes = data.notes || null
   if (data.accountId !== undefined) updateData.accountId = data.accountId
+
+  // APR link maintenance. An explicit value (set or clear) always wins.
+  // Otherwise, drop a now-inapplicable link: APR rates are account-specific, so
+  // moving accounts orphans the link; and a row that is no longer an expense
+  // can't carry an APR. Either case would leave a promo badge the accrual job
+  // ignores, so clear it rather than let read/accrual disagree.
+  if (data.aprRateId !== undefined) {
+    updateData.aprRateId = data.aprRateId || null
+  } else if (accountChanged || (data.type !== undefined && effectiveType !== "EXPENSE")) {
+    updateData.aprRateId = null
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     // Reverse old balance impact on old account
@@ -276,6 +364,7 @@ export async function updateTransaction(
     source: result.source,
     notes: result.notes,
     accountId: result.accountId,
+    aprRateId: result.aprRateId,
   }
 }
 
