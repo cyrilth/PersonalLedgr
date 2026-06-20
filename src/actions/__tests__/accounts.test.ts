@@ -15,16 +15,27 @@ vi.mock("@/lib/auth", () => ({
 }))
 
 vi.mock("@/db", () => {
+  // createAccount now runs its account + opening-balance + APR writes inside
+  // $transaction, so these fns are shared between the top-level prisma mock and
+  // the tx handed to the callback — existing createAccount assertions reference
+  // the top-level handles while the action calls them via tx.
+  const accountCreate = vi.fn()
+  const transactionCreate = vi.fn()
+  const aprRateCreate = vi.fn()
   const mockTx = {
     transaction: {
       findMany: vi.fn(),
       updateMany: vi.fn(),
-      create: vi.fn(),
+      create: transactionCreate,
       aggregate: vi.fn(), // CR-7: recalc aggregates inside the FOR NO KEY UPDATE-locked txn
     },
     account: {
+      create: accountCreate,
       update: vi.fn(),
       delete: vi.fn(),
+    },
+    aprRate: {
+      create: aprRateCreate,
     },
     $queryRaw: vi.fn(), // CR-7: SELECT … FOR NO KEY UPDATE lock on the account row
   }
@@ -33,13 +44,13 @@ vi.mock("@/db", () => {
       account: {
         findMany: vi.fn(),
         findFirst: vi.fn(),
-        create: vi.fn(),
+        create: accountCreate,
         update: vi.fn(),
         delete: vi.fn(),
       },
       transaction: {
         findMany: vi.fn(),
-        create: vi.fn(),
+        create: transactionCreate,
         aggregate: vi.fn(),
         count: vi.fn(),
         updateMany: vi.fn(),
@@ -49,6 +60,9 @@ vi.mock("@/db", () => {
       },
       loan: {
         upsert: vi.fn(),
+      },
+      aprRate: {
+        create: aprRateCreate,
       },
       $transaction: vi.fn((cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)),
       _mockTx: mockTx,
@@ -595,6 +609,61 @@ describe("updateAccount", () => {
         startDate: "2025-01-01",
         monthlyPayment: 350,
         extraPaymentAmount: 0,
+      },
+    })
+
+    expect(mockLoanUpsert).toHaveBeenCalled()
+  })
+
+  it("rejects changing the start date of a deferred loan (CR-9)", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeAccount({
+        type: "LOAN",
+        loan: { startDate: new Date("2025-01-01"), defermentMonths: 12 },
+      }) as never
+    )
+
+    await expect(
+      updateAccount("acc-1", {
+        name: "Student Loan",
+        balance: -15000,
+        loan: {
+          loanType: "STUDENT",
+          originalBalance: 20000,
+          interestRate: 5.49,
+          termMonths: 120,
+          startDate: "2026-06-01", // changed from the stored 2025-01-01
+          monthlyPayment: 200,
+          extraPaymentAmount: 0,
+          defermentMonths: 12,
+        },
+      })
+    ).rejects.toThrow(/start date/)
+
+    expect(mockLoanUpsert).not.toHaveBeenCalled()
+  })
+
+  it("allows non-date edits to a deferred loan when the start date is unchanged (CR-9)", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeAccount({
+        type: "LOAN",
+        loan: { startDate: new Date("2025-01-01"), defermentMonths: 12 },
+      }) as never
+    )
+    mockLoanUpsert.mockResolvedValue({} as never)
+
+    await updateAccount("acc-1", {
+      name: "Student Loan",
+      balance: -15000,
+      loan: {
+        loanType: "STUDENT",
+        originalBalance: 20000,
+        interestRate: 5.49,
+        termMonths: 120,
+        startDate: "2025-01-01", // unchanged
+        monthlyPayment: 250, // changed
+        extraPaymentAmount: 0,
+        defermentMonths: 12,
       },
     })
 

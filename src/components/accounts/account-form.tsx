@@ -36,6 +36,7 @@ import {
 import { ACCOUNT_TYPE_LABELS, LOAN_TYPE_LABELS } from "@/lib/constants"
 import type { AccountType, LoanType } from "@/lib/constants"
 import { createAccount, updateAccount } from "@/actions/accounts"
+import { PhasedRepaymentFields } from "@/components/loans/phased-repayment-fields"
 
 /** Shape of account data passed to the form in edit mode. */
 interface AccountData {
@@ -59,6 +60,9 @@ interface AccountData {
     startDate: Date | string
     monthlyPayment: number
     extraPaymentAmount: number
+    defermentMonths?: number | null
+    interestOnlyMonths?: number | null
+    subsidized?: boolean
   } | null
   termMonths?: number | null
   maturityDate?: Date | string | null
@@ -120,6 +124,14 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
   const [extraPayment, setExtraPayment] = useState(
     account?.loan?.extraPaymentAmount?.toString() ?? "0"
   )
+  // Phased repayment (deferment / interest-only) — mainly student loans
+  const [defermentMonths, setDefermentMonths] = useState(
+    account?.loan?.defermentMonths?.toString() ?? ""
+  )
+  const [interestOnlyMonths, setInterestOnlyMonths] = useState(
+    account?.loan?.interestOnlyMonths?.toString() ?? ""
+  )
+  const [subsidized, setSubsidized] = useState(account?.loan?.subsidized ?? false)
 
   // CD fields
   const [cdTermMonths, setCdTermMonths] = useState(account?.termMonths?.toString() ?? "12")
@@ -159,6 +171,9 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
     }
     setMonthlyPayment(account?.loan?.monthlyPayment?.toString() ?? "")
     setExtraPayment(account?.loan?.extraPaymentAmount?.toString() ?? "0")
+    setDefermentMonths(account?.loan?.defermentMonths?.toString() ?? "")
+    setInterestOnlyMonths(account?.loan?.interestOnlyMonths?.toString() ?? "")
+    setSubsidized(account?.loan?.subsidized ?? false)
     setCdTermMonths(account?.termMonths?.toString() ?? "12")
     if (account?.maturityDate) {
       const d = new Date(account.maturityDate)
@@ -212,6 +227,11 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                 startDate: startDate,
                 monthlyPayment: parseFloat(monthlyPayment) || 0,
                 extraPaymentAmount: parseFloat(extraPayment) || 0,
+                defermentMonths: defermentMonths ? parseInt(defermentMonths) : null,
+                interestOnlyMonths: interestOnlyMonths ? parseInt(interestOnlyMonths) : null,
+                // Subsidized only applies while deferred; never persist a stale
+                // true once deferment is cleared (the checkbox is hidden then).
+                subsidized: parseInt(defermentMonths) > 0 ? subsidized : false,
               }
             : undefined,
         cd:
@@ -488,7 +508,15 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  disabled={isEdit && parseInt(defermentMonths) > 0}
                 />
+                {isEdit && parseInt(defermentMonths) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Locked — this loan&apos;s deferment schedule is anchored to its
+                    start date, so it can&apos;t be changed here. To correct it,
+                    delete this loan and add it again with the right date.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -512,6 +540,18 @@ export function AccountForm({ open, onOpenChange, account, onSuccess }: AccountF
                   onChange={(e) => setExtraPayment(e.target.value)}
                 />
               </div>
+
+              {/* Phased repayment — deferment / interest-only / subsidized.
+                  Shared with the dedicated loan form so both forms stay in sync. */}
+              <PhasedRepaymentFields
+                defermentMonths={defermentMonths}
+                onDefermentMonthsChange={setDefermentMonths}
+                interestOnlyMonths={interestOnlyMonths}
+                onInterestOnlyMonthsChange={setInterestOnlyMonths}
+                subsidized={subsidized}
+                onSubsidizedChange={setSubsidized}
+                balanceFieldLabel="Balance"
+              />
             </div>
           )}
 

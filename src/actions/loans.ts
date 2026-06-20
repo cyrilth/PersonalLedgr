@@ -17,7 +17,7 @@
 import { headers } from "next/headers"
 import { prisma } from "@/db"
 import { auth } from "@/lib/auth"
-import { MAX_PHASE_MONTHS } from "@/lib/calculations"
+import { validatePhaseMonths } from "@/lib/calculations"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -322,12 +322,7 @@ export async function createLoan(data: {
   } else {
     if (data.termMonths <= 0) throw new Error("Term must be positive")
     if (data.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
-    if (data.defermentMonths != null && (data.defermentMonths < 0 || data.defermentMonths > MAX_PHASE_MONTHS)) {
-      throw new Error(`Deferment period must be between 0 and ${MAX_PHASE_MONTHS} months`)
-    }
-    if (data.interestOnlyMonths != null && (data.interestOnlyMonths < 0 || data.interestOnlyMonths > MAX_PHASE_MONTHS)) {
-      throw new Error(`Interest-only period must be between 0 and ${MAX_PHASE_MONTHS} months`)
-    }
+    validatePhaseMonths(data)
   }
 
   // Payday: calculate derived fields
@@ -453,6 +448,7 @@ export async function updateLoan(
     termMonths?: number
     monthlyPayment?: number
     extraPaymentAmount?: number
+    startDate?: string
     paymentDueDay?: number | null
     // Phased repayment (student/personal loans)
     defermentMonths?: number | null
@@ -484,17 +480,24 @@ export async function updateLoan(
   // Validate all incoming fields BEFORE any write so an out-of-range value can't
   // leave a partial edit. The account and loan writes then run together in one
   // transaction so they commit (or roll back) atomically.
-  if (
-    data.defermentMonths != null &&
-    (data.defermentMonths < 0 || data.defermentMonths > MAX_PHASE_MONTHS)
-  ) {
-    throw new Error(`Deferment period must be between 0 and ${MAX_PHASE_MONTHS} months`)
-  }
-  if (
-    data.interestOnlyMonths != null &&
-    (data.interestOnlyMonths < 0 || data.interestOnlyMonths > MAX_PHASE_MONTHS)
-  ) {
-    throw new Error(`Interest-only period must be between 0 and ${MAX_PHASE_MONTHS} months`)
+  validatePhaseMonths(data)
+
+  // A deferred loan's start date anchors the cron's deferment-accrual window
+  // (lastDefermentAccrual is pinned relative to it), so reject a change to it
+  // rather than silently dropping it — mirrors updateAccount. Uses the EFFECTIVE
+  // deferment (submitted value, else the stored one) so a partial update that
+  // omits defermentMonths can't slip a start-date change past the guard.
+  const effectiveDeferment =
+    data.defermentMonths !== undefined
+      ? (data.defermentMonths ?? 0)
+      : (account.loan.defermentMonths ?? 0)
+  if (data.startDate !== undefined && effectiveDeferment > 0) {
+    const storedStart = account.loan.startDate.toISOString().slice(0, 10)
+    if (data.startDate !== storedStart) {
+      throw new Error(
+        "A loan with deferment can't have its start date changed — it anchors the deferment schedule. To correct it, delete this loan and add it again."
+      )
+    }
   }
 
   // Build account-level update (written below, atomically with the loan update).
@@ -509,6 +512,10 @@ export async function updateLoan(
   if (data.termMonths !== undefined) loanUpdate.termMonths = data.termMonths
   if (data.monthlyPayment !== undefined) loanUpdate.monthlyPayment = data.monthlyPayment
   if (data.extraPaymentAmount !== undefined) loanUpdate.extraPaymentAmount = data.extraPaymentAmount
+  // Safe to write unconditionally: the guard above rejected any start-date change
+  // on a deferred loan, so for those this is the same value; non-deferred loans
+  // (deferment cron filters them out) can be freely corrected.
+  if (data.startDate !== undefined) loanUpdate.startDate = new Date(data.startDate)
   if (data.paymentDueDay !== undefined) loanUpdate.paymentDueDay = data.paymentDueDay
   if (data.defermentMonths !== undefined) loanUpdate.defermentMonths = data.defermentMonths
   if (data.interestOnlyMonths !== undefined) loanUpdate.interestOnlyMonths = data.interestOnlyMonths

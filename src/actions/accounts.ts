@@ -22,6 +22,7 @@ import {
   computeBalanceHistory,
   groupAccountsByType,
   computeDrift,
+  validatePhaseMonths,
 } from "@/lib/calculations"
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -210,6 +211,9 @@ export async function getAccount(id: string, options?: { year?: number }) {
           startDate: account.loan.startDate,
           monthlyPayment: toNumber(account.loan.monthlyPayment),
           extraPaymentAmount: toNumber(account.loan.extraPaymentAmount),
+          defermentMonths: account.loan.defermentMonths,
+          interestOnlyMonths: account.loan.interestOnlyMonths,
+          subsidized: account.loan.subsidized,
         }
       : null,
     aprRates: account.aprRates.map((r) => ({
@@ -253,6 +257,9 @@ export async function createAccount(data: {
     startDate: string
     monthlyPayment: number
     extraPaymentAmount: number
+    defermentMonths?: number | null
+    interestOnlyMonths?: number | null
+    subsidized?: boolean
   }
   cd?: {
     termMonths: number
@@ -261,6 +268,17 @@ export async function createAccount(data: {
   }
 }) {
   const userId = await requireUserId()
+
+  // Phased repayment bounds — keep parity with createLoan/updateLoan so neither
+  // entry point can persist an out-of-range deferment/interest-only value.
+  // Validate the loan path with the SAME rules as createLoan so neither entry
+  // point can persist a degenerate loan (zero term/payment, out-of-range phase).
+  if ((data.type === "LOAN" || data.type === "MORTGAGE") && data.loan) {
+    if (data.loan.interestRate < 0) throw new Error("Interest rate must be non-negative")
+    if (data.loan.termMonths <= 0) throw new Error("Term must be positive")
+    if (data.loan.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+    validatePhaseMonths(data.loan)
+  }
 
   const apyTypes = ["SAVINGS", "CHECKING", "CD"]
   const liabilityTypes = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
@@ -271,75 +289,99 @@ export async function createAccount(data: {
       ? -data.balance
       : data.balance
 
-  const account = await prisma.account.create({
-    data: {
-      name: data.name,
-      type: data.type,
-      balance,
-      creditLimit: data.creditLimit,
-      apy: apyTypes.includes(data.type) ? (data.apy ?? 0) : 0,
-      termMonths: data.type === "CD" && data.cd ? data.cd.termMonths : null,
-      maturityDate: data.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : null,
-      autoRenew: data.type === "CD" && data.cd ? data.cd.autoRenew : false,
-      owner: data.owner || null,
-      userId,
-      creditCardDetails:
-        data.type === "CREDIT_CARD" && data.creditCard
-          ? {
-              create: {
-                statementCloseDay: data.creditCard.statementCloseDay,
-                paymentDueDay: data.creditCard.paymentDueDay,
-                gracePeriodDays: data.creditCard.gracePeriodDays,
-              },
-            }
-          : undefined,
-      loan:
-        (data.type === "LOAN" || data.type === "MORTGAGE") && data.loan
-          ? {
-              create: {
-                loanType: data.loan.loanType as "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL",
-                originalBalance: data.loan.originalBalance,
-                interestRate: data.loan.interestRate,
-                termMonths: data.loan.termMonths,
-                startDate: new Date(data.loan.startDate),
-                monthlyPayment: data.loan.monthlyPayment,
-                extraPaymentAmount: data.loan.extraPaymentAmount,
-              },
-            }
-          : undefined,
-    },
-  })
+  // Baseline the deferment-accrual watermark to the LATER of now and the start
+  // date (mirrors createLoan). Pins the entered balance as "current as of
+  // origination" so the cron accrues only going forward and never treats
+  // pre-origination months as deferment for a future-start loan. Null for
+  // non-deferred loans (a null watermark means "no baseline" to the cron).
+  const creationNow = new Date()
+  const loanStart = data.loan ? new Date(data.loan.startDate) : null
+  const defermentBaseline =
+    loanStart && (data.loan?.defermentMonths ?? 0) > 0
+      ? (loanStart > creationNow ? loanStart : creationNow)
+      : null
 
-  // Create an opening balance transaction so the transaction ledger matches the
-  // stored balance from day one. Without this, recalculate would show drift equal
-  // to the starting balance for any newly created account.
-  if (balance !== 0) {
-    await prisma.transaction.create({
+  // Create the account, its opening-balance ledger row, and any CC promo APR in
+  // ONE transaction (mirrors createLoan). A deferred loan must never end up with
+  // an armed lastDefermentAccrual watermark but no opening-balance row backing
+  // the balance the accrual cron compounds against — a partial write here would
+  // arm the cron against an unreconciled balance.
+  const account = await prisma.$transaction(async (tx) => {
+    const created = await tx.account.create({
       data: {
-        date: new Date(),
-        description: "Opening Balance",
-        amount: balance,
-        type: balance > 0 ? "INCOME" : "EXPENSE",
-        category: "Opening Balance",
-        source: "SYSTEM",
+        name: data.name,
+        type: data.type,
+        balance,
+        creditLimit: data.creditLimit,
+        apy: apyTypes.includes(data.type) ? (data.apy ?? 0) : 0,
+        termMonths: data.type === "CD" && data.cd ? data.cd.termMonths : null,
+        maturityDate: data.type === "CD" && data.cd ? new Date(data.cd.maturityDate) : null,
+        autoRenew: data.type === "CD" && data.cd ? data.cd.autoRenew : false,
+        owner: data.owner || null,
         userId,
-        accountId: account.id,
+        creditCardDetails:
+          data.type === "CREDIT_CARD" && data.creditCard
+            ? {
+                create: {
+                  statementCloseDay: data.creditCard.statementCloseDay,
+                  paymentDueDay: data.creditCard.paymentDueDay,
+                  gracePeriodDays: data.creditCard.gracePeriodDays,
+                },
+              }
+            : undefined,
+        loan:
+          (data.type === "LOAN" || data.type === "MORTGAGE") && data.loan
+            ? {
+                create: {
+                  loanType: data.loan.loanType as "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL",
+                  originalBalance: data.loan.originalBalance,
+                  interestRate: data.loan.interestRate,
+                  termMonths: data.loan.termMonths,
+                  startDate: loanStart ?? new Date(data.loan.startDate),
+                  monthlyPayment: data.loan.monthlyPayment,
+                  extraPaymentAmount: data.loan.extraPaymentAmount,
+                  defermentMonths: data.loan.defermentMonths ?? null,
+                  interestOnlyMonths: data.loan.interestOnlyMonths ?? null,
+                  subsidized: data.loan.subsidized ?? false,
+                  lastDefermentAccrual: defermentBaseline,
+                },
+              }
+            : undefined,
       },
     })
-  }
 
-  // Create a STANDARD APR rate if a purchase APR was provided for a credit card
-  if (data.type === "CREDIT_CARD" && data.creditCard?.purchaseApr != null) {
-    await prisma.aprRate.create({
-      data: {
-        rateType: "STANDARD",
-        apr: data.creditCard.purchaseApr / 100,
-        effectiveDate: new Date(),
-        isActive: true,
-        accountId: account.id,
-      },
-    })
-  }
+    // Opening balance transaction so the ledger matches the stored balance from
+    // day one (otherwise recalculate reports drift equal to the starting balance).
+    if (balance !== 0) {
+      await tx.transaction.create({
+        data: {
+          date: new Date(),
+          description: "Opening Balance",
+          amount: balance,
+          type: balance > 0 ? "INCOME" : "EXPENSE",
+          category: "Opening Balance",
+          source: "SYSTEM",
+          userId,
+          accountId: created.id,
+        },
+      })
+    }
+
+    // STANDARD APR rate when a purchase APR was provided for a credit card.
+    if (data.type === "CREDIT_CARD" && data.creditCard?.purchaseApr != null) {
+      await tx.aprRate.create({
+        data: {
+          rateType: "STANDARD",
+          apr: data.creditCard.purchaseApr / 100,
+          effectiveDate: new Date(),
+          isActive: true,
+          accountId: created.id,
+        },
+      })
+    }
+
+    return created
+  })
 
   return { id: account.id }
 }
@@ -372,6 +414,9 @@ export async function updateAccount(
       startDate: string
       monthlyPayment: number
       extraPaymentAmount: number
+      defermentMonths?: number | null
+      interestOnlyMonths?: number | null
+      subsidized?: boolean
     }
     cd?: {
       termMonths: number
@@ -382,9 +427,35 @@ export async function updateAccount(
 ) {
   const userId = await requireUserId()
 
+  // Validate the loan path with the SAME rules as updateLoan so neither entry
+  // point can persist a degenerate loan (zero term/payment, out-of-range phase).
+  if (data.loan) {
+    if (data.loan.interestRate < 0) throw new Error("Interest rate must be non-negative")
+    if (data.loan.termMonths <= 0) throw new Error("Term must be positive")
+    if (data.loan.monthlyPayment <= 0) throw new Error("Monthly payment must be positive")
+    validatePhaseMonths(data.loan)
+  }
+
   // Verify ownership
-  const existing = await prisma.account.findFirst({ where: { id, userId } })
+  const existing = await prisma.account.findFirst({
+    where: { id, userId },
+    include: { loan: { select: { startDate: true, defermentMonths: true } } },
+  })
   if (!existing) throw new Error("Account not found")
+
+  // A deferred loan's start date anchors the cron's deferment-accrual window
+  // (lastDefermentAccrual is pinned relative to it). Moving it on a loan that is
+  // already deferred would desync that window, so reject the change outright
+  // rather than silently dropping it. Clearing deferment first re-enables edits;
+  // otherwise the user deletes and re-adds the loan with the correct date.
+  if (data.loan && (data.loan.defermentMonths ?? 0) > 0 && existing.loan) {
+    const storedStart = existing.loan.startDate.toISOString().slice(0, 10)
+    if (data.loan.startDate !== storedStart) {
+      throw new Error(
+        "A loan with deferment can't have its start date changed — it anchors the deferment schedule. To correct it, delete this loan and add it again."
+      )
+    }
+  }
 
   const apyTypes = ["SAVINGS", "CHECKING", "CD"]
   const liabilityTypes = ["CREDIT_CARD", "LOAN", "MORTGAGE"]
@@ -454,6 +525,16 @@ export async function updateAccount(
 
   // Upsert loan details
   if ((existing.type === "LOAN" || existing.type === "MORTGAGE") && data.loan) {
+    // Baseline the deferment watermark only when this upsert CREATES the loan
+    // (mirrors createAccount/createLoan). On update we leave lastDefermentAccrual
+    // alone — same as updateLoan — so the cron's catch-up math isn't reset.
+    const updateNow = new Date()
+    const loanStart = new Date(data.loan.startDate)
+    const defermentBaseline =
+      (data.loan.defermentMonths ?? 0) > 0
+        ? (loanStart > updateNow ? loanStart : updateNow)
+        : null
+
     await prisma.loan.upsert({
       where: { accountId: id },
       create: {
@@ -462,18 +543,28 @@ export async function updateAccount(
         originalBalance: data.loan.originalBalance,
         interestRate: data.loan.interestRate,
         termMonths: data.loan.termMonths,
-        startDate: new Date(data.loan.startDate),
+        startDate: loanStart,
         monthlyPayment: data.loan.monthlyPayment,
         extraPaymentAmount: data.loan.extraPaymentAmount,
+        defermentMonths: data.loan.defermentMonths ?? null,
+        interestOnlyMonths: data.loan.interestOnlyMonths ?? null,
+        subsidized: data.loan.subsidized ?? false,
+        lastDefermentAccrual: defermentBaseline,
       },
       update: {
         loanType: data.loan.loanType as "MORTGAGE" | "AUTO" | "STUDENT" | "PERSONAL",
         originalBalance: data.loan.originalBalance,
         interestRate: data.loan.interestRate,
         termMonths: data.loan.termMonths,
-        startDate: new Date(data.loan.startDate),
+        // Safe to write unconditionally: the deferred-loan guard above already
+        // rejected any start-date change on a deferred loan, so for those this is
+        // the same value; non-deferred loans can be freely corrected.
+        startDate: loanStart,
         monthlyPayment: data.loan.monthlyPayment,
         extraPaymentAmount: data.loan.extraPaymentAmount,
+        defermentMonths: data.loan.defermentMonths ?? null,
+        interestOnlyMonths: data.loan.interestOnlyMonths ?? null,
+        subsidized: data.loan.subsidized ?? false,
       },
     })
   }

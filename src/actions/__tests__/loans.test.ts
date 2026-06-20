@@ -597,6 +597,47 @@ describe("updateLoan", () => {
     expect(mockLoanUpdate).not.toHaveBeenCalled()
   })
 
+  it("persists a start-date edit on a non-deferred loan (CR-10)", async () => {
+    mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
+
+    await updateLoan("loan-1", { startDate: "2025-03-15" })
+
+    expect(mockLoanUpdate).toHaveBeenCalledWith({
+      where: { id: "loan-1" },
+      data: { startDate: new Date("2025-03-15") },
+    })
+  })
+
+  it("rejects a start-date change on a deferred loan (CR-10 parity with updateAccount)", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeLoanAccount({
+        loan: { id: "loan-1", startDate: new Date("2024-01-01"), defermentMonths: 12 },
+      }) as never
+    )
+
+    await expect(
+      updateLoan("loan-1", { startDate: "2025-03-15", defermentMonths: 12 })
+    ).rejects.toThrow(/start date/)
+
+    expect(mockLoanUpdate).not.toHaveBeenCalled()
+  })
+
+  it("allows other edits to a deferred loan when the start date is unchanged (CR-10)", async () => {
+    mockAccountFindFirst.mockResolvedValue(
+      makeLoanAccount({
+        loan: { id: "loan-1", startDate: new Date("2024-01-01"), defermentMonths: 12 },
+      }) as never
+    )
+
+    await updateLoan("loan-1", {
+      startDate: "2024-01-01", // unchanged
+      defermentMonths: 12,
+      monthlyPayment: 200, // changed
+    })
+
+    expect(mockLoanUpdate).toHaveBeenCalled()
+  })
+
   it("returns success on update", async () => {
     mockAccountFindFirst.mockResolvedValue(makeLoanAccount() as never)
     const result = await updateLoan("loan-1", { name: "Updated" })

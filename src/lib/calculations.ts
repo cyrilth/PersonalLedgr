@@ -152,6 +152,28 @@ export interface LoanPhaseOptions {
 export const MAX_PHASE_MONTHS = 600
 
 /**
+ * Validates the optional deferment / interest-only month inputs shared by every
+ * loan write path (createLoan/updateLoan and createAccount/updateAccount), so
+ * both entry points reject identical values rather than diverging or letting a
+ * bad value reach Prisma's Int column. Null/undefined means "not set" (valid).
+ * Rejects non-integers too (NaN, fractions) — `Number.isInteger(NaN)` is false —
+ * which a hand-rolled `< 0 || > MAX` range check silently lets through.
+ */
+export function validatePhaseMonths(phases: {
+  defermentMonths?: number | null
+  interestOnlyMonths?: number | null
+}): void {
+  const check = (value: number | null | undefined, label: string) => {
+    if (value == null) return
+    if (!Number.isInteger(value) || value < 0 || value > MAX_PHASE_MONTHS) {
+      throw new Error(`${label} must be between 0 and ${MAX_PHASE_MONTHS} months`)
+    }
+  }
+  check(phases.defermentMonths, "Deferment period")
+  check(phases.interestOnlyMonths, "Interest-only period")
+}
+
+/**
  * Splits a single monthly payment into principal and interest portions.
  *
  * Uses standard amortization math: monthly interest = |balance| * (apr / 100 / 12).
